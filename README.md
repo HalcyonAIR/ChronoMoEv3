@@ -17,6 +17,12 @@ Fast and medium clocks can raise an emergency flag that expedites slow-clock rev
 
 ## The Architecture in Brief
 
+Each clock is a sliding window of unresolved influence, not a memory store. The past is present only insofar as it has not finished decaying. Fast trails a few steps — immediate continuity, the pressure of the last few turns still exerting influence on routing. Medium trails context — alignment across interruption, the reason a conversation has shape instead of being a bag of replies. Slow trails trajectory — what has proven important enough, repeatedly enough, under enough pressure, that letting it decay would break continuity.
+
+None of these clocks look backward. They trail forward. They do not remember. They just have not let go yet. And because each window slides rather than fixes, alignment is maintained without freezing. The system can drift, but it cannot teleport. Discontinuous jumps through a decay window that will not allow them are what trigger structural responses.
+
+For the formal treatment of pressure, hysteresis, and selector locus formation that motivates this architecture, see [Pressure, Hysteresis, and the Geometry of Becoming](https://halcyon.ie/blog/pressure-hysteresis-and-the-geometry-of-becoming/).
+
 Each expert carries one state variable: `phi`, a measure of whether its output stays phase-aligned with the router-induced mixture direction. This scalar is smoothed at three timescales:
 
 | Clock | Decay | Half-life | Governs |
