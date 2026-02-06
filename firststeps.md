@@ -1,19 +1,27 @@
 # First Steps
 
-A guide to getting started with ChronoMoEv3, whether you're exploring the architecture, contributing code, or integrating lifecycle management into your own MoE training pipeline.
+A guide to getting started with ChronoMoEv3.
 
 ---
 
 ## Prerequisites
 
-ChronoMoEv3 builds on top of ChronoMoEv2. You should have a working understanding of:
+ChronoMoEv3 extends ChronoMoEv2. You should have a working understanding of:
 
 - Python 3.10+
 - - PyTorch (2.0+ recommended)
   - - Basic MoE concepts (expert routing, top-k dispatch, load balancing)
     - - ChronoMoEv2's telemetry primitives (`RoutingEvent`, `SystemSnapshot`, `ChronoLens`, `Controller`)
      
-      - If you're new to the ChronoMoE project, read the [ChronoMoEv2 README](https://github.com/HalcyonAIR/ChronoMoEv2) first to understand the telemetry and governance loop that v3 extends.
+      - If you are new to the ChronoMoE project, read the [ChronoMoEv2 README](https://github.com/HalcyonAIR/ChronoMoEv2) first.
+     
+      - ## Read the Design Document First
+     
+      - Before touching code, read [projectdesign.md](projectdesign.md). The design has a specific framing that matters:
+     
+      - ChronoMoEv3 is **one mechanism, not three**. There is a single state variable — phase coherence (`phi`) — tracked at three decay rates. The fast clock drives routing, the medium clock drives the lens controller, and the slow clock drives lifecycle decisions (spawn, prune, split, merge). Lifecycle actions are not external interventions stacked on top. They are what the slow clock does when coherence shows irreversible drift.
+     
+      - If you find yourself thinking about lifecycle as a separate layer sitting on top of v2, re-read the design doc. The unified framing is not decoration — it determines the implementation.
      
       - ## Installation
      
@@ -45,25 +53,24 @@ ChronoMoEv3 builds on top of ChronoMoEv2. You should have a working understandin
 
         ## Project Layout
 
-        Once the package structure is in place, the repository will look like this:
-
         ```
         ChronoMoEv3/
-        ├── chronomoe_lifecycle/     # Core package
+        ├── chronomoe_v3/            # Core package
         │   ├── __init__.py
-        │   ├── spawner.py           # Expert spawning
-        │   ├── pruner.py            # Expert pruning
-        │   ├── splitter.py          # Expert splitting
-        │   ├── merger.py            # Expert merging
-        │   ├── basin.py             # Basin tracking
-        │   ├── lifecycle.py         # Lifecycle coordinator
-        │   ├── registry.py          # Expert registry
-        │   ├── decisions.py         # Decision logging
-        │   ├── config.py            # Configuration
-        │   └── hooks.py             # v2 Controller integration
-        ├── tests/                   # Test suite
-        ├── examples/                # Usage examples
-        ├── docs/                    # Extended documentation
+        │   ├── coherence.py         # Phase coherence computation and EMA tracking
+        │   ├── clocks.py            # Three-timescale decay constants and update logic
+        │   ├── spawner.py           # Expert spawning (layer starvation response)
+        │   ├── pruner.py            # Expert pruning (irreversible decoherence)
+        │   ├── splitter.py          # Expert splitting (bimodal coherence)
+        │   ├── merger.py            # Expert merging (convergent substrates)
+        │   ├── registry.py          # Expert registry with simplified state model
+        │   ├── basin.py             # Basin history for interpretability and merge detection
+        │   ├── system.py            # ChronoSystem — unified wrapper around v2 Controller
+        │   ├── decisions.py         # Lifecycle decision logging (JSONL)
+        │   └── config.py            # ChronoConfig dataclass
+        ├── tests/
+        ├── examples/
+        ├── docs/
         ├── firststeps.md            # This file
         ├── projectdesign.md         # Architecture design document
         ├── README.md
@@ -72,83 +79,72 @@ ChronoMoEv3 builds on top of ChronoMoEv2. You should have a working understandin
         └── pyproject.toml
         ```
 
-        ## Understanding the Architecture
+        ## Key Concepts
 
-        Before writing code, read [projectdesign.md](projectdesign.md) to understand:
+        ### The One State Variable
 
-        1. **The lifecycle state machine** — how experts transition between states (active, cooling, pending-spawn, pending-prune, etc.)
-        2. 2. **Decision gating** — how lifecycle actions are triggered by sustained telemetry signals rather than instantaneous spikes
-           3. 3. **The registry model** — how the expert population is tracked across layers and training steps
-              4. 4. **Integration with v2** — how lifecycle hooks attach to the existing `Controller` update loop
-                
-                 5. ## Running Tests
-                
-                 6. ```bash
-                    # Run the full test suite
-                    pytest tests/ -v
+        Every expert carries a coherence scalar `phi` — a running cosine similarity between what the router expects the expert to contribute and what it actually produces. This is smoothed at three timescales via exponential moving averages:
 
-                    # Run a specific test module
-                    pytest tests/test_spawner.py -v
+        ```
+        phi_fast  (alpha ~ 0.9)    — what the expert is doing right now
+        phi_mid   (alpha ~ 0.99)   — what the expert has been doing recently
+        phi_slow  (alpha ~ 0.999)  — what the expert has been doing structurally
+        ```
 
-                    # Run with coverage
-                    pytest tests/ --cov=chronomoe_lifecycle --cov-report=term-missing
-                    ```
+        The difference `delta = phi_fast - phi_slow` tells you about stability. If delta is negative, fast performance is below the structural baseline — degradation is in progress.
 
-                    ## Key Concepts
+        ### The Three Clocks
 
-                    ### The Lifecycle Loop
+        The clocks are not three separate systems. They are three decay constants applied to the same measurement:
 
-                    ChronoMoEv3 extends the v2 governance loop with structural actions:
+        - **Fast clock** — Drives routing. Tokens go to experts with high fast coherence. This is where the raw physics of dispatch happens.
+        - - **Medium clock** — Drives the v2 lens controller. When medium-timescale coherence shows drift, the lens applies a low-rank warp to redistribute routing pressure. Soft correction.
+          - - **Slow clock** — Drives lifecycle. When slow-timescale coherence shows irreversible drift, structural changes fire: spawn new experts, prune dead ones, split overloaded ones, merge redundant ones. Hard correction.
+           
+            - ### The Persistence Filter
+           
+            - The slow clock is a persistence filter. Its job is not to remember — it is to test survivability. A pattern that enters through fast-clock dynamics and propagates to the slow clock has earned structural influence. A pattern that decays out of the slow window has failed the survivability test and loses influence.
+           
+            - This is why lifecycle actions do not need separate trigger mechanisms. Pruning is what happens when `phi_slow` drops below threshold. Spawning is what happens when layer-wide `Psi_slow` drops while individual experts are healthy. The persistence filter IS the decision mechanism.
+           
+            - ### Expert States (Simplified)
+           
+            - Only three states: **cooling** (just born, not yet evaluated by slow clock), **active** (participating, coherence tracked), and **archived** (removed, basin history preserved). No complex state machine. Transitions are determined entirely by the coherence state variables.
+           
+            - ## Running Tests
+           
+            - ```bash
+              # Run the full test suite
+              pytest tests/ -v
 
-                    ```
-                    observe → compute debt → update pressure → gate lens → LIFECYCLE DECISION → observe
-                                                                    │
-                                                        spawn / prune / split / merge
-                    ```
+              # Run with coverage
+              pytest tests/ --cov=chronomoe_v3 --cov-report=term-missing
+              ```
 
-                    The lifecycle coordinator runs at a slower cadence than the lens controller. While the lens adjusts every eval checkpoint, lifecycle decisions happen only after sustained signals persist across multiple checkpoints. This prevents thrashing and ensures structural changes are justified by genuine topological need.
+              ## Contributing
 
-                    ### Expert States
+              The project is in early development. If you want to contribute:
 
-                    Each expert in the registry has a state:
-
-                    - **active** — participating in routing, receiving tokens
-                    - - **dormant** — share has dropped to zero but not yet confirmed dead
-                      - - **pending_prune** — confirmed dead, scheduled for removal
-                        - - **pending_spawn** — new expert initialised but not yet integrated into routing
-                          - - **cooling** — recently spawned or split, in a grace period before full evaluation
-                            - - **archived** — removed from the active pool, basin history preserved for analysis
-                             
-                              - ### Basin Histories
-                             
-                              - Every expert accumulates a rolling history of its routing characteristics: average share, entropy contribution, token-type distribution, and co-activation patterns with other experts. Basin histories are the primary input to lifecycle decisions. They answer questions like: is this expert drifting toward another expert's basin? Is this expert absorbing too much routing share? Has this expert been dormant long enough to prune?
-                             
-                              - ## Contributing
-                             
-                              - The project is in early development. If you want to contribute:
-                             
-                              - 1. Read [projectdesign.md](projectdesign.md) thoroughly
-                                2. 2. Check the issue tracker for open tasks
-                                   3. 3. Write tests alongside any new code
-                                      4. 4. Keep commits focused — one logical change per commit
-                                         5. 5. Use conventional commit messages (`feat:`, `fix:`, `docs:`, `test:`, `chore:`)
-                                           
-                                            6. ## What's Not Here Yet
-                                           
-                                            7. This is an honest assessment of what doesn't exist yet and what to expect:
-                                           
-                                            8. - The `chronomoe_lifecycle/` package directory and source files are not yet implemented
-                                               - - `pyproject.toml` with build configuration is pending
-                                                 - - Integration tests against v2's Controller are pending
-                                                   - - Example notebooks and scripts are pending
-                                                     - - Benchmark comparisons (with/without lifecycle) are planned but not started
-                                                      
-                                                       - The README and design documents describe the target architecture. The code will follow.
-                                                      
-                                                       - ## Links
-                                                      
-                                                       - - [ChronoMoEv3 README](README.md)
-                                                         - - [Project Design Document](projectdesign.md)
-                                                           - - [ChronoMoEv2](https://github.com/HalcyonAIR/ChronoMoEv2) — telemetry and governance
-                                                             - - [ChronoMoE](https://github.com/HalcyonAIR/ChronoMoE) — original multi-clock architecture
-                                                               - - [Halcyon AI Research](https://www.halcyon.ie)
+              1. Read [projectdesign.md](projectdesign.md) thoroughly — especially "The Key Insight (Restated for Implementers)"
+              2. 2. Phase 1 (coherence computation) is the critical foundation. If `phi` does not track functional participation, everything else fails
+                 3. 3. Write tests alongside any new code
+                    4. 4. Keep commits focused — one logical change per commit
+                       5. 5. Use conventional commit messages (`feat:`, `fix:`, `docs:`, `test:`, `chore:`)
+                         
+                          6. ## What is Not Here Yet
+                         
+                          7. - The `chronomoe_v3/` package directory and source files are not yet implemented
+                             - - `pyproject.toml` with build configuration is pending
+                               - - The coherence estimator (the most important piece) needs to be prototyped and validated
+                                 - - Integration tests against v2's Controller are pending
+                                   - - Benchmark comparisons are planned but not started
+                                    
+                                     - The design documents describe the target architecture. The code will follow, starting with `coherence.py` — the single most important file in the project.
+                                    
+                                     - ## Links
+                                    
+                                     - - [ChronoMoEv3 README](README.md)
+                                       - - [Project Design Document](projectdesign.md)
+                                         - - [ChronoMoEv2](https://github.com/HalcyonAIR/ChronoMoEv2) — telemetry and governance
+                                           - - [ChronoMoE](https://github.com/HalcyonAIR/ChronoMoE) — original multi-clock architecture
+                                             - - [Halcyon AI Research](https://www.halcyon.ie)
