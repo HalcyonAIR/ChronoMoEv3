@@ -20,6 +20,15 @@ from .clocks import (
 
 from .config import ChronoConfig
 
+from .router import (
+    RouterState,
+    ChronoRouter,
+    update_beta,
+    compute_js_divergence,
+    compute_flip_rate,
+    compute_relevance,
+)
+
 __version__ = "0.1.0"
 
 __all__ = [
@@ -34,4 +43,11 @@ __all__ = [
     "ThreeClockEMA",
     # Config
     "ChronoConfig",
+    # Router
+    "RouterState",
+    "ChronoRouter",
+    "update_beta",
+    "compute_js_divergence",
+    "compute_flip_rate",
+    "compute_relevance",
 ]

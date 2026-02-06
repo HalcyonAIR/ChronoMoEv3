@@ -159,6 +159,21 @@ class CoherenceState:
         """Is this expert's fast coherence below its slow baseline?"""
         return self.phi_delta < 0
 
+    @property
+    def is_being_observed(self, current_step: Optional[int] = None) -> bool:
+        """
+        Has this expert been updated recently?
+
+        Args:
+            current_step: Current training step (if None, just checks if ever updated)
+
+        Returns:
+            True if expert has been observed within observation window
+        """
+        if current_step is None:
+            return self.total_tokens_seen > 0
+        return (current_step - self.last_update_step) < 1000
+
     def to_dict(self) -> Dict:
         """Serialize to dict (for logging)."""
         return {
