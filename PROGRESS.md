@@ -4,6 +4,15 @@
 
 ---
 
+## Summary
+
+- **Phase 1:** ✅ COMPLETE (Coherence computation core)
+- **Architecture:** ✅ COMPLETE (Three subsystems, 6 questions answered)
+- **Phase 2 Plan:** ✅ READY (5-step vertical slice specified)
+- **Next:** Begin Step 1 implementation (RouterState + beta application)
+
+---
+
 ## ✅ Phase 1: Coherence Computation (COMPLETE)
 
 **The foundation of v3. If phi_e doesn't track functional participation, nothing else matters.**
@@ -65,17 +74,125 @@
 
 ---
 
-## 📋 Phase 2: Slow Bias (beta) (NOT STARTED)
+## ✅ Architecture Phase (COMPLETE)
+
+**Comprehensive architecture design and decision documentation completed.**
+
+### Dataflow Analysis
+
+- ✅ **Mixtral MoE wiring** ([dataflow_mixtral.md](dataflow_mixtral.md))
+  - Router → expert → mixture dataflow mapped
+  - Hook points identified for coherence measurement
+  - Sequential loop + index_add pattern documented
+
+- ✅ **Switch Transformer wiring** ([dataflow_switch_transformer.md](dataflow_switch_transformer.md))
+  - Capacity-based dispatch analyzed
+  - Einsum patterns documented
+  - Batch-style expert computation advantages identified
+
+- ✅ **Comparison & recommendations** ([dataflow_comparison.md](dataflow_comparison.md))
+  - Side-by-side analysis
+  - ChronoMoEv3 design recommendations
+
+- ✅ **Reference patches** ([coherence_hooks.md](coherence_hooks.md))
+  - MoETrace interface specification
+  - Minimal hooks for both Mixtral and Switch patterns
+  - Online mean computation (250× storage reduction)
+
+### Architecture Decisions
+
+- ✅ **7 Critical questions answered** ([ARCHITECTURE_DECISIONS.md](ARCHITECTURE_DECISIONS.md))
+  1. Slow bias location: Pre-softmax additive per expert ✓
+  2. Checkpoint state: ~3MB for 64 experts (deterministic recovery) ✓
+  3. Clean/biased disagreement: Hybrid escalation at 0.2/0.5/0.7 ✓
+  4. Split + beta interaction: Relaxation trial protocol ✓
+  5. z_clean computation: Explicit return in v3, hook for external ✓
+  6. Falsification criterion: Low phi + high impact would invalidate ✓
+
+- ✅ **Architecture refinements** ([ARCHITECTURE_REFINEMENTS.md](ARCHITECTURE_REFINEMENTS.md))
+  - Scale-free beta: k * logit_std (empirically validated) ✓
+  - JS divergence vs top-1 flips (use both) ✓
+  - Calibrated crisis thresholds (regime-adapted) ✓
+  - Temperature interaction clarified ✓
+  - Checkpoint ownership contracted ✓
+  - Determinism guarantee softened (hysteresis added) ✓
+
+### State Architecture
+
+- ✅ **State separation** ([STATE_SEPARATION.md](STATE_SEPARATION.md))
+  - Jeff's yellow sticky note: role_vector → lifecycle, not coherence
+  - Clean boundary established
+
+- ✅ **Three subsystems** ([STATE_ARCHITECTURE_V2.md](STATE_ARCHITECTURE_V2.md))
+  - **CoherenceState:** "Am I aligned?" (40 bytes, pure measurement)
+  - **RoleState:** "What do I do?" (48KB, decision support)
+  - **RouterState:** "What biases exist?" (5KB, routing infrastructure)
+  - Lifecycle: Reader only, no accumulated state
+  - One sentence per field discipline
+  - No dumping grounds
+
+### Empirical Validation
+
+- ✅ **Beta saturation analysis** ([experiments/beta_saturation_analysis.py](experiments/beta_saturation_analysis.py))
+  - Safe range: |beta| ≤ 1.0 validated
+  - At beta=1.0: 12% flip rate (moderate influence)
+  - beta / logit_std = 0.35 (gentle prior)
+
+- ✅ **Scale-free beta validation** ([experiments/scale_free_beta_validation.py](experiments/scale_free_beta_validation.py))
+  - Flip rate consistency: std=0.0026 ✓
+  - JS divergence consistency: std=0.0029 ✓
+  - Portability across regimes proven
+
+---
+
+## 📋 Phase 2: Slow Bias (beta) (READY TO START)
 
 **The locus mechanism: persistent routing geometry without RAG.**
 
-### To Implement
+### Implementation Plan
 
-- [ ] `SlowBias` class tracking `beta_e` per expert
-- [ ] Router integration: `z_biased = z_clean + beta`
-- [ ] Beta update rule: `beta(t) = clip(beta(t-1) + eta*(phi_slow - tau), beta_min, beta_max)`
-- [ ] Clean vs biased logit separation (for bridge detection later)
-- [ ] Cross-prompt persistence validation
+**Complete 5-step vertical slice specified** ([PHASE2_IMPLEMENTATION_PLAN.md](PHASE2_IMPLEMENTATION_PLAN.md))
+
+**Step 1:** RouterState + beta application (one layer)
+- Add RouterState with beta_coeff, logit_std_ema
+- Compute z_clean, z_biased
+- Route with z_biased
+- Log disagreement metrics (JS divergence, flip rate)
+
+**Step 2:** Coherence on GPU with buffered state
+- CoherenceBuffer: GPU-resident tensors
+- Update every step (no CPU sync bottleneck)
+- Snapshot to CPU only on eval intervals
+
+**Step 3:** Beta update function
+- Simple rule: phi_slow < tau → reduce beta, > tau → increase
+- Scale-free: normalize by logit_std_ema
+- Clamp to [-k_max, k_max]
+
+**Step 4:** Bridge detector veto
+- Compute relevance scalar from overlap-only mass
+- Modulate beta strength: beta_eff = r * beta_eff
+- Prevent "Krypto from nowhere"
+
+**Step 5:** Lifecycle coordinator (decisions only, dry-run)
+- Detect prune candidates
+- Log decisions, don't execute yet
+- Starvation guardrail (Neff + saturation)
+
+### Pre-Implementation Questions Answered
+
+**All critical questions resolved** ([PHASE2_REFINEMENTS.md](PHASE2_REFINEMENTS.md))
+
+1. ✅ Beta sign: PROMOTION prior (high coherence → beta increases)
+2. ✅ JS divergence: Per-token with 10% sampling
+3. ✅ File organization: coherence.py (API) + coherence/buffer.py (GPU)
+4. ✅ Relevance metric: Overlap-only mass (not just JS)
+5. ✅ Starvation signal: Neff + saturation proxy
+6. ✅ Stability criterion: 4 explicit assertions
+
+**Timeline:** 5 days (1 step per day)
+
+**Testing harness:** experiments/phase2_vertical_slice.py
 
 ### Why This Matters
 
