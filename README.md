@@ -107,6 +107,10 @@ result = system.step(snapshot, lenses)
 
 - **[projectdesign.md](projectdesign.md)** — Full architectural design: the unified phase coherence model, formal definitions, lifecycle actions as slow-clock physics, configuration, decision logging format
 - **[firststeps.md](firststeps.md)** — Getting started guide: prerequisites, installation, project layout, key concepts
+- **[dataflow_mixtral.md](dataflow_mixtral.md)** — Mixtral MoE dataflow analysis: router → expert → mixture wiring, hook points for coherence measurement
+- **[dataflow_switch_transformer.md](dataflow_switch_transformer.md)** — Switch Transformer dataflow analysis: capacity-based dispatch, einsum patterns, clean tensor access
+- **[dataflow_comparison.md](dataflow_comparison.md)** — Comparison of MoE implementations and recommendations for coherence.py design
+- **[coherence_hooks.md](coherence_hooks.md)** — Reference implementation: MoETrace interface, minimal hook patches for both patterns, ChronoMoEv3 canonical API
 
 ## License
 
