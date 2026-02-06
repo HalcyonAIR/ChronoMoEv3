@@ -45,6 +45,8 @@ The slow clock is a persistence filter. Patterns that survive its decay window e
 
 Lifecycle actions are evaluated as candidate structural edits; the slow clock applies an edit only when evidence beats a complexity cost through persistence.
 
+Overlap from prior computation can bias routing and confidence but cannot inject facts. If overlap is the sole reason a token becomes reachable, it is vetoed. See the [overlap safety design](projectdesign.md#overlap-safety-amplify-only-what-the-prompt-can-reach) for the full mechanism.
+
 ## Lineage
 
 | Version | Focus | What it does |
