@@ -1,82 +1,100 @@
 # ChronoMoEv3
 
-**Expert Lifecycle Management for Mixture-of-Experts Models**
+**One Mechanism, Three Projections**
 
-ChronoMoEv3 closes the loop on MoE topology control. Where [ChronoMoE](https://github.com/HalcyonAIR/ChronoMoE) introduced multi-clock temporal separation and [ChronoMoEv2](https://github.com/HalcyonAIR/ChronoMoEv2) added telemetry and governance (observe → pressure → lens), v3 adds the missing piece: **expert lifecycle management** — spawning, pruning, splitting, merging, and basin tracking for experts that live and die under real training pressure.
+ChronoMoEv3 is a multi-timescale dynamical system where routing decisions are made while prior computation is still decaying, and only the parts that stay phase-aligned across longer time constants earn the right to keep influencing future routing.
+
+Three clocks with their own expert pools, overlapping delayed responses that sustain context, and slow trimming of what fails to persist — these are not three features. They are three projections of the same architecture. v3 makes that unity explicit and implementable by defining a single state variable — **phase coherence** — tracked at three decay rates, where lifecycle actions (spawn, prune, split, merge) are what the slow clock naturally does when coherence shows irreversible drift.
 
 > **Status:** Early development. Architecture design and core implementation in progress. API unstable.
 >
 > ---
 >
-> ## Why Lifecycle?
+> ## The Architecture in Brief
 >
-> ChronoMoEv2 can detect collapse, measure topology debt, and apply low-rank lens interventions to redistribute routing. But it cannot create new experts when the topology is starved, remove dead experts cleanly, or split an overloaded expert into specialised children. The governance loop observes and pressures, but it cannot restructure.
+> Each expert carries one state variable: `phi`, a measure of whether its output is aligned with what the router expects. This scalar is smoothed at three timescales:
 >
-> v3 adds structural adaptation: the ability to change the expert population itself in response to sustained topological signals.
+> | Clock | Decay | Half-life | Governs |
+> |-------|-------|-----------|---------|
+> | Fast | alpha ~ 0.9 | ~10 steps | Routing and token dispatch |
+> | Medium | alpha ~ 0.99 | ~100 steps | Lens controller (v2 soft redistribution) |
+> | Slow | alpha ~ 0.999 | ~1000 steps | Lifecycle decisions (structural changes) |
 >
-> Without lifecycle management, MoE systems accumulate dead weight. Experts that collapse to zero utilisation still consume memory and compute. Overloaded experts become bottlenecks but have no mechanism to delegate. The topology ossifies into whatever shape emerged from initialisation, regardless of whether that shape serves the data.
+> The slow clock is a persistence filter. Patterns that survive its decay window earn structural influence. Patterns that do not are removed by the same exponential that decays them. Lifecycle actions are not external interventions — they are slow-clock physics:
 >
-> ## What v3 Adds
+> **Prune** — Coherence monotonically declining through the slow window. Irreversible decoherence. The expert failed the persistence test.
 >
-> **Expert Spawning** — When sustained routing pressure indicates capacity starvation (high entropy, saturated top-k), v3 can initialise new experts from the current topology. Spawning is gated by configurable thresholds and cooldown periods to prevent expert population explosion.
+> **Split** — Coherence oscillating at the fast timescale while stable at the slow. The expert is serving two phase-incompatible basins. It needs to become two.
 >
-> **Expert Pruning** — Dead or near-dead experts (as defined by v2's strict telemetry: share == 0 over a sustained window) can be removed from the active pool. Pruning reclaims memory and reduces dispatch overhead without disrupting live routing.
+> **Merge** — Two experts' coherence traces converging. Redundant substrates for the same functional role.
 >
-> **Expert Splitting** — When a single expert consistently absorbs disproportionate routing share, it can be split into two children that inherit the parent's weights with controlled perturbation. This allows organic specialisation without manual architecture search.
+> **Spawn** — Layer-wide coherence dropping while individual experts remain healthy. Not enough representational capacity to cover the phase space.
 >
-> **Expert Merging** — When two experts converge to near-identical representations (measured by weight cosine similarity and routing overlap), they can be merged to reduce redundancy and free capacity for future spawning.
+> ## Lineage
 >
-> **Basin Tracking** — Each expert maintains a lightweight history of its routing basin: which token distributions it attracts, how its share evolves over time, and where it sits in the topology graph. Basin histories inform all lifecycle decisions and provide post-hoc interpretability into how the expert population evolved during training.
+> | Version | Focus | What it does |
+> |---------|-------|--------------|
+> | [ChronoMoE](https://github.com/HalcyonAIR/ChronoMoE) | Multi-clock architecture | Temporal separation, routing deliberation, safety arbitration |
+> | [ChronoMoEv2](https://github.com/HalcyonAIR/ChronoMoEv2) | Telemetry and governance | Observe topology, compute debt, apply lens pressure (medium clock) |
+> | **ChronoMoEv3** | Unified lifecycle | Phase coherence as the single state variable; lifecycle as slow-clock physics |
 >
-> ## Relationship to Prior Versions
->
-> | Version | Focus | Core Loop |
-> |---------|-------|-----------|
-> | [ChronoMoE](https://github.com/HalcyonAIR/ChronoMoE) | Multi-clock architecture | Routing deliberation, temporal separation, safety arbitration |
-> | [ChronoMoEv2](https://github.com/HalcyonAIR/ChronoMoEv2) | Telemetry & governance | Observe → compute debt → pressure → lens warp |
-> | **ChronoMoEv3** | Expert lifecycle | Observe → decide → spawn/prune/split/merge → re-observe |
->
-> v3 depends on v2's telemetry primitives (`RoutingEvent`, `SystemSnapshot`, `ChronoLens`, `Controller`) and extends them with lifecycle actions. It does not replace v2 — it builds on top of it.
+> v3 wraps v2's `Controller` into a unified `ChronoSystem`. From the outside, one update call. Inside, three clocks tick at their own rates.
 >
 > ## Repository Status
 >
 > > ⚠️ **Experimental / Early Development**
 > > >
-> > >> - Architecture design in progress
+> > >> - Architecture design in progress — see [projectdesign.md](projectdesign.md) for the full specification
 > > >> - > - API unstable and subject to change
 > > >>   > - > - Not yet ready for production use
-> > >>   >   > - > - See [projectdesign.md](projectdesign.md) for the design document
-> > >>   >   >   > - > - See [firststeps.md](firststeps.md) for getting started
-> > >>   >   >   >   >
-> > >>   >   >   >   > - ## Planned Package Structure
-> > >>   >   >   >   >
-> > >>   >   >   >   > - ```
-> > >>   >   >   >   >   chronomoe_lifecycle/
-> > >>   >   >   >   >   ├── __init__.py              # Public API
-> > >>   >   >   >   >   ├── spawner.py               # Expert spawning logic and initialisation strategies
-> > >>   >   >   >   >   ├── pruner.py                # Dead expert detection and removal
-> > >>   >   >   >   >   ├── splitter.py              # Overloaded expert splitting with weight perturbation
-> > >>   >   >   >   >   ├── merger.py                # Convergent expert merging
-> > >>   >   >   >   >   ├── basin.py                 # Per-expert routing basin history and tracking
-> > >>   >   >   >   >   ├── lifecycle.py             # Lifecycle coordinator (orchestrates spawn/prune/split/merge)
-> > >>   >   >   >   >   ├── registry.py              # Expert registry — tracks active/inactive/pending experts
-> > >>   >   >   >   >   ├── decisions.py             # Lifecycle decision logging (JSONL)
-> > >>   >   >   >   >   ├── config.py                # LifecycleConfig dataclass
-> > >>   >   >   >   >   └── hooks.py                 # Integration hooks for v2 Controller
-> > >>   >   >   >   >   ```
-> > >>   >   >   >   >
-> > >>   >   >   >   > ## Getting Started
-> > >>   >   >   >   >
-> > >>   >   >   >   > See [firststeps.md](firststeps.md) for installation, dependencies, and initial setup.
-> > >>   >   >   >   >
-> > >>   >   >   >   > ## Design
-> > >>   >   >   >   >
-> > >>   >   >   >   > See [projectdesign.md](projectdesign.md) for the full architectural design, decision rationale, and lifecycle state machine specification.
-> > >>   >   >   >   >
-> > >>   >   >   >   > ## License
-> > >>   >   >   >   >
-> > >>   >   >   >   > MIT — see [LICENSE](LICENSE) for details.
-> > >>   >   >   >   >
-> > >>   >   >   >   > ## Acknowledgements
-> > >>   >   >   >   >
-> > >>   >   >   >   > ChronoMoEv3 builds on the foundation laid by [ChronoMoE](https://github.com/HalcyonAIR/ChronoMoE) and [ChronoMoEv2](https://github.com/HalcyonAIR/ChronoMoEv2), and is informed by the broader work at [Halcyon AI Research](https://www.halcyon.ie) on temporal architectures, resonance-driven learning, and mixture-of-experts stability.
+> > >>   >   > - > - See [firststeps.md](firststeps.md) for getting started
+> > >>   >   >   >
+> > >>   >   >   > - ## Planned Package Structure
+> > >>   >   >   >
+> > >>   >   >   > - ```
+> > >>   >   >   >   chronomoe_v3/
+> > >>   >   >   >   ├── __init__.py              # Public API
+> > >>   >   >   >   ├── coherence.py             # Phase coherence computation and EMA tracking
+> > >>   >   >   >   ├── clocks.py                # Three-timescale decay constants and update logic
+> > >>   >   >   >   ├── spawner.py               # Expert spawning (layer starvation response)
+> > >>   >   >   >   ├── pruner.py                # Expert pruning (irreversible decoherence)
+> > >>   >   >   >   ├── splitter.py              # Expert splitting (bimodal coherence)
+> > >>   >   >   >   ├── merger.py                # Expert merging (convergent substrates)
+> > >>   >   >   >   ├── registry.py              # Expert registry with simplified state model
+> > >>   >   >   >   ├── basin.py                 # Basin history for interpretability and merge detection
+> > >>   >   >   >   ├── system.py                # ChronoSystem — unified wrapper around v2 Controller
+> > >>   >   >   >   ├── decisions.py             # Lifecycle decision logging (JSONL)
+> > >>   >   >   >   └── config.py                # ChronoConfig dataclass
+> > >>   >   >   >   ```
+> > >>   >   >   >
+> > >>   >   >   > ## Quick Orientation
+> > >>   >   >   >
+> > >>   >   >   > ```python
+> > >>   >   >   > from chronomoe import Controller, ControlConfig
+> > >>   >   >   > from chronomoe_v3 import ChronoSystem, ChronoConfig
+> > >>   >   >   >
+> > >>   >   >   > system = ChronoSystem(
+> > >>   >   >   >     model=model,
+> > >>   >   >   >     controller=Controller(n_layers=4, n_experts_per_layer=[8,8,8,8], config=ControlConfig()),
+> > >>   >   >   >     config=ChronoConfig(),
+> > >>   >   >   > )
+> > >>   >   >   >
+> > >>   >   >   > # One call. Three clocks.
+> > >>   >   >   > result = system.step(snapshot, lenses)
+> > >>   >   >   > # result.control_decisions  — lens adjustments (medium clock)
+> > >>   >   >   > # result.lifecycle_actions  — spawn/prune/split/merge (slow clock)
+> > >>   >   >   > # result.coherence_state    — phi vectors for all experts
+> > >>   >   >   > ```
+> > >>   >   >   >
+> > >>   >   >   > ## Documentation
+> > >>   >   >   >
+> > >>   >   >   > - **[projectdesign.md](projectdesign.md)** — Full architectural design: the unified phase coherence model, formal definitions, lifecycle actions as slow-clock physics, configuration, decision logging format
+> > >>   >   >   > - - **[firststeps.md](firststeps.md)** — Getting started guide: prerequisites, installation, project layout, key concepts
+> > >>   >   >   >  
+> > >>   >   >   >   - ## License
+> > >>   >   >   >  
+> > >>   >   >   >   - MIT — see [LICENSE](LICENSE) for details.
+> > >>   >   >   >  
+> > >>   >   >   >   - ## Acknowledgements
+> > >>   >   >   >
+> > >>   >   >   >   - ChronoMoEv3 builds on [ChronoMoE](https://github.com/HalcyonAIR/ChronoMoE) and [ChronoMoEv2](https://github.com/HalcyonAIR/ChronoMoEv2), and is informed by the broader work at [Halcyon AI Research](https://www.halcyon.ie) on temporal architectures, resonance-driven learning, and mixture-of-experts stability.
