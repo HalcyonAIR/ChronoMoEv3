@@ -205,3 +205,43 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# ==============================================================================
+# ChronoMoE v3 — Project-specific ignores
+# ==============================================================================
+
+# Local experiment outputs and telemetry
+outputs/
+runs/
+logs/
+
+# Telemetry JSONL files (can be large)
+*.jsonl
+
+# Model checkpoints and weights
+checkpoints/
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.bin
+
+# Training artifacts
+wandb/
+mlruns/
+tensorboard/
+
+# Profiling data
+*.prof
+*.lprof
+chrome_trace.json
+
+# Data files (too large for git)
+data/
+*.parquet
+*.arrow
+*.hdf5
+*.h5
+
+# Notebook outputs
+*.nbconvert.*
