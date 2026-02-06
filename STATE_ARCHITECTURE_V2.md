@@ -4,6 +4,24 @@
 
 ---
 
+## Phase 2 Scope
+
+**IN SCOPE for Phase 2:**
+- Router beta path (the locus mechanism: beta_coeff driven by phi_slow)
+- Disagreement telemetry (JS divergence, clean vs biased comparison, crisis detection)
+- Coherence tensor state (CoherenceState implementation with three-timescale EMAs)
+- Prune dry-run (detect prune candidates based on phi_slow, log but don't execute)
+
+**OUT OF SCOPE for Phase 2:**
+- Role vectors (RoleState deferred to Phase 3+)
+- Centroids (bimodality detection deferred to Phase 3+)
+- Merge and split (lifecycle actions deferred to Phase 4+)
+- Spawn (lifecycle action deferred to Phase 4+)
+
+**Phase 2 goal:** Get the slow bias (locus) working and integrated with coherence measurement. Prove that beta responds to phi_slow and influences routing. Detect but don't execute lifecycle actions.
+
+---
+
 ## The Three-Way Split
 
 ### 1. CoherenceState: "Am I aligned with the ensemble, and am I being observed?"
