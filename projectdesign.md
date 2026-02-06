@@ -106,6 +106,87 @@ Every expert carries one compact state vector, updated every step, decayed at th
 
     ---
 
+## Overlap Safety: Amplify Only What the Prompt Can Reach
+
+Overlap — the residue of prior computation still decaying through the clocks — can bias routing, confidence, and what the system keeps. It cannot inject facts. If overlap is the sole reason a token becomes reachable, that token is suspect.
+
+The core rule: **overlap may amplify only what the prompt can already reach.**
+
+The question is never "is this a topic switch?" It is "is this overlap-only activation?"
+
+### Clean vs. Biased Router Logits
+
+Because the router logits are additive, separating prompt-driven from overlap-driven activation requires no second forward pass:
+
+```
+z_clean  = W h + b                    # prompt-only router logits
+z_biased = z_clean + overlap_bias     # with slow influence applied
+```
+
+One matmul plus one add. Two gating distributions from two logit vectors:
+
+```
+p_clean  = softmax(z_clean)
+p_biased = softmax(z_biased)
+```
+
+### Measuring Overlap-Only Activation
+
+Per expert, compute:
+
+```
+overlap_only(e) = max(0, p_biased(e) - p_clean(e))
+```
+
+If `overlap_only` is large for an expert, overlap is creating activation that the current prompt does not support.
+
+As a cheap secondary signal, Jaccard similarity on the top-k sets from `p_clean` and `p_biased` can flag when overlap is steering into new territory. Use it as a trigger, not as the primary value.
+
+### The Veto: Downweight Overlap-Only Expert Contributions
+
+Do not veto individual tokens in the vocabulary — that is expensive and fragile. Veto at the level of expert contribution to the mixture:
+
+```
+g_eff(e) = g_biased(e) * clamp(p_clean(e) / (p_biased(e) + eps), 0, 1)
+```
+
+If an expert is only active because overlap pushed it, the ratio collapses toward zero and its gate closes. If the prompt independently supports it, the ratio is near 1 and the expert stays.
+
+**Example — dog then Superman with no dog hook:** prompt activates Superman experts; dog experts become overlap-only; their contributions get crushed; Krypto does not appear.
+
+**Example — dog then "Superman's dog":** prompt already partially activates canine experts; overlap reinforces; Krypto becomes legitimately reachable.
+
+### Continuous Retention Modulated by Relevance
+
+Rather than a binary context-break detector, retention rates become a continuous function of how much the prompt agrees with overlap:
+
+```
+r = mean_e min(1, p_clean(e) / (p_biased(e) + eps))
+```
+
+When overlap aligns with prompt, `r` is high. When overlap is dragging in unrelated activation, `r` drops.
+
+Effective retention rates:
+
+```
+gamma_fast_eff = gamma_fast * r + gamma_fast_floor * (1 - r)
+gamma_med_eff  = gamma_med  * r + gamma_med_floor  * (1 - r)
+```
+
+Slow retention stays fixed or softens very gently. This makes retention shrink exactly when overlap is becoming irrelevant or dangerous — a continuous clutch rather than a discrete break.
+
+### The Full Safety Stack
+
+Even when the bridge exists in the prompt, coherence physics still applies:
+
+1. **Prompt must support activation** — clean vs. biased agreement (this section).
+2. **Activated experts must be coherent with the ensemble** — phi stays high under the current routing regime.
+3. **Slow clock decides if any of that becomes structural** — persistence through the slow window before irreversible edits.
+
+Overlap can bias routing. Overlap can bias confidence. Overlap can bias what the system keeps. Overlap cannot inject facts.
+
+---
+
     ## Fast Explores, Mid Negotiates, Slow Commits
 
     **Fast clock** — raw routing, token dispatch, expert forward passes. `phi_e(t)` computed here.
