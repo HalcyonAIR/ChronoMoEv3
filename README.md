@@ -6,9 +6,9 @@ ChronoMoEv3 is a multi-timescale dynamical system where routing decisions are ma
 
 Three clocks with their own expert pools, overlapping delayed responses that sustain context, and slow trimming of what fails to persist are three projections of the same architecture. v3 makes that unity implementable by defining a single state variable — **phase coherence** — tracked at three decay rates. Lifecycle actions (spawn, prune, split, merge) are what the slow clock does when coherence shows irreversible drift.
 
-Phase coherence is estimated from the router-induced mixture output: compare an expert's mean output direction to the mixture direction produced by the router on the same batch.
+Phase coherence is estimated from the raw router mixture by comparing an expert's output direction to the mixture direction with its own contribution removed.
 
-Fast and medium clocks can raise an emergency flag that expedites slow-clock review; irreversible edits still require slow confirmation.
+Fast and medium clocks can raise an emergency flag that expedites slow-clock review; irreversible edits still require slow confirmation (additive edits may be expedited; pruning waits).
 
 > [!WARNING]
 > **Experimental / Early Development**
@@ -17,7 +17,7 @@ Fast and medium clocks can raise an emergency flag that expedites slow-clock rev
 
 ## The Architecture in Brief
 
-Each clock is a sliding window of unresolved influence, not a memory store. The past is present only insofar as it has not finished decaying. Fast trails a few steps — immediate continuity, the pressure of the last few turns still exerting influence on routing. Medium trails context — alignment across interruption, the reason a conversation has shape instead of being a bag of replies. Slow trails trajectory — what has proven important enough, repeatedly enough, under enough pressure, that letting it decay would break continuity.
+Each clock is a sliding window of unresolved influence, not a memory store. The past is present only insofar as it has not finished decaying. Each clock is the same state variable with a different retention rate. Fast trails a few steps — immediate continuity, the pressure of the last few turns still exerting influence on routing. Medium trails context — alignment across interruption, the reason a conversation has shape instead of being a bag of replies. Slow trails trajectory — what has proven important enough, repeatedly enough, under enough pressure, that letting it decay would break continuity.
 
 None of these clocks look backward. They trail forward. They do not remember. They just have not let go yet. And because each window slides rather than fixes, alignment is maintained without freezing. The system can drift, but it cannot teleport. Discontinuous jumps through a decay window that will not allow them are what trigger structural responses.
 
@@ -25,11 +25,11 @@ For the formal treatment of pressure, hysteresis, and selector locus formation t
 
 Each expert carries one state variable: `phi`, a measure of whether its output stays phase-aligned with the router-induced mixture direction. This scalar is smoothed at three timescales:
 
-| Clock | Decay | Half-life | Governs |
-|-------|-------|-----------|---------| 
-| Fast | α ~ 0.9 | ~10 steps | Routing and token dispatch |
-| Medium | α ~ 0.99 | ~100 steps | Lens controller (v2 soft redistribution) |
-| Slow | α ~ 0.999 | ~1000 steps | Lifecycle decisions (structural changes) |
+| Clock | Retention | Half-life | Governs |
+|-------|-----------|-----------|---------|
+| Fast | γ ~ 0.9 | ~10 steps | Routing and token dispatch |
+| Medium | γ ~ 0.99 | ~100 steps | Lens controller (v2 soft redistribution) |
+| Slow | γ ~ 0.999 | ~1000 steps | Lifecycle decisions (structural changes) |
 
 Half-lives are illustrative; only the ratios matter.
 
@@ -57,9 +57,6 @@ v3 wraps v2's `Controller` into a unified `ChronoSystem`. From the outside, one 
 
 ## Repository Status
 
-> [!WARNING]
-> **Experimental / Early Development**
-
 - Architecture design in progress — see [projectdesign.md](projectdesign.md) for the full specification
 - API unstable and subject to change
 - Not yet ready for production use
@@ -71,7 +68,7 @@ v3 wraps v2's `Controller` into a unified `ChronoSystem`. From the outside, one 
 chronomoe_v3/
 ├── __init__.py          # Public API
 ├── coherence.py         # Phase coherence computation and EMA tracking
-├── clocks.py            # Three-timescale decay constants and update logic
+├── clocks.py            # Three-timescale retention rates and decay helpers
 ├── lifecycle_ops.py     # Coordinator for all structural edits
 ├── ops/
 │   ├── spawn.py         # Expert spawning (layer starvation response)
