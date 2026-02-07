@@ -43,6 +43,11 @@ from .lifecycle import (
     compute_saturation,
 )
 
+from .bimodality import (
+    BimodalityState,
+    BimodalityDetector,
+)
+
 __version__ = "0.1.0"
 
 __all__ = [
@@ -74,4 +79,7 @@ __all__ = [
     "LifecycleCoordinator",
     "compute_neff",
     "compute_saturation",
+    # Bimodality
+    "BimodalityState",
+    "BimodalityDetector",
 ]

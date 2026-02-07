@@ -10,7 +10,9 @@
 - **Architecture:** ✅ COMPLETE (Three subsystems, 6 questions answered)
 - **Sovereign Router:** ✅ SPECIFIED (SC-004: Local/cloud split)
 - **Phase 2:** ✅ COMPLETE (All 5 steps complete, validated)
-- **Next:** Capacity whiplash constraint test, Phase 3 (Bimodality detector)
+- **Constraint Testing:** ✅ COMPLETE (Injected + earned divergence validated)
+- **Phase 3:** ✅ COMPLETE (Bimodality detector closes false coherence loophole)
+- **Next:** Phase 4 (Free Energy objective)
 
 ---
 
@@ -378,20 +380,71 @@ Even minimal earned divergence (0.016) causes different choices under constraint
 
 ---
 
-## 📋 Phase 3: Bimodality Detector (NOT STARTED)
+## ✅ Phase 3: Bimodality Detector (COMPLETE)
 
 **Detect "this expert is serving two basins."**
 
-### To Implement
+Closes the loophole: **High average coherence can hide pathology.**
 
-- [ ] Two-centroid tracking per expert
-- [ ] Assignment and update logic (EMA on centroids)
-- [ ] Separation × balance metric
-- [ ] Integration with coherence state
+### Implemented
+
+- ✅ **BimodalityState** ([`chronomoe_v3/bimodality.py`](chronomoe_v3/bimodality.py))
+  - Two-centroid tracking (running means with EMA updates)
+  - Smart initialization: waits for distant point before initializing second centroid
+  - Separation metric: cosine distance between centroids
+  - Balance metric: min(p_A, p_B) / max(p_A, p_B) — balanced usage → 1.0
+  - Bimodality score: separation × balance
+
+- ✅ **BimodalityDetector** ([`chronomoe_v3/bimodality.py`](chronomoe_v3/bimodality.py))
+  - Layer-wide bimodality tracking for all experts
+  - Split candidate detection (score > threshold, min observations met)
+  - Statistics reporting and snapshot functionality
+
+- ✅ **Tests** ([`tests/test_bimodality.py`](tests/test_bimodality.py))
+  - 10 comprehensive tests
+  - Single mode: low score (0.004)
+  - Two modes (balanced): high score (0.688)
+  - Skewed modes: reduced score (0.076) — balance term working
+  - False coherence scenario: avg_coherence=0.0, bimodality=2.0 (reveals pathology)
+  - All passing ✅
+
+- ✅ **Demo** ([`examples/bimodality_demo.py`](examples/bimodality_demo.py))
+  - False coherence demonstration
+  - Healthy vs pathological comparison
+  - Split candidate detection
+  - Lifecycle integration matrix
+
+### Key Results
+
+**False Coherence Detected:**
+- Expert alternating between opposite basins: avg coherence = 0.0 (looks degraded)
+- But bimodality score = 2.0 → reveals it's serving two incompatible modes
+- Coherence alone would miss this pathology
+
+**Clear Separation:**
+- Healthy (unimodal): score = 0.004
+- Pathological (bimodal): score = 1.011
+- Skewed bimodal: score = 0.211 (balance term reduces it appropriately)
+
+**Lifecycle Integration:**
+| Coherence | Bimodality | Decision |
+|-----------|------------|----------|
+| High | Low | ✓ Keep (healthy) |
+| High | High | ✗ SPLIT (false coherence) |
+| Low | Low | ✗ PRUNE (decoherent) |
+| Low | High | ✗ PRUNE (unstable bimodal) |
 
 ### Why This Matters
 
-High coherence doesn't mean healthy. An expert serving two incompatible basins can have decent average coherence but should split, not prune.
+**Closes the loophole**: "High coherence can still be pathological"
+
+An expert serving two phase-incompatible basins can maintain decent average coherence (averaging over the two modes). Without bimodality detection, lifecycle would keep this expert because coherence looks healthy.
+
+**Framework distinguishes stability from health**:
+- Stability: consistent output (low variance)
+- Health: consistent output *in same direction* (low bimodality)
+
+Control theorists will respect this distinction.
 
 ---
 
