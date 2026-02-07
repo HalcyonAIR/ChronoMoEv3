@@ -38,6 +38,7 @@ class RouterState:
     # Disagreement metrics (logged each step)
     disagreement_js: float = 0.0
     disagreement_flip: float = 0.0
+    overlap_only: float = 0.0  # Hallucination risk (for bridge detector)
 
     # Temperature (for debugging)
     temperature: float = 1.0
@@ -112,29 +113,50 @@ def compute_flip_rate(p: Tensor, q: Tensor, top_k: int) -> float:
     return flip
 
 
-def compute_relevance(router_state: RouterState, threshold: float = 0.2) -> float:
+def compute_overlap_only(p_clean: Tensor, p_biased: Tensor) -> float:
     """
-    Compute routing relevance based on clean/biased agreement.
+    Compute overlap-only mass: routing mass going to experts that clean
+    router wouldn't select.
 
-    r = 1.0 if disagreement is low (beta is aligned with input)
-    r → 0.0 if disagreement is high (beta is fighting input)
+    This is the direct measure of "Krypto from nowhere" - beta hallucinating
+    experts that have no support from the input.
+
+    Args:
+        p_clean: [B×S, E] - clean routing probabilities
+        p_biased: [B×S, E] - biased routing probabilities
+
+    Returns:
+        overlap_only: Scalar in [0, 1] - mass given to hallucinated experts
+    """
+    # Mass that biased added (positive delta only)
+    overlap_only = (p_biased - p_clean).clamp(min=0).sum(dim=-1).mean()
+    return overlap_only.item()
+
+
+def compute_relevance(p_clean: Tensor, p_biased: Tensor, threshold: float = 0.1) -> float:
+    """
+    Compute routing relevance from overlap-only mass.
+
+    r = 1.0 if overlap-only is low (beta aligned with input)
+    r → 0.0 if overlap-only is high (beta hallucinating experts)
 
     This is the "bridge detector veto" - prevents Krypto-from-nowhere.
 
     Args:
-        router_state: RouterState with disagreement metrics
-        threshold: JS divergence threshold for full relevance
+        p_clean: [B×S, E] - clean routing probabilities
+        p_biased: [B×S, E] - biased routing probabilities
+        threshold: Overlap-only threshold for full relevance
 
     Returns:
         r: Relevance scalar in [0, 1]
     """
-    js = router_state.disagreement_js
+    overlap_only = compute_overlap_only(p_clean, p_biased)
 
-    if js < threshold:
+    if overlap_only < threshold:
         return 1.0  # Full relevance
-    elif js < threshold * 3:
+    elif overlap_only < threshold * 3:
         # Linear decay
-        return 1.0 - (js - threshold) / (threshold * 2)
+        return 1.0 - (overlap_only - threshold) / (threshold * 2)
     else:
         return 0.0  # No relevance (crisis)
 
@@ -195,22 +217,26 @@ class ChronoRouter(nn.Module):
         # 3. Compute biased logits
         beta_eff = self.router_state.compute_beta_eff()  # [E]
 
-        # 4. Apply relevance modulation (bridge detector)
-        if use_relevance:
-            r = compute_relevance(self.router_state, threshold=0.2)
-            beta_eff = r * beta_eff
-
         z_biased = z_clean + beta_eff.unsqueeze(0)  # [B×S, E]
 
-        # 5. Compute both distributions
+        # 4. Compute both distributions
         p_clean = F.softmax(z_clean / self.router_state.temperature, dim=-1)
         p_biased = F.softmax(z_biased / self.router_state.temperature, dim=-1)
 
-        # 6. Compute disagreement (BEFORE top-k)
+        # 5. Apply relevance modulation (bridge detector)
+        if use_relevance:
+            r = compute_relevance(p_clean, p_biased, threshold=0.1)
+            # Re-compute biased with modulated beta
+            beta_eff_modulated = r * beta_eff
+            z_biased = z_clean + beta_eff_modulated.unsqueeze(0)
+            p_biased = F.softmax(z_biased / self.router_state.temperature, dim=-1)
+
+        # 6. Compute disagreement and hallucination metrics (BEFORE top-k)
         self.router_state.disagreement_js = compute_js_divergence(p_clean, p_biased)
         self.router_state.disagreement_flip = compute_flip_rate(
             p_clean, p_biased, top_k
         )
+        self.router_state.overlap_only = compute_overlap_only(p_clean, p_biased)
 
         # 7. Route using biased distribution
         top_k_probs, top_k_indices = p_biased.topk(top_k, dim=-1)

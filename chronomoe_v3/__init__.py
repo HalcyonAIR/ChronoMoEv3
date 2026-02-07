@@ -27,6 +27,7 @@ from .router import (
     update_beta_from_buffer,
     compute_js_divergence,
     compute_flip_rate,
+    compute_overlap_only,
     compute_relevance,
 )
 
@@ -59,5 +60,6 @@ __all__ = [
     "update_beta_from_buffer",
     "compute_js_divergence",
     "compute_flip_rate",
+    "compute_overlap_only",
     "compute_relevance",
 ]
