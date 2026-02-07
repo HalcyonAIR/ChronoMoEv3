@@ -334,20 +334,47 @@
 
 The slow clock doesn't just measure — it acts. Experts that persist through the slow window earn a routing advantage (`beta > 0`). Experts that fail to persist lose influence (`beta → negative`). This is the trimming mechanism, in math.
 
-### Constraint Testing (Planned)
+### Constraint Testing ✅ COMPLETE
 
 **Hypothesis:** "Identity (constraint accumulation) shows up most clearly under constraint, not under plenty."
 
 When the world is wide, many systems look similar. When options narrow to almost nothing, only the deepest accumulated constraints (scars, crystallized reflexes, beta) still exert force.
 
-**Planned test: Capacity Whiplash**
-- Phase 1: Train with top-4 routing (plenty)
-- Phase 2: Force top-1 routing (constraint)
-- Phase 3: Release back to top-4 (hysteresis test)
+#### Capacity Whiplash: Injected Divergence ([experiments/capacity_whiplash_test.py](experiments/capacity_whiplash_test.py))
 
-**What we measure:** Under constraint, do systems with different beta/scar histories behave differently? If not, constraint state is cosmetic.
+**Setup:**
+- System A: β initialized to favor experts 0,1
+- System B: β initialized to favor experts 2,3
+- Phase 1: Both train with top-4 (identical environment)
+- Phase 2: Both forced to top-1 (constraint)
+- Phase 3: Both return to top-4 (hysteresis test)
 
-This test will be added after Step 5 completion.
+**Results:**
+- ✅ Divergence detected: A→expert 1, B→expert 3 under top-1
+- β divergence: L1=0.4 (strong, seeded)
+- Hysteresis: L1=0.027 (minimal trail formation)
+- **Validates**: Persistent state variable affects routing under constraint
+
+#### Capacity Whiplash: Earned Divergence ([experiments/capacity_whiplash_earned.py](experiments/capacity_whiplash_earned.py))
+
+**Setup:**
+- Both systems: β starts at 0.0 (NO seeding)
+- System A: Low-frequency input bias
+- System B: High-frequency input bias
+- Phase 1: Asymmetric environments, β drifts naturally
+- Phase 2: Same neutral environment, forced to top-1
+- Phase 3: Same neutral environment, return to top-4
+
+**Results:**
+- ✅ Divergence detected: A→expert 7, B→expert 5 under top-1
+- β divergence: L1=0.016 (tiny, earned through interaction)
+- Hysteresis: L1=0.171 (strong trail formation)
+- **Validates**: Trails emerge from interaction, not just seeding
+
+**Key Finding:**
+Even minimal earned divergence (0.016) causes different choices under constraint. The landscape is shaped by experience, not programmer intervention.
+
+**Comparison:** [experiments/CAPACITY_WHIPLASH_COMPARISON.md](experiments/CAPACITY_WHIPLASH_COMPARISON.md)
 
 ---
 
