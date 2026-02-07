@@ -9,8 +9,8 @@
 - **Phase 1:** ✅ COMPLETE (Coherence computation core)
 - **Architecture:** ✅ COMPLETE (Three subsystems, 6 questions answered)
 - **Sovereign Router:** ✅ SPECIFIED (SC-004: Local/cloud split)
-- **Phase 2:** 🔄 IN PROGRESS (Steps 1-4 complete, Step 5 remaining)
-- **Next:** Step 5 implementation (Lifecycle coordinator dry-run)
+- **Phase 2:** ✅ COMPLETE (All 5 steps complete, validated)
+- **Next:** Capacity whiplash constraint test, Phase 3 (Bimodality detector)
 
 ---
 
@@ -192,7 +192,7 @@
 
 **The locus mechanism: persistent routing geometry without RAG.**
 
-### Implemented (Steps 1-4)
+### Implemented (Steps 1-5)
 
 - ✅ **RouterState** ([`chronomoe_v3/router.py`](chronomoe_v3/router.py))
   - Scale-free beta: beta_eff = k * logit_std
@@ -223,11 +223,19 @@
   - Relevance modulation: r ∈ [0, 1] based on overlap
   - Prevents "Krypto from nowhere"
 
+- ✅ **Lifecycle Coordinator** ([`chronomoe_v3/lifecycle.py`](chronomoe_v3/lifecycle.py))
+  - Dry-run prune detection based on phi_slow
+  - Starvation prevention (layer coherence guardrail)
+  - Minimum observation threshold
+  - Decision logging with full context
+  - Neff and saturation metrics for routing collapse detection
+
 - ✅ **Tests** ([`tests/`](tests/))
   - `test_router.py`: 9 tests for RouterState and dual distribution
   - `test_coherence_gpu.py`: 9 tests for GPU coherence buffer
   - `test_beta_update.py`: 7 tests for beta feedback loop
   - `test_bridge_detector.py`: 9 tests for relevance modulation
+  - `test_lifecycle.py`: 10 tests for lifecycle coordinator
   - All passing ✅
 
 - ✅ **Demos** ([`examples/`](examples/))
@@ -235,6 +243,7 @@
   - `step2_demo.py`: GPU coherence performance (~46K updates/sec)
   - `step3_demo.py`: Beta convergence and closed loop
   - `step4_demo.py`: Bridge detector preventing hallucination
+  - `step5_demo.py`: Lifecycle coordinator dry-run detection
 
 ### Key Results
 
@@ -248,6 +257,14 @@
 - Overlap-only correctly measures hallucination
 - Relevance modulates beta: overlap=0.20 → r=0.48
 - Prevents Krypto: vetoes beta when overlap > 0.3
+
+**Lifecycle coordinator verified:**
+- Detects prune candidates: phi_slow < 0.3 → candidate
+- Starvation prevention: layer_coh < 0.5 → no pruning
+- Min tokens filter: 1000 token threshold working
+- Decision logging: 6 decisions logged across 3 steps
+- Neff metrics: uniform=8.0, concentrated=1.0, half=2.0
+- Dry-run confirmed: detects but doesn't execute
 
 **Performance:**
 - GPU coherence: ~46K updates/sec on CPU
@@ -290,10 +307,13 @@
 - ✅ Tests: 9 tests in test_bridge_detector.py
 - ✅ Demo: step4_demo.py showing overlap vs JS comparison
 
-**Step 5:** 🔄 Lifecycle coordinator (dry-run) - NEXT
-- Detect prune candidates based on phi_slow
-- Log decisions, don't execute yet
-- Starvation guardrail (Neff + saturation)
+**Step 5:** ✅ Lifecycle coordinator (dry-run) (COMPLETE)
+- ✅ Detect prune candidates based on phi_slow
+- ✅ Log decisions, don't execute yet
+- ✅ Starvation guardrail (layer coherence, Neff, saturation)
+- ✅ Min tokens threshold filtering
+- ✅ Tests: 10 tests in test_lifecycle.py
+- ✅ Demo: step5_demo.py showing detection and prevention
 
 ### Pre-Implementation Questions Answered
 

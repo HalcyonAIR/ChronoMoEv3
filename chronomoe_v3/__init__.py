@@ -36,6 +36,13 @@ from .coherence_gpu import (
     MultiLayerCoherenceBuffer,
 )
 
+from .lifecycle import (
+    PruneDecision,
+    LifecycleCoordinator,
+    compute_neff,
+    compute_saturation,
+)
+
 __version__ = "0.1.0"
 
 __all__ = [
@@ -62,4 +69,9 @@ __all__ = [
     "compute_flip_rate",
     "compute_overlap_only",
     "compute_relevance",
+    # Lifecycle
+    "PruneDecision",
+    "LifecycleCoordinator",
+    "compute_neff",
+    "compute_saturation",
 ]
