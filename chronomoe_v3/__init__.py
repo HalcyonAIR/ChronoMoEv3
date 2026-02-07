@@ -29,6 +29,11 @@ from .router import (
     compute_relevance,
 )
 
+from .coherence_gpu import (
+    CoherenceBuffer,
+    MultiLayerCoherenceBuffer,
+)
+
 __version__ = "0.1.0"
 
 __all__ = [
@@ -38,6 +43,9 @@ __all__ = [
     "compute_coherence",
     "update_coherence_ema",
     "batch_update_coherence",
+    # Coherence GPU
+    "CoherenceBuffer",
+    "MultiLayerCoherenceBuffer",
     # Clocks
     "ClockConfig",
     "ThreeClockEMA",
