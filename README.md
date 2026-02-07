@@ -15,27 +15,37 @@ Fast and medium clocks can raise an emergency flag that expedites slow-clock rev
 >
 > **Status:** Early development. Architecture design and core implementation in progress. API unstable.
 
-## Identity Reveals Itself Under Constraint, Not Plenty
+## Testable Claim: Accumulated State Latent Until Constraint
 
-When the world is wide (many routing options), many systems look similar. When options narrow to almost nothing (top-1 constraint), only the deepest accumulated constraints — scars, crystallized reflexes, beta coefficients — still exert force.
+**Precise claim**: Routing state (beta coefficients) accumulates from coherence feedback but only affects behavior when degrees of freedom collapse.
 
-**ChronoMoEv3 is tested under constraint, not just under plenty.**
+**Not claiming**: "Beta drives all routing"
+**Claiming**: "Beta only matters under constraint"
 
-The [capacity whiplash experiment](experiments/capacity_whiplash_test.py) validates this empirically: two systems with different routing histories (beta) make different choices when forced to top-1, even though they behave similarly under top-4. Constraint reveals accumulated identity.
+**Empirical test** ([capacity whiplash experiments](experiments/)):
+- Two systems, different routing histories (β divergence: 0.016 L1, earned via asymmetric environments)
+- Under top-4 routing: behave similarly (plenty of acceptable paths)
+- Under top-1 routing: choose different experts (forced choice reveals accumulated geometry)
+- Result: **Deformation exists but is latent until constraint forces selection**
 
-This is not a metaphor — it's a measurable property of the architecture. The router doesn't "choose freely." It descends a **deformed landscape** shaped by coherence feedback across hundreds of steps. What appears as a "choice" is the locally dominant gradient in a geometry that prior experience has already bent.
+**Mechanism**: Router computes `z_biased = z_clean + β`. Under high-k routing, small β differences wash out. Under top-1, they become decisive. System lives near decision boundaries; history tips the balance.
 
-See [MECHANISTIC_FRAMING.md](MECHANISTIC_FRAMING.md) for the full treatment.
+**Generalization**: Applies to any system where:
+1. State accumulates across episodes (β, attention weights, memory addressing)
+2. State consulted when choice forced (resource allocation, single-path selection)
+3. Not MoE-specific — testable in any accumulated-state routing system
 
-## The Architecture in Brief
+**Status**: Empirically validated, not metaphor. See [experiments/README.md](experiments/README.md) for protocol, results, and defense against objections.
 
-Each clock is a sliding window of unresolved influence, not a memory store. The past is present only insofar as it has not finished decaying. Each clock is the same state variable with a different retention rate. Fast trails a few steps — immediate continuity, the pressure of the last few turns still exerting influence on routing. Medium trails context — alignment across interruption, the reason a conversation has shape instead of being a bag of replies. Slow trails trajectory — what has proven important enough, repeatedly enough, under enough pressure, that letting it decay would break continuity.
+**Implication**: Testing under plenty (top-4) misses the effect. Testing under constraint (top-1) reveals it. This is not about everyday routing — it's about collapse under pressure.
 
-None of these clocks look backward. They trail forward. They do not remember. They just have not let go yet. And because each window slides rather than fixes, alignment is maintained without freezing. The system can drift, but it cannot teleport. Discontinuous jumps through a decay window that will not allow them are what trigger structural responses.
+## Architecture: Three-Timescale EMA on Phase Coherence
 
-For the formal treatment of pressure, hysteresis, and selector locus formation that motivates this architecture, see [Pressure, Hysteresis, and the Geometry of Becoming](https://halcyon.ie/blog/pressure-hysteresis-and-the-geometry-of-becoming/).
+**Single state variable**: `φ_e = cos(y_e, y_mix)` — phase alignment between expert output and mixture
 
-Each expert carries one state variable: `phi`, a measure of whether its output stays phase-aligned with the router-induced mixture direction. This scalar is smoothed at three timescales:
+**Three decay rates** (same variable, different retention):
+
+Each expert tracks φ at three exponential moving average timescales. Not three separate variables — one variable filtered at three rates.
 
 | Clock | Retention | Half-life | Governs |
 |-------|-----------|-----------|---------|
@@ -43,21 +53,22 @@ Each expert carries one state variable: `phi`, a measure of whether its output s
 | Medium | γ ~ 0.99 | ~100 steps | Lens controller (v2 soft redistribution) |
 | Slow | γ ~ 0.999 | ~1000 steps | Lifecycle decisions (structural changes) |
 
-Half-lives are illustrative; only the ratios matter.
+Half-lives illustrative; ratios matter.
 
-The slow clock is a persistence filter. Patterns that survive its decay window earn structural influence. Patterns that do not are removed by the same exponential that decays them. Lifecycle actions are not external interventions — they are slow-clock physics:
+**Lifecycle as slow-clock physics**:
 
-**Prune** — Coherence monotonically declining through the slow window. Irreversible decoherence. The expert failed the persistence test.
+Structural changes triggered when slow-window coherence shows irreversible drift:
 
-**Split** — Coherence oscillating at the fast timescale while stable at the slow. The expert is serving two phase-incompatible basins. It needs to become two.
+| Action | Trigger | Interpretation |
+|--------|---------|----------------|
+| **Prune** | φ_slow < threshold, monotonic decline | Failed persistence test |
+| **Split** | φ_fast oscillates, φ_slow stable | Serving incompatible basins |
+| **Merge** | Two experts' φ_slow converge | Redundant substrates |
+| **Spawn** | Layer-wide φ_slow drops, individuals healthy | Insufficient capacity |
 
-**Merge** — Two experts' coherence traces converging. Redundant substrates for the same functional role.
+Not external interventions. Slow-window dynamics determines structural actions.
 
-**Spawn** — Layer-wide coherence dropping while individual experts remain healthy. Not enough representational capacity to cover the phase space.
-
-Lifecycle actions are evaluated as candidate structural edits; the slow clock applies an edit only when evidence beats a complexity cost through persistence.
-
-Overlap from prior computation can bias routing and confidence but cannot inject facts. If overlap is the sole reason a token becomes reachable, it is vetoed. See the [overlap safety design](projectdesign.md#overlap-safety-amplify-only-what-the-prompt-can-reach) for the full mechanism.
+**Bridge detector**: β can bias routing but cannot hallucinate experts. If `overlap_only = (p_biased - p_clean).clamp(min=0).sum() > threshold`, relevance → 0, β suppressed. Prevents "mass going nowhere."
 
 ## Lineage
 
