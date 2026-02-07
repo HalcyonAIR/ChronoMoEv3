@@ -226,7 +226,7 @@ def update_beta(
     tau: float = 0.5,
 ):
     """
-    Update beta coefficients based on coherence feedback.
+    Update beta coefficients based on coherence feedback (CPU snapshot version).
 
     PROMOTION PRIOR: High phi_slow → increase beta (earn routing advantage)
 
@@ -250,6 +250,46 @@ def update_beta(
 
         # Update beta_coeff (scale-free)
         router_state.beta_coeff[expert_id] += delta
+
+    # Clamp to prevent saturation
+    router_state.beta_coeff.clamp_(-router_state.k_max, router_state.k_max)
+
+
+def update_beta_from_buffer(
+    router_state: RouterState,
+    phi_slow: Tensor,
+    total_tokens_seen: Tensor,
+    eta: float = 0.01,
+    tau: float = 0.5,
+    min_tokens: int = 10,
+):
+    """
+    Update beta coefficients from GPU coherence buffer (fast path).
+
+    This version stays on GPU and avoids CPU snapshot overhead.
+    Use this for frequent beta updates (e.g., every eval interval).
+
+    PROMOTION PRIOR: High phi_slow → increase beta (earn routing advantage)
+
+    Args:
+        router_state: RouterState to update
+        phi_slow: [num_experts] - slow coherence on GPU
+        total_tokens_seen: [num_experts] - observation count
+        eta: Learning rate
+        tau: Coherence threshold (target)
+        min_tokens: Minimum tokens required for update
+    """
+    # Mask for observed experts
+    observed = total_tokens_seen >= min_tokens
+
+    # Compute delta (PROMOTION prior): eta * (phi_slow - tau)
+    delta = eta * (phi_slow - tau)
+
+    # Apply only to observed experts
+    delta = delta * observed.float()
+
+    # Update beta_coeff (scale-free)
+    router_state.beta_coeff += delta
 
     # Clamp to prevent saturation
     router_state.beta_coeff.clamp_(-router_state.k_max, router_state.k_max)
