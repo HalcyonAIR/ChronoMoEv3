@@ -1,6 +1,6 @@
 # ChronoMoEv3 Implementation Progress
 
-**Status as of 2026-02-06**
+**Status as of 2026-02-07**
 
 ---
 
@@ -8,8 +8,9 @@
 
 - **Phase 1:** ✅ COMPLETE (Coherence computation core)
 - **Architecture:** ✅ COMPLETE (Three subsystems, 6 questions answered)
-- **Phase 2 Plan:** ✅ READY (5-step vertical slice specified)
-- **Next:** Begin Step 1 implementation (RouterState + beta application)
+- **Sovereign Router:** ✅ SPECIFIED (SC-004: Local/cloud split)
+- **Phase 2:** 🔄 IN PROGRESS (Step 1 complete: RouterState + beta)
+- **Next:** Step 2 implementation (Coherence on GPU)
 
 ---
 
@@ -145,7 +146,49 @@
 
 ---
 
-## 📋 Phase 2: Slow Bias (beta) (READY TO START)
+## 🏛️ Sovereign Router Architecture (SC-004)
+
+**Foundational principle: Identity (local) vs Capability (cloud) split.**
+
+### Specification
+
+- ✅ **Sovereignty Axiom** ([SOVEREIGN_ROUTER_ARCHITECTURE.md](SOVEREIGN_ROUTER_ARCHITECTURE.md))
+  - "Everything that participates in commitment must be sovereign."
+  - "Everything that provides capability can be shared."
+  - All three temporal clocks (τ_f, τ_m, τ_s) must be local
+  - Experts can be cloud-based and stateless
+
+- ✅ **Local Sovereign Core**
+  - Router + 3 temporal keepers (one per clock)
+  - Keepers = untrusted processes with limited kernel API access
+  - Graceful degradation: "I'm still here but can't reach experts"
+
+- ✅ **Three Irreversible Identity Events**
+  - Scar Formation (τ_s): "Never again" - reactive constraint
+  - Reflex Crystallisation (τ_f): "Always this" - proactive habit (5 gates)
+  - Epoch Boundary (τ_m): "Before & after" - developmental shift
+
+- ✅ **Kernel API**
+  - Write budget enforcement (prevents runaway self-modification)
+  - Two-step commit (proposals require persisting evidence)
+  - Monotonicity (only identity-grade events are irreversible)
+  - Tamper-evident audit log (locus drift must be debuggable)
+
+- ✅ **Geometric Foundations**
+  - Fisher metric for all geometric computations
+  - Geodesic dimensionality (not volume) measures freedom
+  - Five-gate crystallisation protocol with anti-gaming safeguards
+  - Expert load signatures (content-blind outcome proxy)
+
+### Implementation Phases
+
+**Keeper specifications:** Phase 6-7 (after lifecycle working)
+**Crystallisation gates:** Phase 5+ (require lifecycle decisions)
+**Kernel API:** Phase 7 (system integration)
+
+---
+
+## 📋 Phase 2: Slow Bias (beta) (IN PROGRESS)
 
 **The locus mechanism: persistent routing geometry without RAG.**
 
@@ -153,13 +196,16 @@
 
 **Complete 5-step vertical slice specified** ([PHASE2_IMPLEMENTATION_PLAN.md](PHASE2_IMPLEMENTATION_PLAN.md))
 
-**Step 1:** RouterState + beta application (one layer)
-- Add RouterState with beta_coeff, logit_std_ema
-- Compute z_clean, z_biased
-- Route with z_biased
-- Log disagreement metrics (JS divergence, flip rate)
+**Step 1:** ✅ RouterState + beta application (COMPLETE)
+- ✅ RouterState with beta_coeff, logit_std_ema
+- ✅ Compute z_clean, z_biased
+- ✅ Route with z_biased
+- ✅ Disagreement metrics (JS divergence, flip rate)
+- ✅ Bridge detector with relevance modulation
+- ✅ Tests: 9 tests in test_router.py
+- ✅ Demo: step1_demo.py showing dual distribution
 
-**Step 2:** Coherence on GPU with buffered state
+**Step 2:** 🔄 Coherence on GPU with buffered state (NEXT)
 - CoherenceBuffer: GPU-resident tensors
 - Update every step (no CPU sync bottleneck)
 - Snapshot to CPU only on eval intervals
