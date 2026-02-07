@@ -9,8 +9,8 @@
 - **Phase 1:** ✅ COMPLETE (Coherence computation core)
 - **Architecture:** ✅ COMPLETE (Three subsystems, 6 questions answered)
 - **Sovereign Router:** ✅ SPECIFIED (SC-004: Local/cloud split)
-- **Phase 2:** 🔄 IN PROGRESS (Step 1 complete: RouterState + beta)
-- **Next:** Step 2 implementation (Coherence on GPU)
+- **Phase 2:** 🔄 IN PROGRESS (Steps 1-4 complete, Step 5 remaining)
+- **Next:** Step 5 implementation (Lifecycle coordinator dry-run)
 
 ---
 
@@ -192,6 +192,68 @@
 
 **The locus mechanism: persistent routing geometry without RAG.**
 
+### Implemented (Steps 1-4)
+
+- ✅ **RouterState** ([`chronomoe_v3/router.py`](chronomoe_v3/router.py))
+  - Scale-free beta: beta_eff = k * logit_std
+  - Disagreement metrics: JS divergence, flip rate, overlap-only
+  - Crisis detection thresholds
+  - Dual distribution: z_clean, z_biased
+
+- ✅ **ChronoRouter** ([`chronomoe_v3/router.py`](chronomoe_v3/router.py))
+  - Routes with biased distribution, logs disagreement with clean
+  - Bridge detector with relevance modulation
+  - Temperature support
+
+- ✅ **CoherenceBuffer** ([`chronomoe_v3/coherence_gpu.py`](chronomoe_v3/coherence_gpu.py))
+  - GPU-resident coherence tracking
+  - Three-timescale EMAs (phi_fast, phi_mid, phi_slow)
+  - Update every step on GPU, snapshot only on eval intervals
+  - Memory: ~2KB per layer (vs ~48KB with role vectors)
+  - Multi-layer wrapper for convenience
+
+- ✅ **Beta Update** ([`chronomoe_v3/router.py`](chronomoe_v3/router.py))
+  - PROMOTION prior: delta = η(φ_slow - τ)
+  - GPU-optimized: update_beta_from_buffer
+  - CPU snapshot: update_beta (compatible)
+  - Scale-free clamping to [-k_max, k_max]
+
+- ✅ **Bridge Detector** ([`chronomoe_v3/router.py`](chronomoe_v3/router.py))
+  - Overlap-only mass: (p_biased - p_clean).clamp(min=0).sum()
+  - Relevance modulation: r ∈ [0, 1] based on overlap
+  - Prevents "Krypto from nowhere"
+
+- ✅ **Tests** ([`tests/`](tests/))
+  - `test_router.py`: 9 tests for RouterState and dual distribution
+  - `test_coherence_gpu.py`: 9 tests for GPU coherence buffer
+  - `test_beta_update.py`: 7 tests for beta feedback loop
+  - `test_bridge_detector.py`: 9 tests for relevance modulation
+  - All passing ✅
+
+- ✅ **Demos** ([`examples/`](examples/))
+  - `step1_demo.py`: Dual distribution and disagreement metrics
+  - `step2_demo.py`: GPU coherence performance (~46K updates/sec)
+  - `step3_demo.py`: Beta convergence and closed loop
+  - `step4_demo.py`: Bridge detector preventing hallucination
+
+### Key Results
+
+**Closed loop verified:**
+- Expert with phi_slow=0.80 → beta=+0.064 (promoted)
+- Expert with phi_slow=0.30 → beta=-0.057 (demoted)
+- Beta converges: early_Δ=0.030 → late_Δ=0.027
+- Beta responds to coherence drops
+
+**Bridge detector verified:**
+- Overlap-only correctly measures hallucination
+- Relevance modulates beta: overlap=0.20 → r=0.48
+- Prevents Krypto: vetoes beta when overlap > 0.3
+
+**Performance:**
+- GPU coherence: ~46K updates/sec on CPU
+- Memory: 1.7KB for 64 experts across 4 layers
+- No CPU sync bottleneck in training loop
+
 ### Implementation Plan
 
 **Complete 5-step vertical slice specified** ([PHASE2_IMPLEMENTATION_PLAN.md](PHASE2_IMPLEMENTATION_PLAN.md))
@@ -200,28 +262,36 @@
 - ✅ RouterState with beta_coeff, logit_std_ema
 - ✅ Compute z_clean, z_biased
 - ✅ Route with z_biased
-- ✅ Disagreement metrics (JS divergence, flip rate)
-- ✅ Bridge detector with relevance modulation
+- ✅ Disagreement metrics (JS divergence, flip rate, overlap-only)
 - ✅ Tests: 9 tests in test_router.py
 - ✅ Demo: step1_demo.py showing dual distribution
 
-**Step 2:** 🔄 Coherence on GPU with buffered state (NEXT)
-- CoherenceBuffer: GPU-resident tensors
-- Update every step (no CPU sync bottleneck)
-- Snapshot to CPU only on eval intervals
+**Step 2:** ✅ Coherence on GPU with buffered state (COMPLETE)
+- ✅ CoherenceBuffer: GPU-resident tensors
+- ✅ Update every step (no CPU sync bottleneck)
+- ✅ Snapshot to CPU only on eval intervals
+- ✅ Memory efficient: ~2KB per layer
+- ✅ Tests: 9 tests in test_coherence_gpu.py
+- ✅ Demo: step2_demo.py showing performance (~46K updates/sec)
 
-**Step 3:** Beta update function
-- Simple rule: phi_slow < tau → reduce beta, > tau → increase
-- Scale-free: normalize by logit_std_ema
-- Clamp to [-k_max, k_max]
+**Step 3:** ✅ Beta update function (COMPLETE)
+- ✅ PROMOTION prior: delta = eta * (phi_slow - tau)
+- ✅ GPU-optimized: update_beta_from_buffer (no CPU sync)
+- ✅ Scale-free: clamp to [-k_max, k_max]
+- ✅ Closed loop: coherence → beta → routing → coherence
+- ✅ Tests: 7 tests in test_beta_update.py
+- ✅ Demo: step3_demo.py showing convergence and response
 
-**Step 4:** Bridge detector veto
-- Compute relevance scalar from overlap-only mass
-- Modulate beta strength: beta_eff = r * beta_eff
-- Prevent "Krypto from nowhere"
+**Step 4:** ✅ Bridge detector veto (COMPLETE)
+- ✅ Overlap-only mass: direct hallucination measure
+- ✅ Relevance modulation: beta_eff = r * beta_eff
+- ✅ Prevents "Krypto from nowhere"
+- ✅ Better than JS divergence for veto decisions
+- ✅ Tests: 9 tests in test_bridge_detector.py
+- ✅ Demo: step4_demo.py showing overlap vs JS comparison
 
-**Step 5:** Lifecycle coordinator (decisions only, dry-run)
-- Detect prune candidates
+**Step 5:** 🔄 Lifecycle coordinator (dry-run) - NEXT
+- Detect prune candidates based on phi_slow
 - Log decisions, don't execute yet
 - Starvation guardrail (Neff + saturation)
 
@@ -243,6 +313,21 @@
 ### Why This Matters
 
 The slow clock doesn't just measure — it acts. Experts that persist through the slow window earn a routing advantage (`beta > 0`). Experts that fail to persist lose influence (`beta → negative`). This is the trimming mechanism, in math.
+
+### Constraint Testing (Planned)
+
+**Hypothesis:** "Identity (constraint accumulation) shows up most clearly under constraint, not under plenty."
+
+When the world is wide, many systems look similar. When options narrow to almost nothing, only the deepest accumulated constraints (scars, crystallized reflexes, beta) still exert force.
+
+**Planned test: Capacity Whiplash**
+- Phase 1: Train with top-4 routing (plenty)
+- Phase 2: Force top-1 routing (constraint)
+- Phase 3: Release back to top-4 (hysteresis test)
+
+**What we measure:** Under constraint, do systems with different beta/scar histories behave differently? If not, constraint state is cosmetic.
+
+This test will be added after Step 5 completion.
 
 ---
 
