@@ -15,6 +15,18 @@ Fast and medium clocks can raise an emergency flag that expedites slow-clock rev
 >
 > **Status:** Early development. Architecture design and core implementation in progress. API unstable.
 
+## Identity Reveals Itself Under Constraint, Not Plenty
+
+When the world is wide (many routing options), many systems look similar. When options narrow to almost nothing (top-1 constraint), only the deepest accumulated constraints — scars, crystallized reflexes, beta coefficients — still exert force.
+
+**ChronoMoEv3 is tested under constraint, not just under plenty.**
+
+The [capacity whiplash experiment](experiments/capacity_whiplash_test.py) validates this empirically: two systems with different routing histories (beta) make different choices when forced to top-1, even though they behave similarly under top-4. Constraint reveals accumulated identity.
+
+This is not a metaphor — it's a measurable property of the architecture. The router doesn't "choose freely." It descends a **deformed landscape** shaped by coherence feedback across hundreds of steps. What appears as a "choice" is the locally dominant gradient in a geometry that prior experience has already bent.
+
+See [MECHANISTIC_FRAMING.md](MECHANISTIC_FRAMING.md) for the full treatment.
+
 ## The Architecture in Brief
 
 Each clock is a sliding window of unresolved influence, not a memory store. The past is present only insofar as it has not finished decaying. Each clock is the same state variable with a different retention rate. Fast trails a few steps — immediate continuity, the pressure of the last few turns still exerting influence on routing. Medium trails context — alignment across interruption, the reason a conversation has shape instead of being a bag of replies. Slow trails trajectory — what has proven important enough, repeatedly enough, under enough pressure, that letting it decay would break continuity.

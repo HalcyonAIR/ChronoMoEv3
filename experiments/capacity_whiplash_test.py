@@ -89,6 +89,8 @@ class CapacityWhiplashExperiment:
 
         expert_selections = torch.zeros(self.num_experts)
         neff_values = []
+        neff_nan_count = 0
+        first_nan_step = None
 
         for step in range(num_steps):
             # Generate input (with optional bias)
@@ -97,9 +99,12 @@ class CapacityWhiplashExperiment:
                 hidden = hidden + input_bias
 
             # Route
-            top_k_probs, top_k_indices, p_biased, z_clean = router(
+            top_k_probs, top_k_indices, z_clean, z_biased = router(
                 hidden, top_k=top_k, use_relevance=True
             )
+
+            # Compute biased probabilities for Neff
+            p_biased = F.softmax(z_biased / router.router_state.temperature, dim=-1)
 
             # Track selections
             for expert_id in range(self.num_experts):
@@ -108,10 +113,20 @@ class CapacityWhiplashExperiment:
             # Track Neff (with NaN handling)
             try:
                 neff = compute_neff(p_biased)
-                if not torch.isnan(torch.tensor(neff)):
+                if torch.isnan(torch.tensor(neff)):
+                    neff_nan_count += 1
+                    if first_nan_step is None:
+                        first_nan_step = step
+                        # Log first NaN for debugging
+                        print(f"  [WARNING] First NaN at step {step}")
+                        print(f"    p_biased stats: min={p_biased.min():.6f}, max={p_biased.max():.6f}, sum={p_biased.sum(dim=-1).mean():.6f}")
+                else:
                     neff_values.append(neff)
-            except:
-                pass  # Skip if NaN
+            except Exception as e:
+                neff_nan_count += 1
+                if first_nan_step is None:
+                    first_nan_step = step
+                    print(f"  [ERROR] Neff computation failed at step {step}: {e}")
 
             # Simulate expert outputs (for coherence)
             # Experts produce outputs with some structure
@@ -159,9 +174,13 @@ class CapacityWhiplashExperiment:
                     min_tokens=100,
                 )
 
+        neff_valid_ratio = len(neff_values) / num_steps if num_steps > 0 else 0.0
+
         return {
             "expert_selections": expert_selections,
             "neff_mean": sum(neff_values) / len(neff_values) if neff_values else 0.0,
+            "neff_valid_ratio": neff_valid_ratio,
+            "neff_nan_count": neff_nan_count,
             "beta_final": router.router_state.beta_coeff.cpu().clone(),
         }
 
@@ -213,14 +232,18 @@ class CapacityWhiplashExperiment:
         )
 
         print(f"\nSystem A (top-4):")
-        print(f"  Neff: {stats_a_phase1['neff_mean']:.2f}")
+        print(f"  Neff: {stats_a_phase1['neff_mean']:.2f} (valid: {stats_a_phase1['neff_valid_ratio']:.1%})")
         print(f"  Expert usage: {stats_a_phase1['expert_selections'].tolist()}")
-        print(f"  Beta: {stats_a_phase1['beta_final'].tolist()}")
+        beta_a = stats_a_phase1['beta_final']
+        print(f"  Beta (top-2): {beta_a.topk(2).indices.tolist()} = {beta_a.topk(2).values.tolist()}")
+        print(f"  Beta (all): {beta_a.tolist()}")
 
         print(f"\nSystem B (top-4):")
-        print(f"  Neff: {stats_b_phase1['neff_mean']:.2f}")
+        print(f"  Neff: {stats_b_phase1['neff_mean']:.2f} (valid: {stats_b_phase1['neff_valid_ratio']:.1%})")
         print(f"  Expert usage: {stats_b_phase1['expert_selections'].tolist()}")
-        print(f"  Beta: {stats_b_phase1['beta_final'].tolist()}")
+        beta_b = stats_b_phase1['beta_final']
+        print(f"  Beta (top-2): {beta_b.topk(2).indices.tolist()} = {beta_b.topk(2).values.tolist()}")
+        print(f"  Beta (all): {beta_b.tolist()}")
 
         # Phase 2: Constraint (top-1 routing)
         print("\n" + "=" * 70)
@@ -247,13 +270,13 @@ class CapacityWhiplashExperiment:
         )
 
         print(f"\nSystem A (top-1):")
-        print(f"  Neff: {stats_a_phase2['neff_mean']:.2f} (should be ~1)")
+        print(f"  Neff: {stats_a_phase2['neff_mean']:.2f} (should be ~1, valid: {stats_a_phase2['neff_valid_ratio']:.1%})")
         print(
             f"  Expert usage: {stats_a_phase2['expert_selections'].tolist()} (which won?)"
         )
 
         print(f"\nSystem B (top-1):")
-        print(f"  Neff: {stats_b_phase2['neff_mean']:.2f} (should be ~1)")
+        print(f"  Neff: {stats_b_phase2['neff_mean']:.2f} (should be ~1, valid: {stats_b_phase2['neff_valid_ratio']:.1%})")
         print(
             f"  Expert usage: {stats_b_phase2['expert_selections'].tolist()} (which won?)"
         )
@@ -299,13 +322,13 @@ class CapacityWhiplashExperiment:
         )
 
         print(f"\nSystem A (post-constraint):")
-        print(f"  Neff: {stats_a_phase3['neff_mean']:.2f}")
+        print(f"  Neff: {stats_a_phase3['neff_mean']:.2f} (valid: {stats_a_phase3['neff_valid_ratio']:.1%})")
         print(
             f"  Expert usage: {stats_a_phase3['expert_selections'].tolist()} (hysteresis?)"
         )
 
         print(f"\nSystem B (post-constraint):")
-        print(f"  Neff: {stats_b_phase3['neff_mean']:.2f}")
+        print(f"  Neff: {stats_b_phase3['neff_mean']:.2f} (valid: {stats_b_phase3['neff_valid_ratio']:.1%})")
         print(
             f"  Expert usage: {stats_b_phase3['expert_selections'].tolist()} (hysteresis?)"
         )
@@ -326,12 +349,17 @@ class CapacityWhiplashExperiment:
         print('   still exert force. That\'s when reflex crystallisation and scars')
         print('   do the talking."')
 
+        beta_a_top = stats_a_phase1['beta_final'].topk(2)
+        beta_b_top = stats_b_phase1['beta_final'].topk(2)
+
         print(f"\nPhase 1 (Plenty): Both systems trained with top-4")
         print(
-            f"  System A developed beta favoring expert {stats_a_phase1['beta_final'].argmax()}"
+            f"  System A developed beta favoring experts {beta_a_top.indices.tolist()} "
+            f"(values: {[f'{v:.3f}' for v in beta_a_top.values.tolist()]})"
         )
         print(
-            f"  System B developed beta favoring expert {stats_b_phase1['beta_final'].argmax()}"
+            f"  System B developed beta favoring experts {beta_b_top.indices.tolist()} "
+            f"(values: {[f'{v:.3f}' for v in beta_b_top.values.tolist()]})"
         )
 
         print(f"\nPhase 2 (Constraint): Both systems forced to top-1")
@@ -354,8 +382,24 @@ class CapacityWhiplashExperiment:
         print(
             f"  System B Neff: {stats_b_phase1['neff_mean']:.2f} → {stats_b_phase3['neff_mean']:.2f}"
         )
+
+        # Compute distribution shift (L1 distance) to quantify hysteresis
+        def normalize(x):
+            return x / x.sum()
+
+        dist_a_phase1 = normalize(stats_a_phase1["expert_selections"])
+        dist_a_phase3 = normalize(stats_a_phase3["expert_selections"])
+        hysteresis_a = (dist_a_phase1 - dist_a_phase3).abs().sum().item()
+
+        dist_b_phase1 = normalize(stats_b_phase1["expert_selections"])
+        dist_b_phase3 = normalize(stats_b_phase3["expert_selections"])
+        hysteresis_b = (dist_b_phase1 - dist_b_phase3).abs().sum().item()
+
+        print(f"\n  Hysteresis (L1 distance pre-constraint vs post-constraint):")
+        print(f"    System A: {hysteresis_a:.3f}")
+        print(f"    System B: {hysteresis_b:.3f}")
         print(
-            "\n  Hysteresis = systems remember constraint episode in their routing patterns"
+            f"  → Systems {'do NOT' if hysteresis_a < 0.1 and hysteresis_b < 0.1 else 'DO'} show persistent trail formation"
         )
 
 
