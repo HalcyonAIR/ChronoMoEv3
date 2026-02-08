@@ -8,11 +8,19 @@ an average over two distinct modes.
 Core mechanism:
 - Track two centroids (running means of expert output)
 - Assignment: which centroid is closer on each forward pass
-- Separation: distance between centroids
+- Separation: cosine distance between centroids (scale-invariant, measures directionality)
 - Balance: usage ratio (skewed → 0, balanced → 1)
 - Bimodality score: separation × balance
 
 High score → expert serving incompatible basins → split candidate
+
+Design choices:
+- Two centroids: Captures first non-trivial pathology (bimodality). Higher-order
+  multimodality (tri-modal, manifold experts) is future work.
+- Cosine distance: Scale-invariant, measures directionality over magnitude,
+  aligns with coherence metrics (also cosine-based).
+- Balance term: Prevents over-reaction to rare excursions. Skewed bimodal experts
+  get reduced score, not flagged immediately.
 """
 
 from dataclasses import dataclass

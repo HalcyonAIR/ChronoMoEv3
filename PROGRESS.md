@@ -12,7 +12,11 @@
 - **Phase 2:** ✅ COMPLETE (All 5 steps complete, validated)
 - **Constraint Testing:** ✅ COMPLETE (Injected + earned divergence validated)
 - **Phase 3:** ✅ COMPLETE (Bimodality detector closes false coherence loophole)
-- **Next:** Phase 4 (Free Energy objective)
+- **Next:** Paper-1 hardening (mechanistic ML result), then Phase 4 (control objective)
+
+---
+
+**Architectural Boundary**: Phases 1–3 define a **diagnostic layer** (what's wrong). Phase 4 introduces a **control objective** (what to do). This separation is intentional — diagnostics are empirically validated without requiring belief in identity/agency/philosophy.
 
 ---
 
