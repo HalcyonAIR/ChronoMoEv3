@@ -385,3 +385,89 @@ def create_split_proposal(
             "split_strategy": split_strategy,
         },
     )
+
+
+@dataclass
+class MergeProposal(EditProposal):
+    """
+    Merge two redundant experts into one.
+
+    Why MERGE is dangerous (MOST CAREFUL):
+    - Destroys information (NOT reversible)
+    - Evidence: experts highly redundant (high similarity, low diversity)
+    - Must verify: neither expert is critical to layer function
+    - Requires EXTRA sustained calm (destructive identity change)
+
+    This is where you accidentally delete a personality and call it compression.
+    """
+
+    # Override to set default
+    edit_type: EditType = "MERGE"
+
+    @property
+    def source_a_id(self) -> Optional[int]:
+        """First expert to merge."""
+        return self.details.get("source_a_id")
+
+    @property
+    def source_b_id(self) -> Optional[int]:
+        """Second expert to merge."""
+        return self.details.get("source_b_id")
+
+    @property
+    def merged_expert_id(self) -> Optional[int]:
+        """Resulting merged expert."""
+        return self.details.get("merged_expert_id")
+
+    @property
+    def similarity_at_proposal(self) -> Optional[float]:
+        """Similarity between experts at proposal time."""
+        return self.details.get("similarity")
+
+    @property
+    def merge_strategy(self) -> str:
+        """How to merge: 'average', 'weighted_average', 'keep_dominant'."""
+        return self.details.get("merge_strategy", "average")
+
+
+def create_merge_proposal(
+    proposal_id: str,
+    layer_id: int,
+    step: int,
+    source_a_id: int,
+    source_b_id: int,
+    evidence: EditEvidence,
+    gates_state: Dict[str, Any],
+    similarity: float,
+    merge_strategy: str = "average",
+) -> MergeProposal:
+    """
+    Create a merge proposal.
+
+    Args:
+        proposal_id: Unique identifier
+        layer_id: Which layer
+        step: Current step
+        source_a_id: First expert to merge
+        source_b_id: Second expert to merge
+        evidence: Why merge is beneficial
+        gates_state: Current gate state
+        similarity: Similarity between experts at proposal
+        merge_strategy: How to merge ('average', 'weighted_average', 'keep_dominant')
+
+    Returns:
+        MergeProposal ready for evaluation
+    """
+    return MergeProposal(
+        proposal_id=proposal_id,
+        layer_id=layer_id,
+        proposed_at_step=step,
+        evidence=evidence,
+        gates_at_proposal=gates_state,
+        details={
+            "source_a_id": source_a_id,
+            "source_b_id": source_b_id,
+            "similarity": similarity,
+            "merge_strategy": merge_strategy,
+        },
+    )

@@ -666,17 +666,19 @@ Stress is allowed to exist. It's not allowed to decide who you become.
 
 ---
 
-## 🚧 Phase 5: Edit Proposal and Selection (IN PROGRESS - SPAWN, PRUNE, SPLIT COMPLETE)
+## ✅ Phase 5: Edit Proposal and Selection (COMPLETE)
 
 **Lifecycle as slow-clock physics.**
 
 Production-shaped edit execution: proposed, evaluated, gated, committed, logged.
 
-### Implemented (SPAWN, PRUNE, SPLIT)
+**Order: spawn → prune → split → merge. Merge last because that's where you accidentally delete a personality and call it compression.**
+
+### Implemented (All Four Edit Types)
 
 - ✅ **EditProposal System** ([`chronomoe_v3/edit_proposals.py`](chronomoe_v3/edit_proposals.py))
   - EditEvidence: ΔF_l prediction, diagnostic improvements, trigger reason
-  - EditProposal/SpawnProposal/PruneProposal/SplitProposal: what, why, when, with full context
+  - EditProposal/SpawnProposal/PruneProposal/SplitProposal/MergeProposal: what, why, when, with full context
   - AuditLogEntry: every proposal/approval/execution/rejection logged
   - Two-step commit: proposed at N, executed at N+1 if improvement holds
 
@@ -688,11 +690,13 @@ Production-shaped edit execution: proposed, evaluated, gated, committed, logged.
   - create_spawn_evidence(): predict capacity addition impact
   - create_prune_evidence(): predict decoherent expert removal impact
   - create_split_evidence(): predict bimodal expert split impact
+  - create_merge_evidence(): predict redundant expert merge impact (DESTRUCTIVE)
 
 - ✅ **EditExecutor** ([`chronomoe_v3/edit_executor.py`](chronomoe_v3/edit_executor.py))
   - **SPAWN**: propose_spawn(), approve_spawn(), execute_spawn(), spawn_expert_full_pipeline()
   - **PRUNE**: propose_prune(), approve_prune(), execute_prune(), prune_expert_full_pipeline()
   - **SPLIT**: propose_split(), approve_split(), execute_split(), split_expert_full_pipeline()
+  - **MERGE**: propose_merge(), approve_merge(), execute_merge(), merge_experts_full_pipeline() (DESTRUCTIVE)
   - Step 1: Propose (gate check, create proposal, log PROPOSED)
   - Step 1.5: Approve (dry-run evaluation, check improvement holds)
   - Step 2: Execute (final gate check, apply edit, log EXECUTED)
@@ -719,6 +723,14 @@ Production-shaped edit execution: proposed, evaluated, gated, committed, logged.
   - Split blocked at step 150 (time_in_comfort=150, need 500)
   - Split executed at step 750 (time_in_comfort=750 > 500)
   - Two new experts created from bimodal source
+  - Full audit trail: PROPOSED → EXECUTED
+
+- ✅ **MERGE Demo** ([`examples/merge_demo.py`](examples/merge_demo.py))
+  - Block-then-allow with actual edit execution (MOST DANGEROUS)
+  - Experts 3 & 4 become redundant (similarity=0.999)
+  - Merge blocked at step 150 (time_in_comfort=150, need 500)
+  - Merge executed at step 750 (time_in_comfort=750 > 500)
+  - Two experts merged into one (DESTRUCTIVE, NOT reversible)
   - Full audit trail: PROPOSED → EXECUTED
 
 ### Why SPAWN First
@@ -762,18 +774,39 @@ Production-shaped edit execution: proposed, evaluated, gated, committed, logged.
 - Net complexity: +1 expert, but instability reduction justifies it
 - Full audit trail captures split decision and both children
 
-### To Implement
+### Why MERGE is MOST DANGEROUS
+
+**Destructive properties (NOT reversible):**
+- Destroys information permanently (combines two experts into one)
+- NOT reversible (cannot undo if wrong experts merged)
+- Evidence: experts highly redundant (similarity >0.9, low utilization)
+- Must verify neither expert is critical to layer function
+
+**This is where you accidentally delete a personality and call it compression:**
+- Merge averages parameters (information loss)
+- If experts serve subtly different functions, you've deleted one
+- Redundancy must be HIGH (similarity >0.9) to justify
+- Same gate enforcement, but consequences are irreversible
+
+**Validates CAREFUL destruction:**
+- Full audit trail captures both source experts and similarity
+- Evidence includes redundancy reduction justification
+- Parameters averaged (simple strategy)
+- Net complexity: -1 expert, redundancy reduction justifies it
+
+### Checklist
 
 - [x] Spawn: Add capacity when layer starving ✅
 - [x] Prune: Remove expert when irreversibly decoherent ✅
 - [x] Split: Divide bimodal expert ✅
-- [ ] Merge: Combine redundant experts (LAST - dangerous)
-- [ ] Replay test: save trace, show diagnostic improvement
-- [ ] "Do nothing" threshold (already in evidence, need to enforce)
+- [x] Merge: Combine redundant experts ✅ (LAST - most dangerous)
 
-### Order: spawn → prune → split → merge
+### Future Enhancements
 
-Merge is last because it's where you accidentally delete a personality and call it compression.
+- [ ] Replay test: save trace, show diagnostic improvement with/without edits
+- [ ] "Do nothing" threshold enforcement (already in evidence calculation)
+- [ ] Merge strategies: weighted_average (by utilization), keep_dominant
+- [ ] Split strategies: kmeans clustering, gradient-based separation
 
 ---
 

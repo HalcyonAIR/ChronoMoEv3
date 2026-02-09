@@ -100,10 +100,12 @@ from .edit_proposals import (
     SpawnProposal,
     PruneProposal,
     SplitProposal,
+    MergeProposal,
     AuditLogEntry,
     create_spawn_proposal,
     create_prune_proposal,
     create_split_proposal,
+    create_merge_proposal,
 )
 
 from .dry_run_evaluator import (
@@ -112,11 +114,13 @@ from .dry_run_evaluator import (
     create_spawn_evidence,
     create_prune_evidence,
     create_split_evidence,
+    create_merge_evidence,
 )
 
 from .edit_executor import (
     ExpertSpawnResult,
     ExpertSplitResult,
+    ExpertMergeResult,
     EditExecutor,
 )
 
@@ -198,18 +202,22 @@ __all__ = [
     "SpawnProposal",
     "PruneProposal",
     "SplitProposal",
+    "MergeProposal",
     "AuditLogEntry",
     "create_spawn_proposal",
     "create_prune_proposal",
     "create_split_proposal",
+    "create_merge_proposal",
     # Dry Run Evaluator
     "DryRunResult",
     "DryRunEvaluator",
     "create_spawn_evidence",
     "create_prune_evidence",
     "create_split_evidence",
+    "create_merge_evidence",
     # Edit Executor
     "ExpertSpawnResult",
     "ExpertSplitResult",
+    "ExpertMergeResult",
     "EditExecutor",
 ]

@@ -425,3 +425,98 @@ def create_split_evidence(
         neff_predicted=neff_predicted,
         trigger="expert_bimodal",
     )
+
+
+def create_merge_evidence(
+    f_l_before: float,
+    components_before: Any,  # FreeEnergyComponents
+    psi_before: float,
+    neff_before: Optional[float],
+    # After merge predictions
+    num_experts_after: int,
+    source_a_utilization: float,
+    source_b_utilization: float,
+    similarity: float,
+    predicted_psi_delta: float = -0.02,
+    lambda_complexity: float = 0.01,
+    rho_redundancy: float = 0.1,
+) -> EditEvidence:
+    """
+    Create evidence for merge proposal.
+
+    Predictions:
+    - Misfit increases slightly (less capacity) OR stays same if experts truly redundant
+    - Complexity decreases (one fewer expert: N → N-1)
+    - Redundancy decreases (removing duplicate experts)
+    - Net F_l should decrease if redundancy + complexity reduction beats capacity loss
+
+    WARNING: MERGE is destructive and NOT reversible. Evidence must be strong.
+
+    Args:
+        f_l_before: Current free energy
+        components_before: Current free energy components
+        psi_before: Current layer coherence
+        neff_before: Current effective expert count
+        num_experts_after: Number of experts after merge (N-1)
+        source_a_utilization: Utilization of first expert
+        source_b_utilization: Utilization of second expert
+        similarity: Similarity between experts (0-1, higher = more similar)
+        predicted_psi_delta: Expected coherence change (usually small negative)
+        lambda_complexity: Complexity weight
+        rho_redundancy: Redundancy weight
+
+    Returns:
+        EditEvidence with predictions
+    """
+    # Predict coherence change
+    # If experts are truly redundant (high similarity), removing one has minimal impact
+    # If similarity is high, psi_delta should be near zero
+    if similarity > 0.9:
+        predicted_psi_delta = max(predicted_psi_delta, -0.01)  # Very small impact
+    psi_predicted = max(0.0, min(1.0, psi_before + predicted_psi_delta))
+
+    # Predict new misfit
+    misfit_predicted = 1.0 - psi_predicted
+
+    # Predict new complexity (one fewer expert)
+    complexity_predicted = lambda_complexity * num_experts_after
+
+    # Predict redundancy improvement (removing duplicate experts)
+    # High similarity = high redundancy contribution
+    redundancy_reduction = rho_redundancy * similarity * 0.1  # Conservative
+    redundancy_predicted = max(0.0, components_before.redundancy - redundancy_reduction)
+
+    # Instability stays same (merging doesn't affect bimodality)
+    instability_predicted = components_before.instability
+
+    # Predict new F_l
+    f_l_predicted = (
+        misfit_predicted + complexity_predicted + redundancy_predicted + instability_predicted
+    )
+
+    # Predict Neff change (merging reduces effective expert count)
+    neff_predicted = None
+    if neff_before is not None:
+        # If both experts had low utilization, Neff barely changes
+        total_util = source_a_utilization + source_b_utilization
+        neff_delta = -0.5 if total_util > 200 else -0.1
+        neff_predicted = max(1.0, neff_before + neff_delta)
+
+    return EditEvidence(
+        f_l_before=f_l_before,
+        f_l_predicted=f_l_predicted,
+        delta_f_l=f_l_predicted - f_l_before,
+        misfit_before=components_before.misfit,
+        misfit_predicted=misfit_predicted,
+        complexity_before=components_before.complexity,
+        complexity_predicted=complexity_predicted,
+        redundancy_before=components_before.redundancy,
+        redundancy_predicted=redundancy_predicted,
+        instability_before=components_before.instability,
+        instability_predicted=instability_predicted,
+        psi_before=psi_before,
+        psi_predicted=psi_predicted,
+        neff_before=neff_before,
+        neff_predicted=neff_predicted,
+        trigger="experts_redundant",
+    )
