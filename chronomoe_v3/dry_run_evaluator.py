@@ -9,6 +9,10 @@ We check if proposed changes make the diagnostics better.
 Key principle: Evidence must persist. Proposed at N, executed at N+1 only
 if improvement signal holds. This prevents "clever one-window hacks" from
 becoming architecture.
+
+CRITICAL: "Doing nothing" is a valid outcome. Edits must clear minimum
+improvement thresholds or they are rejected with reason "insufficient_benefit".
+This prevents edit churn under noise.
 """
 
 from dataclasses import dataclass
@@ -18,6 +22,12 @@ import torch
 from torch import Tensor
 
 from .edit_proposals import EditEvidence, EditProposal
+
+
+# Global minimum improvement thresholds
+# Edits that don't clear these are rejected as "insufficient_benefit"
+MIN_DELTA_F = 0.01  # Minimum F_l reduction to justify edit
+MIN_DELTA_PSI = 0.02  # Minimum coherence improvement to justify edit
 
 
 @dataclass
@@ -63,15 +73,15 @@ class DryRunEvaluator:
 
     def __init__(
         self,
-        min_f_l_improvement: float = 0.01,
-        min_psi_improvement: float = 0.05,
+        min_f_l_improvement: float = MIN_DELTA_F,
+        min_psi_improvement: float = MIN_DELTA_PSI,
     ):
         """
         Initialize evaluator.
 
         Args:
-            min_f_l_improvement: Minimum ΔF_l to consider "improvement"
-            min_psi_improvement: Minimum ΔPsi to consider "improvement"
+            min_f_l_improvement: Minimum ΔF_l to consider "improvement" (default: MIN_DELTA_F)
+            min_psi_improvement: Minimum ΔPsi to consider "improvement" (default: MIN_DELTA_PSI)
         """
         self.min_f_l_improvement = min_f_l_improvement
         self.min_psi_improvement = min_psi_improvement
@@ -136,7 +146,7 @@ class DryRunEvaluator:
             reason = "psi_improved"
         else:
             improvement_confirmed = False
-            reason = f"insufficient_improvement: ΔF_l={actual_delta_f_l:.3f}, ΔPsi={actual_delta_psi:.3f}"
+            reason = f"insufficient_benefit: ΔF_l={actual_delta_f_l:.3f} (need <-{self.min_f_l_improvement}), ΔPsi={actual_delta_psi:.3f} (need >{self.min_psi_improvement})"
 
         return DryRunResult(
             predicted_delta_f_l=predicted_delta_f_l,

@@ -128,12 +128,15 @@ class EditProposal:
 @dataclass
 class SpawnProposal(EditProposal):
     """
-    Spawn a new expert by cloning the best one.
+    Spawn a new expert.
 
     Why SPAWN is clean:
     - Doesn't destroy information (only adds capacity)
     - Reversible (can prune if it doesn't help)
     - Evidence: layer starving (high misfit, experts coherent but insufficient)
+
+    STRATEGY: Currently implements "clone_seeded" (clone parent + perturbation).
+    TODO: Add "blank_spawn_with_probation" (random init, learn from scratch).
     """
 
     # Override to set default
@@ -141,7 +144,7 @@ class SpawnProposal(EditProposal):
 
     @property
     def parent_expert_id(self) -> Optional[int]:
-        """Expert to clone."""
+        """Expert to clone (if using clone_seeded strategy)."""
         return self.details.get("parent_expert_id")
 
     @property
@@ -151,8 +154,13 @@ class SpawnProposal(EditProposal):
 
     @property
     def perturbation_scale(self) -> float:
-        """Noise scale for clone perturbation."""
+        """Noise scale for clone perturbation (clone_seeded strategy)."""
         return self.details.get("perturbation_scale", 0.01)
+
+    @property
+    def spawn_strategy(self) -> str:
+        """Spawn strategy: 'clone_seeded' (current) or 'blank' (TODO)."""
+        return self.details.get("spawn_strategy", "clone_seeded")
 
 
 @dataclass
@@ -439,6 +447,8 @@ def create_merge_proposal(
     evidence: EditEvidence,
     gates_state: Dict[str, Any],
     similarity: float,
+    source_a_utilization: float,
+    source_b_utilization: float,
     merge_strategy: str = "average",
 ) -> MergeProposal:
     """
@@ -453,6 +463,8 @@ def create_merge_proposal(
         evidence: Why merge is beneficial
         gates_state: Current gate state
         similarity: Similarity between experts at proposal
+        source_a_utilization: Utilization of first expert (for guardrail check)
+        source_b_utilization: Utilization of second expert (for guardrail check)
         merge_strategy: How to merge ('average', 'weighted_average', 'keep_dominant')
 
     Returns:
@@ -468,6 +480,8 @@ def create_merge_proposal(
             "source_a_id": source_a_id,
             "source_b_id": source_b_id,
             "similarity": similarity,
+            "source_a_utilization": source_a_utilization,
+            "source_b_utilization": source_b_utilization,
             "merge_strategy": merge_strategy,
         },
     )

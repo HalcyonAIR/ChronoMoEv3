@@ -733,12 +733,29 @@ Production-shaped edit execution: proposed, evaluated, gated, committed, logged.
   - Two experts merged into one (DESTRUCTIVE, NOT reversible)
   - Full audit trail: PROPOSED → EXECUTED
 
+### Reversibility Spectrum
+
+**Strong reversible** (exact state restoration):
+- SPLIT: Can merge back to recover original expert
+
+**Weak reversible** (capacity reintroduction, history lost):
+- SPAWN: Can prune if doesn't help (additive, not reversible)
+- PRUNE: Can re-spawn capacity, but original expert's learned state is gone
+
+**Irreversible** (destructive):
+- MERGE: Averaged parameters cannot be unmixed, personality lost permanently
+
 ### Why SPAWN First
 
 **Clean properties:**
 - Doesn't destroy information (only adds capacity)
-- Reversible (can prune if doesn't help)
+- Additive (can prune if doesn't help, but not reversible)
 - Evidence: layer starving (high misfit, experts coherent but insufficient)
+
+**Current strategy: clone_seeded**
+- Clones best expert + adds perturbation
+- Fast convergence but may inherit parent biases
+- TODO: Implement blank_spawn_with_probation (random init, learns from scratch)
 
 **Validates pipeline:**
 - Two-step commit works
@@ -749,7 +766,7 @@ Production-shaped edit execution: proposed, evaluated, gated, committed, logged.
 ### Why PRUNE is Careful
 
 **Dangerous properties:**
-- Destroys information (not reversible like spawn)
+- Destroys information (weak reversible: can re-spawn capacity, but history lost)
 - Evidence: expert persistently decoherent (phi_slow < threshold)
 - Must check starvation: removing expert won't collapse layer
 - Requires sustained calm (identity change)
@@ -760,11 +777,11 @@ Production-shaped edit execution: proposed, evaluated, gated, committed, logged.
 - Full audit trail captures removal decision
 - Evidence includes complexity reduction justification
 
-### Why SPLIT is Reversible
+### Why SPLIT is Strong Reversible
 
 **Clean properties:**
 - Doesn't destroy information (redistributes capacity)
-- Reversible (can merge back if doesn't help)
+- Strong reversible (can merge back to restore original expert state)
 - Evidence: expert persistently bimodal (high bimodality score)
 - Improves instability by creating two coherent experts
 
@@ -776,9 +793,9 @@ Production-shaped edit execution: proposed, evaluated, gated, committed, logged.
 
 ### Why MERGE is MOST DANGEROUS
 
-**Destructive properties (NOT reversible):**
+**Destructive properties (IRREVERSIBLE):**
 - Destroys information permanently (combines two experts into one)
-- NOT reversible (cannot undo if wrong experts merged)
+- Irreversible (cannot undo if wrong experts merged, no weak recovery)
 - Evidence: experts highly redundant (similarity >0.9, low utilization)
 - Must verify neither expert is critical to layer function
 

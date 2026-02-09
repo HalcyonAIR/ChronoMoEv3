@@ -115,6 +115,8 @@ from .dry_run_evaluator import (
     create_prune_evidence,
     create_split_evidence,
     create_merge_evidence,
+    MIN_DELTA_F,
+    MIN_DELTA_PSI,
 )
 
 from .edit_executor import (
@@ -215,6 +217,8 @@ __all__ = [
     "create_prune_evidence",
     "create_split_evidence",
     "create_merge_evidence",
+    "MIN_DELTA_F",
+    "MIN_DELTA_PSI",
     # Edit Executor
     "ExpertSpawnResult",
     "ExpertSplitResult",

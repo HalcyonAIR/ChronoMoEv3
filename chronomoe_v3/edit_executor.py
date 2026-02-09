@@ -1022,6 +1022,8 @@ class EditExecutor:
         evidence: EditEvidence,
         gates: LifecycleGates,
         similarity: float,
+        source_a_utilization: float,
+        source_b_utilization: float,
         merge_strategy: str = "average",
     ) -> Optional[MergeProposal]:
         """
@@ -1039,6 +1041,8 @@ class EditExecutor:
             evidence: Why merge is beneficial
             gates: Current lifecycle gates
             similarity: Similarity between experts (0-1)
+            source_a_utilization: Utilization of first expert (for guardrail)
+            source_b_utilization: Utilization of second expert (for guardrail)
             merge_strategy: How to merge ('average', 'weighted_average', 'keep_dominant')
 
         Returns:
@@ -1066,6 +1070,8 @@ class EditExecutor:
                 "time_in_comfort": gates.stress_state.time_in_comfort,
             },
             similarity=similarity,
+            source_a_utilization=source_a_utilization,
+            source_b_utilization=source_b_utilization,
             merge_strategy=merge_strategy,
         )
 
@@ -1197,6 +1203,29 @@ class EditExecutor:
             )
             return None
 
+        # GUARDRAIL: Check utilization ratio
+        # If one expert has >> utilization than the other, averaging may be destructive
+        source_a_util = proposal.details.get("source_a_utilization", 0.0)
+        source_b_util = proposal.details.get("source_b_utilization", 0.0)
+
+        if source_a_util > 0 and source_b_util > 0:
+            util_ratio = max(source_a_util, source_b_util) / min(source_a_util, source_b_util)
+            if util_ratio > 10.0:
+                # Log WARNING but don't block (forensic power for post-mortems)
+                print(f"⚠️  WARNING: Merge utilization ratio {util_ratio:.1f}x (experts {proposal.details['source_a_id']}, {proposal.details['source_b_id']})")
+                print(f"   Averaging parameters may be destructive if experts serve different functions.")
+                # Add to audit log extra
+                guardrail_warning = {
+                    "guardrail": "utilization_ratio_warning",
+                    "util_ratio": util_ratio,
+                    "source_a_util": source_a_util,
+                    "source_b_util": source_b_util,
+                }
+            else:
+                guardrail_warning = None
+        else:
+            guardrail_warning = None
+
         # Merge parameters (simple average)
         merged_params = {}
         merge_strategy = proposal.details.get("merge_strategy", "average")
@@ -1226,18 +1255,22 @@ class EditExecutor:
         similarity = proposal.details.get("similarity")
 
         # Log execution
+        extra_data = {
+            "source_a_id": source_a_id,
+            "source_b_id": source_b_id,
+            "merged_expert_id": merged_expert_id,
+            "similarity": similarity,
+        }
+        if guardrail_warning:
+            extra_data["guardrail_warning"] = guardrail_warning
+
         self._log_event(
             event_type="EXECUTED",
             proposal=proposal,
             step=step,
             stress_state=gates.stress_state,
             gates=gates,
-            extra={
-                "source_a_id": source_a_id,
-                "source_b_id": source_b_id,
-                "merged_expert_id": merged_expert_id,
-                "similarity": similarity,
-            },
+            extra=extra_data,
         )
 
         # Remove from pending
@@ -1265,6 +1298,8 @@ class EditExecutor:
         evidence: EditEvidence,
         gates: LifecycleGates,
         similarity: float,
+        source_a_utilization: float,
+        source_b_utilization: float,
         merge_strategy: str = "average",
         dry_run_fn: Optional[Callable[[EditProposal], Dict[str, Any]]] = None,
     ) -> Optional[ExpertMergeResult]:
@@ -1286,6 +1321,8 @@ class EditExecutor:
             evidence: Why merge is beneficial
             gates: Lifecycle gates
             similarity: Similarity between experts
+            source_a_utilization: Utilization of first expert (for guardrail)
+            source_b_utilization: Utilization of second expert (for guardrail)
             merge_strategy: How to merge ('average', 'weighted_average', 'keep_dominant')
             dry_run_fn: Optional simulation function for dry-run
 
@@ -1302,6 +1339,8 @@ class EditExecutor:
                 evidence=evidence,
                 gates=gates,
                 similarity=similarity,
+                source_a_utilization=source_a_utilization,
+                source_b_utilization=source_b_utilization,
                 merge_strategy=merge_strategy,
             )
         except GateViolation:
