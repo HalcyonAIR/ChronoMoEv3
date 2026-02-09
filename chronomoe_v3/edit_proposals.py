@@ -304,3 +304,84 @@ def create_prune_proposal(
             "utilization": utilization,
         },
     )
+
+
+@dataclass
+class SplitProposal(EditProposal):
+    """
+    Split a bimodal expert into two coherent experts.
+
+    Why SPLIT is reversible:
+    - Doesn't destroy information (redistributes capacity)
+    - Reversible (can merge if doesn't help)
+    - Evidence: expert bimodal (high bimodality score, suggests serving two modes)
+    - Improves instability by creating two coherent experts
+    """
+
+    # Override to set default
+    edit_type: EditType = "SPLIT"
+
+    @property
+    def source_expert_id(self) -> Optional[int]:
+        """Expert to split."""
+        return self.details.get("source_expert_id")
+
+    @property
+    def child_a_id(self) -> Optional[int]:
+        """First new expert."""
+        return self.details.get("child_a_id")
+
+    @property
+    def child_b_id(self) -> Optional[int]:
+        """Second new expert."""
+        return self.details.get("child_b_id")
+
+    @property
+    def bimodality_at_proposal(self) -> Optional[float]:
+        """Bimodality score at proposal time."""
+        return self.details.get("bimodality")
+
+    @property
+    def split_strategy(self) -> str:
+        """How to split: 'kmeans', 'gradient', 'random'."""
+        return self.details.get("split_strategy", "kmeans")
+
+
+def create_split_proposal(
+    proposal_id: str,
+    layer_id: int,
+    step: int,
+    source_expert_id: int,
+    evidence: EditEvidence,
+    gates_state: Dict[str, Any],
+    bimodality: float,
+    split_strategy: str = "kmeans",
+) -> SplitProposal:
+    """
+    Create a split proposal.
+
+    Args:
+        proposal_id: Unique identifier
+        layer_id: Which layer
+        step: Current step
+        source_expert_id: Expert to split
+        evidence: Why split is beneficial
+        gates_state: Current gate state
+        bimodality: Bimodality score at proposal
+        split_strategy: How to split ('kmeans', 'gradient', 'random')
+
+    Returns:
+        SplitProposal ready for evaluation
+    """
+    return SplitProposal(
+        proposal_id=proposal_id,
+        layer_id=layer_id,
+        proposed_at_step=step,
+        evidence=evidence,
+        gates_at_proposal=gates_state,
+        details={
+            "source_expert_id": source_expert_id,
+            "bimodality": bimodality,
+            "split_strategy": split_strategy,
+        },
+    )

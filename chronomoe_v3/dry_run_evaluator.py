@@ -337,3 +337,91 @@ def create_prune_evidence(
         neff_predicted=neff_predicted,
         trigger="expert_decoherent",
     )
+
+
+def create_split_evidence(
+    f_l_before: float,
+    components_before: Any,  # FreeEnergyComponents
+    psi_before: float,
+    neff_before: Optional[float],
+    # After split predictions
+    num_experts_after: int,
+    source_expert_bimodality: float,
+    source_expert_utilization: float,
+    predicted_psi_improvement: float = 0.05,
+    lambda_complexity: float = 0.01,
+    kappa_instability: float = 0.1,
+) -> EditEvidence:
+    """
+    Create evidence for split proposal.
+
+    Predictions:
+    - Misfit decreases slightly (two coherent experts better than one bimodal)
+    - Complexity increases (one more expert: N → N+1)
+    - Instability decreases (bimodal expert → two unimodal experts)
+    - Net F_l should decrease if instability reduction beats complexity cost
+
+    Args:
+        f_l_before: Current free energy
+        components_before: Current free energy components
+        psi_before: Current layer coherence
+        neff_before: Current effective expert count
+        num_experts_after: Number of experts after split (N+1)
+        source_expert_bimodality: Bimodality score of expert being split
+        source_expert_utilization: Utilization of expert being split
+        predicted_psi_improvement: Expected coherence improvement
+        lambda_complexity: Complexity weight
+        kappa_instability: Instability weight
+
+    Returns:
+        EditEvidence with predictions
+    """
+    # Predict coherence improvement (two coherent experts better than one bimodal)
+    psi_predicted = min(1.0, psi_before + predicted_psi_improvement)
+
+    # Predict new misfit
+    misfit_predicted = 1.0 - psi_predicted
+
+    # Predict new complexity (one more expert)
+    complexity_predicted = lambda_complexity * num_experts_after
+
+    # Other components stay same initially
+    redundancy_predicted = components_before.redundancy
+
+    # Predict instability improvement (removing bimodal expert)
+    # The bimodal expert contributes: source_bimodality * (utilization / total_utilization)
+    # After split, two unimodal experts (bimodality ~0) replace it
+    # Assuming bimodality contributes to instability via utilization-weighted mean
+    instability_reduction = kappa_instability * source_expert_bimodality * 0.5  # Conservative estimate
+    instability_predicted = max(0.0, components_before.instability - instability_reduction)
+
+    # Predict new F_l
+    f_l_predicted = (
+        misfit_predicted + complexity_predicted + redundancy_predicted + instability_predicted
+    )
+
+    # Predict Neff improvement (splitting increases effective expert count)
+    neff_predicted = None
+    if neff_before is not None:
+        # Split increases Neff if source expert had high utilization
+        neff_delta = 0.5 if source_expert_utilization > 100 else 0.2
+        neff_predicted = neff_before + neff_delta
+
+    return EditEvidence(
+        f_l_before=f_l_before,
+        f_l_predicted=f_l_predicted,
+        delta_f_l=f_l_predicted - f_l_before,
+        misfit_before=components_before.misfit,
+        misfit_predicted=misfit_predicted,
+        complexity_before=components_before.complexity,
+        complexity_predicted=complexity_predicted,
+        redundancy_before=components_before.redundancy,
+        redundancy_predicted=redundancy_predicted,
+        instability_before=components_before.instability,
+        instability_predicted=instability_predicted,
+        psi_before=psi_before,
+        psi_predicted=psi_predicted,
+        neff_before=neff_before,
+        neff_predicted=neff_predicted,
+        trigger="expert_bimodal",
+    )

@@ -23,10 +23,12 @@ from .edit_proposals import (
     EditProposal,
     SpawnProposal,
     PruneProposal,
+    SplitProposal,
     EditEvidence,
     AuditLogEntry,
     create_spawn_proposal,
     create_prune_proposal,
+    create_split_proposal,
 )
 from .dry_run_evaluator import DryRunEvaluator, DryRunResult
 from .lifecycle_gates import LifecycleGates, GateViolation
@@ -44,6 +46,23 @@ class ExpertSpawnResult:
     child_expert_id: int
     parent_expert_id: int
     child_params: Dict[str, Tensor]  # Cloned + perturbed parameters
+    success: bool
+    reason: str = ""
+
+
+@dataclass
+class ExpertSplitResult:
+    """
+    Result of splitting a bimodal expert.
+
+    Contains everything needed to integrate two new experts from one source.
+    """
+
+    child_a_id: int
+    child_b_id: int
+    source_expert_id: int
+    child_a_params: Dict[str, Tensor]  # Cloned + perturbed (variant A)
+    child_b_params: Dict[str, Tensor]  # Cloned + perturbed (variant B)
     success: bool
     reason: str = ""
 
@@ -644,6 +663,330 @@ class EditExecutor:
             proposal_id=proposal.proposal_id,
             step=step,
             gates=gates,
+        )
+
+    # ========================================================================
+    # SPLIT methods
+    # ========================================================================
+
+    def propose_split(
+        self,
+        layer_id: int,
+        step: int,
+        source_expert_id: int,
+        evidence: EditEvidence,
+        gates: LifecycleGates,
+        bimodality: float,
+        split_strategy: str = "kmeans",
+    ) -> Optional[SplitProposal]:
+        """
+        Propose splitting a bimodal expert.
+
+        Step 1 of two-step commit. Checks gates, creates proposal, logs it.
+
+        Args:
+            layer_id: Which layer
+            step: Current training step
+            source_expert_id: Expert to split
+            evidence: Why split is beneficial
+            gates: Current lifecycle gates
+            bimodality: Bimodality score at proposal
+            split_strategy: How to split ('kmeans', 'gradient', 'random')
+
+        Returns:
+            SplitProposal if gates pass, None if blocked
+
+        Raises:
+            GateViolation: If calmness requirement not met
+        """
+        # Check gates (raises GateViolation if blocked)
+        # SPLIT requires edit permission (identity change)
+        gates.require_edit_allowed()
+
+        # Create proposal
+        proposal_id = f"split_L{layer_id}_E{source_expert_id}_S{step}"
+        proposal = create_split_proposal(
+            proposal_id=proposal_id,
+            layer_id=layer_id,
+            step=step,
+            source_expert_id=source_expert_id,
+            evidence=evidence,
+            gates_state={
+                "allow_edit": gates.check_edit_allowed(),
+                "current_band": gates.stress_state.current_band,
+                "time_in_comfort": gates.stress_state.time_in_comfort,
+            },
+            bimodality=bimodality,
+            split_strategy=split_strategy,
+        )
+
+        # Add to pending
+        self.pending_proposals[proposal_id] = proposal
+
+        # Log proposal
+        self._log_event(
+            event_type="PROPOSED",
+            proposal=proposal,
+            step=step,
+            stress_state=gates.stress_state,
+            gates=gates,
+        )
+
+        return proposal
+
+    def approve_split(
+        self,
+        proposal_id: str,
+        step: int,
+        dry_run_result: DryRunResult,
+        gates: LifecycleGates,
+    ) -> bool:
+        """
+        Approve split proposal after dry-run evaluation.
+
+        Step 1.5: Check if improvement signal holds.
+
+        Args:
+            proposal_id: Which proposal
+            step: Current step
+            dry_run_result: Result of dry-run simulation
+            gates: Current gates (checked again)
+
+        Returns:
+            True if approved, False if rejected
+        """
+        proposal = self.pending_proposals.get(proposal_id)
+        if proposal is None:
+            return False
+
+        # Check gates again (may have changed since proposal)
+        if not gates.check_edit_allowed():
+            proposal.status = "REJECTED"
+            self._log_event(
+                event_type="REJECTED",
+                proposal=proposal,
+                step=step,
+                stress_state=gates.stress_state,
+                gates=gates,
+                extra={"reason": "gates_changed", "dry_run": dry_run_result.to_dict()},
+            )
+            return False
+
+        # Check if improvement confirmed
+        if not dry_run_result.improvement_confirmed:
+            proposal.status = "REJECTED"
+            self._log_event(
+                event_type="REJECTED",
+                proposal=proposal,
+                step=step,
+                stress_state=gates.stress_state,
+                gates=gates,
+                extra={"reason": "no_improvement", "dry_run": dry_run_result.to_dict()},
+            )
+            return False
+
+        # Approve
+        proposal.status = "APPROVED"
+        proposal.approved_at_step = step
+
+        self._log_event(
+            event_type="APPROVED",
+            proposal=proposal,
+            step=step,
+            stress_state=gates.stress_state,
+            gates=gates,
+            extra={"dry_run": dry_run_result.to_dict()},
+        )
+
+        return True
+
+    def execute_split(
+        self,
+        proposal_id: str,
+        step: int,
+        source_params: Dict[str, Tensor],
+        child_a_id: int,
+        child_b_id: int,
+        gates: LifecycleGates,
+        perturbation_scale: float = 0.02,
+    ) -> Optional[ExpertSplitResult]:
+        """
+        Execute approved split proposal.
+
+        Step 2 of two-step commit. Creates two new experts from source.
+
+        Args:
+            proposal_id: Which proposal
+            step: Current step
+            source_params: Source expert parameters to split
+            child_a_id: ID for first new expert
+            child_b_id: ID for second new expert
+            gates: Current gates (final check)
+            perturbation_scale: Noise scale for variants
+
+        Returns:
+            ExpertSplitResult if successful, None if blocked
+        """
+        proposal = self.pending_proposals.get(proposal_id)
+        if proposal is None or proposal.status != "APPROVED":
+            return None
+
+        # Final gate check
+        try:
+            gates.require_edit_allowed()
+        except GateViolation as e:
+            proposal.status = "REJECTED"
+            self._log_event(
+                event_type="REJECTED",
+                proposal=proposal,
+                step=step,
+                stress_state=gates.stress_state,
+                gates=gates,
+                extra={"reason": f"final_gate_check_failed: {e}"},
+            )
+            return None
+
+        # Clone source parameters twice with different perturbations
+        child_a_params = {}
+        child_b_params = {}
+
+        for key, param in source_params.items():
+            # Clone A with positive perturbation
+            cloned_a = param.clone()
+            noise_a = torch.randn_like(cloned_a) * perturbation_scale
+            child_a_params[key] = cloned_a + noise_a
+
+            # Clone B with negative perturbation (orthogonal direction)
+            cloned_b = param.clone()
+            noise_b = torch.randn_like(cloned_b) * perturbation_scale
+            child_b_params[key] = cloned_b - noise_b
+
+        # Mark as executed
+        proposal.status = "EXECUTED"
+        proposal.executed_at_step = step
+        proposal.details["child_a_id"] = child_a_id
+        proposal.details["child_b_id"] = child_b_id
+
+        source_expert_id = proposal.details.get("source_expert_id")
+
+        # Log execution
+        self._log_event(
+            event_type="EXECUTED",
+            proposal=proposal,
+            step=step,
+            stress_state=gates.stress_state,
+            gates=gates,
+            extra={
+                "source_expert_id": source_expert_id,
+                "child_a_id": child_a_id,
+                "child_b_id": child_b_id,
+            },
+        )
+
+        # Remove from pending
+        del self.pending_proposals[proposal_id]
+
+        return ExpertSplitResult(
+            child_a_id=child_a_id,
+            child_b_id=child_b_id,
+            source_expert_id=source_expert_id,
+            child_a_params=child_a_params,
+            child_b_params=child_b_params,
+            success=True,
+            reason="split_successfully",
+        )
+
+    def split_expert_full_pipeline(
+        self,
+        layer_id: int,
+        step: int,
+        source_expert_id: int,
+        source_params: Dict[str, Tensor],
+        child_a_id: int,
+        child_b_id: int,
+        evidence: EditEvidence,
+        gates: LifecycleGates,
+        bimodality: float,
+        split_strategy: str = "kmeans",
+        dry_run_fn: Optional[Callable[[EditProposal], Dict[str, Any]]] = None,
+        perturbation_scale: float = 0.02,
+    ) -> Optional[ExpertSplitResult]:
+        """
+        Full split pipeline: propose → evaluate → approve → execute.
+
+        Convenience method that runs all steps if you have everything ready.
+
+        Args:
+            layer_id: Which layer
+            step: Current step
+            source_expert_id: Expert to split
+            source_params: Source parameters
+            child_a_id: ID for first new expert
+            child_b_id: ID for second new expert
+            evidence: Why split is beneficial
+            gates: Lifecycle gates
+            bimodality: Bimodality score
+            split_strategy: How to split ('kmeans', 'gradient', 'random')
+            dry_run_fn: Optional simulation function for dry-run
+            perturbation_scale: Noise scale
+
+        Returns:
+            ExpertSplitResult if successful, None if blocked at any step
+        """
+        # Step 1: Propose
+        try:
+            proposal = self.propose_split(
+                layer_id=layer_id,
+                step=step,
+                source_expert_id=source_expert_id,
+                evidence=evidence,
+                gates=gates,
+                bimodality=bimodality,
+                split_strategy=split_strategy,
+            )
+        except GateViolation:
+            return None
+
+        if proposal is None:
+            return None
+
+        # Step 1.5: Dry-run evaluation (if function provided)
+        if dry_run_fn is not None:
+            current_state = {
+                "f_l": evidence.f_l_before,
+                "psi": evidence.psi_before,
+                "neff": evidence.neff_before,
+            }
+            dry_run_result = self.dry_run_evaluator.evaluate_proposal(
+                proposal=proposal,
+                current_state=current_state,
+                simulate_fn=dry_run_fn,
+            )
+
+            # Step 2: Approve (or reject)
+            approved = self.approve_split(
+                proposal_id=proposal.proposal_id,
+                step=step,
+                dry_run_result=dry_run_result,
+                gates=gates,
+            )
+
+            if not approved:
+                return None
+        else:
+            # No dry-run: auto-approve based on evidence alone
+            proposal.status = "APPROVED"
+            proposal.approved_at_step = step
+
+        # Step 3: Execute
+        return self.execute_split(
+            proposal_id=proposal.proposal_id,
+            step=step,
+            source_params=source_params,
+            child_a_id=child_a_id,
+            child_b_id=child_b_id,
+            gates=gates,
+            perturbation_scale=perturbation_scale,
         )
 
     def _log_event(

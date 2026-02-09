@@ -666,17 +666,17 @@ Stress is allowed to exist. It's not allowed to decide who you become.
 
 ---
 
-## 🚧 Phase 5: Edit Proposal and Selection (IN PROGRESS - SPAWN & PRUNE COMPLETE)
+## 🚧 Phase 5: Edit Proposal and Selection (IN PROGRESS - SPAWN, PRUNE, SPLIT COMPLETE)
 
 **Lifecycle as slow-clock physics.**
 
 Production-shaped edit execution: proposed, evaluated, gated, committed, logged.
 
-### Implemented (SPAWN & PRUNE)
+### Implemented (SPAWN, PRUNE, SPLIT)
 
 - ✅ **EditProposal System** ([`chronomoe_v3/edit_proposals.py`](chronomoe_v3/edit_proposals.py))
   - EditEvidence: ΔF_l prediction, diagnostic improvements, trigger reason
-  - EditProposal/SpawnProposal/PruneProposal: what, why, when, with full context
+  - EditProposal/SpawnProposal/PruneProposal/SplitProposal: what, why, when, with full context
   - AuditLogEntry: every proposal/approval/execution/rejection logged
   - Two-step commit: proposed at N, executed at N+1 if improvement holds
 
@@ -687,10 +687,12 @@ Production-shaped edit execution: proposed, evaluated, gated, committed, logged.
   - Prevents "clever one-window hacks" from becoming architecture
   - create_spawn_evidence(): predict capacity addition impact
   - create_prune_evidence(): predict decoherent expert removal impact
+  - create_split_evidence(): predict bimodal expert split impact
 
 - ✅ **EditExecutor** ([`chronomoe_v3/edit_executor.py`](chronomoe_v3/edit_executor.py))
   - **SPAWN**: propose_spawn(), approve_spawn(), execute_spawn(), spawn_expert_full_pipeline()
   - **PRUNE**: propose_prune(), approve_prune(), execute_prune(), prune_expert_full_pipeline()
+  - **SPLIT**: propose_split(), approve_split(), execute_split(), split_expert_full_pipeline()
   - Step 1: Propose (gate check, create proposal, log PROPOSED)
   - Step 1.5: Approve (dry-run evaluation, check improvement holds)
   - Step 2: Execute (final gate check, apply edit, log EXECUTED)
@@ -709,6 +711,14 @@ Production-shaped edit execution: proposed, evaluated, gated, committed, logged.
   - Prune blocked at step 150 (time_in_comfort=150, need 500)
   - Prune executed at step 750 (time_in_comfort=750 > 500)
   - Expert removed successfully (identity change)
+  - Full audit trail: PROPOSED → EXECUTED
+
+- ✅ **SPLIT Demo** ([`examples/split_demo.py`](examples/split_demo.py))
+  - Block-then-allow with actual edit execution
+  - Expert 2 becomes bimodal (bimodality=0.85, serving two modes)
+  - Split blocked at step 150 (time_in_comfort=150, need 500)
+  - Split executed at step 750 (time_in_comfort=750 > 500)
+  - Two new experts created from bimodal source
   - Full audit trail: PROPOSED → EXECUTED
 
 ### Why SPAWN First
@@ -738,11 +748,25 @@ Production-shaped edit execution: proposed, evaluated, gated, committed, logged.
 - Full audit trail captures removal decision
 - Evidence includes complexity reduction justification
 
+### Why SPLIT is Reversible
+
+**Clean properties:**
+- Doesn't destroy information (redistributes capacity)
+- Reversible (can merge back if doesn't help)
+- Evidence: expert persistently bimodal (high bimodality score)
+- Improves instability by creating two coherent experts
+
+**Validates capacity redistribution:**
+- Two new experts (child_a, child_b) replace one bimodal source
+- Parameters cloned with orthogonal perturbations (+noise, -noise)
+- Net complexity: +1 expert, but instability reduction justifies it
+- Full audit trail captures split decision and both children
+
 ### To Implement
 
 - [x] Spawn: Add capacity when layer starving ✅
 - [x] Prune: Remove expert when irreversibly decoherent ✅
-- [ ] Split: Divide bimodal expert
+- [x] Split: Divide bimodal expert ✅
 - [ ] Merge: Combine redundant experts (LAST - dangerous)
 - [ ] Replay test: save trace, show diagnostic improvement
 - [ ] "Do nothing" threshold (already in evidence, need to enforce)
