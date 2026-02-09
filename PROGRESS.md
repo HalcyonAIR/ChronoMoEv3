@@ -1,6 +1,6 @@
 # ChronoMoEv3 Implementation Progress
 
-**Status as of 2026-02-07**
+**Status as of 2026-02-09**
 
 ---
 
@@ -12,7 +12,8 @@
 - **Phase 2:** ✅ COMPLETE (All 5 steps complete, validated)
 - **Constraint Testing:** ✅ COMPLETE (Injected + earned divergence validated)
 - **Phase 3:** ✅ COMPLETE (Bimodality detector closes false coherence loophole)
-- **Next:** Paper-1 hardening (mechanistic ML result), then Phase 4 (control objective)
+- **Phase 4:** ✅ COMPLETE (Free energy objective unifies all four terms)
+- **Next:** Phase 5 (Edit proposal and selection under F_l)
 
 ---
 
@@ -452,17 +453,101 @@ Control theorists will respect this distinction.
 
 ---
 
-## 📋 Phase 4: Free Energy Objective (NOT STARTED)
+## ✅ Phase 4: Free Energy Objective (COMPLETE)
 
 **Single objective replacing the rule bag.**
 
-### To Implement
+    F_l = (1 - Psi_l) + lambda*N_l + rho*R_l + kappa*I_l
 
-- [ ] `F_l = (1 - Psi_l) + lambda*N_l + rho*R_l + kappa*I_l`
-- [ ] Misfit term (1 - Psi_l)
-- [ ] Complexity tax (N_l)
-- [ ] Redundancy detection (R_l)
-- [ ] Instability penalty (I_l from bimodality)
+One scalar that unifies spawn/prune/split/merge decisions. No more rule bags.
+
+### Implemented
+
+- ✅ **FreeEnergyComponents** ([`chronomoe_v3/free_energy.py`](chronomoe_v3/free_energy.py))
+  - Dataclass with four terms: misfit, complexity, redundancy, instability
+  - `.total` property computes F_l
+  - `.to_dict()` for logging and debugging
+
+- ✅ **FreeEnergyState** ([`chronomoe_v3/free_energy.py`](chronomoe_v3/free_energy.py))
+  - Per-layer state snapshot
+  - Stores both weighted components and raw scores
+  - Expert-level detail for targeting edits
+
+- ✅ **Misfit term** (`1 - Psi_l`)
+  - Layer coherence (weighted by utilization)
+  - Clamped to [0, 1] to prevent edge case bugs
+  - High misfit → layer starving or experts decoherent
+
+- ✅ **Complexity term** (`lambda * N_active`)
+  - Counts only active experts (utilization >= min_tokens)
+  - Penalizes over-parameterization
+  - Encourages parsimony
+
+- ✅ **Redundancy term** (`rho * R_l`)
+  - Output-direction similarity (cosine between role vectors)
+  - Only compares observed experts (stricter min_tokens)
+  - Returns similarity matrix for debugging even when no valid pairs
+  - High redundancy → MERGE candidates
+
+- ✅ **Instability term** (`kappa * I_l`)
+  - Utilization-weighted mean of bimodality scores
+  - Does NOT scale with expert count (mean, not sum)
+  - High instability → SPLIT candidates
+
+- ✅ **Unified mask discipline**
+  - Single `active_mask` computed once in `compute_free_energy()`
+  - Separate `redundancy_mask` for stricter threshold
+  - All term functions accept optional mask parameter
+  - Prevents accidental double-masking
+
+- ✅ **Tests** ([`tests/test_free_energy.py`](tests/test_free_energy.py))
+  - 40+ tests covering all components
+  - Edge cases: zero experts, no active, clamping
+  - Mask consistency validation
+  - Component tradeoff scenarios
+
+- ✅ **Demo** ([`examples/free_energy_demo.py`](examples/free_energy_demo.py))
+  - 6 scenarios: healthy, high misfit, complexity, redundancy, instability
+  - Lifecycle tradeoff (spawn reduces misfit, increases complexity)
+  - Component summary showing what each term detects
+
+### Key Results
+
+**Mask discipline enforced:**
+- One canonical `active_mask = utilization >= min_tokens`
+- Redundancy uses stricter threshold (default 100 vs 1)
+- No double-masking bugs
+- Complexity counts only active experts
+
+**Instability scaling fixed:**
+- Uses utilization-weighted mean (not sum)
+- Does NOT grow with expert count
+- 4 experts vs 8 experts with same bimodality → same F_l contribution
+
+**Component independence:**
+- Misfit: 0.1 (healthy) to 0.8 (decoherent)
+- Complexity: 0.04 (4 experts) to 0.16 (16 experts)
+- Redundancy: 0.0 (orthogonal) to 0.02 (3 duplicate pairs)
+- Instability: 0.0 (unimodal) to 0.05 (bimodal)
+
+**Tradeoff validated:**
+- Spawn: ΔF = -0.19 (misfit -0.2, complexity +0.01) → justified
+- System won't spawn unless misfit reduction beats complexity cost
+
+### Why This Matters
+
+Phases 1-3 built diagnostics. Phase 4 turns them into a single **decision criterion**.
+
+No more "prune if share < 0.01" or "spawn if entropy > 0.8". Just: **reduce F_l**.
+
+The slow clock acts only when ΔF_l > threshold. This makes the system calm.
+
+### Files Created/Modified
+
+- `chronomoe_v3/free_energy.py` - Core implementation (~400 lines)
+- `chronomoe_v3/__init__.py` - Exports all free energy symbols
+- `tests/test_free_energy.py` - Comprehensive test suite (~450 lines)
+- `examples/free_energy_demo.py` - Six scenario demonstrations (~300 lines)
 
 ---
 
@@ -549,16 +634,24 @@ Phase 5 (lifecycle) implements the objective as slow-clock physics.
 
 ## Next Session
 
-**Implement Phase 2: Slow Bias**
+**Implement Phase 5: Edit Proposal and Selection**
 
-1. Create `SlowBias` class
-2. Add `beta` parameter to router
-3. Implement update rule
-4. Validate persistence across "prompts" (batch boundaries)
-5. Test that high-phi experts gain routing advantage
+Now that we have F_l, the slow clock needs to:
 
-Then move to Phase 3 (bimodality detector).
+1. Propose candidate edits (spawn/prune/split/merge)
+2. Estimate ΔF_l for each candidate
+3. Select best edit (or do nothing if ΔF_l < threshold)
+4. Execute structural change
+5. Log decision with full evidence
+
+Key design questions:
+- How to estimate ΔF_l for spawn/split without actually doing it?
+- What is the "do nothing" threshold?
+- How to handle optimizer state when structure changes?
+- Cooldown periods to prevent thrashing?
+
+This is where the locus maintenance becomes real.
 
 ---
 
-**Status:** Phase 1 complete. v3 has a working heart. 🎯
+**Status:** Phases 1-4 complete. Diagnostic substrate validated, control objective unified. 🎯

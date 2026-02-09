@@ -48,6 +48,18 @@ from .bimodality import (
     BimodalityDetector,
 )
 
+from .free_energy import (
+    FreeEnergyComponents,
+    FreeEnergyState,
+    compute_layer_coherence,
+    compute_misfit_term,
+    compute_complexity_term,
+    compute_redundancy_term,
+    compute_instability_term,
+    compute_free_energy,
+    create_free_energy_state,
+)
+
 __version__ = "0.1.0"
 
 __all__ = [
@@ -82,4 +94,14 @@ __all__ = [
     # Bimodality
     "BimodalityState",
     "BimodalityDetector",
+    # Free Energy
+    "FreeEnergyComponents",
+    "FreeEnergyState",
+    "compute_layer_coherence",
+    "compute_misfit_term",
+    "compute_complexity_term",
+    "compute_redundancy_term",
+    "compute_instability_term",
+    "compute_free_energy",
+    "create_free_energy_state",
 ]
