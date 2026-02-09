@@ -126,6 +126,12 @@ from .edit_executor import (
     EditExecutor,
 )
 
+from .expert_registry import (
+    ExpertState,
+    ExpertInfo,
+    ExpertRegistry,
+)
+
 __version__ = "0.1.0"
 
 __all__ = [
@@ -224,4 +230,8 @@ __all__ = [
     "ExpertSplitResult",
     "ExpertMergeResult",
     "EditExecutor",
+    # Expert Registry
+    "ExpertState",
+    "ExpertInfo",
+    "ExpertRegistry",
 ]
