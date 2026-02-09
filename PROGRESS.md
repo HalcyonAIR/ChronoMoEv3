@@ -14,7 +14,8 @@
 - **Phase 3:** ✅ COMPLETE (Bimodality detector closes false coherence loophole)
 - **Phase 4:** ✅ COMPLETE (Free energy objective unifies all four terms)
 - **Stress Bands:** ✅ COMPLETE (Autonomic regulation, non-bypassable gates)
-- **Next:** Phase 5 (Edit proposal and selection under F_l)
+- **Phase 5:** 🚧 IN PROGRESS (SPAWN complete, prune/split/merge pending)
+- **Next:** Prune implementation, then replay test
 
 ---
 
@@ -665,18 +666,64 @@ Stress is allowed to exist. It's not allowed to decide who you become.
 
 ---
 
-## 📋 Phase 5: Edit Proposal and Selection (NOT STARTED)
+## 🚧 Phase 5: Edit Proposal and Selection (IN PROGRESS - SPAWN COMPLETE)
 
 **Lifecycle as slow-clock physics.**
 
+Production-shaped edit execution: proposed, evaluated, gated, committed, logged.
+
+### Implemented (SPAWN only)
+
+- ✅ **EditProposal System** ([`chronomoe_v3/edit_proposals.py`](chronomoe_v3/edit_proposals.py))
+  - EditEvidence: ΔF_l prediction, diagnostic improvements, trigger reason
+  - EditProposal/SpawnProposal: what, why, when, with full context
+  - AuditLogEntry: every proposal/approval/execution/rejection logged
+  - Two-step commit: proposed at N, executed at N+1 if improvement holds
+
+- ✅ **DryRunEvaluator** ([`chronomoe_v3/dry_run_evaluator.py`](chronomoe_v3/dry_run_evaluator.py))
+  - Tests edits without committing
+  - Answers: "Do Phase 1-4 signals improve?"
+  - Keeps F_l a sensor, not an objective
+  - Prevents "clever one-window hacks" from becoming architecture
+
+- ✅ **EditExecutor** ([`chronomoe_v3/edit_executor.py`](chronomoe_v3/edit_executor.py))
+  - propose_spawn(): Step 1, gate check, create proposal
+  - approve_spawn(): Step 1.5, dry-run evaluation
+  - execute_spawn(): Step 2, clone params + perturb, final gate check
+  - spawn_expert_full_pipeline(): Convenience method
+  - Full audit trail (JSONL log)
+
+- ✅ **SPAWN Demo** ([`examples/spawn_demo.py`](examples/spawn_demo.py))
+  - Block-then-allow with actual edit execution
+  - Spawn blocked at step 150 (time_in_comfort=150, need 500)
+  - Spawn executed at step 750 (time_in_comfort=750 > 500)
+  - Parameters cloned + perturbed successfully
+  - Full audit trail: PROPOSED → EXECUTED
+
+### Why SPAWN First
+
+**Clean properties:**
+- Doesn't destroy information (only adds capacity)
+- Reversible (can prune if doesn't help)
+- Evidence: layer starving (high misfit, experts coherent but insufficient)
+
+**Validates pipeline:**
+- Two-step commit works
+- Gates enforce calmness
+- Audit log captures everything
+- Parameters clone + perturb correctly
+
 ### To Implement
 
-- [ ] Spawn: Add expert when layer starving
 - [ ] Prune: Remove expert when irreversibly decoherent
 - [ ] Split: Divide bimodal expert
-- [ ] Merge: Combine redundant experts
-- [ ] Candidate evaluation under F_l
-- [ ] "Do nothing" threshold
+- [ ] Merge: Combine redundant experts (LAST - dangerous)
+- [ ] Replay test: save trace, show diagnostic improvement
+- [ ] "Do nothing" threshold (already in evidence, need to enforce)
+
+### Order: spawn → prune → split → merge
+
+Merge is last because it's where you accidentally delete a personality and call it compression.
 
 ---
 
