@@ -1,10 +1,10 @@
-# Detecting Pathological Routing Dynamics in Mixture-of-Experts Systems
+# Diagnosing Pathological Routing Dynamics in Mixture-of-Experts Systems
 
 **Anonymous Authors**
 
 ## Abstract
 
-Mixture-of-Experts (MoE) models achieve strong performance by routing inputs to specialized sub-networks, but existing metrics focus on load balancing and capacity utilization rather than functional contribution. We present three diagnostics that detect routing pathologies invisible to standard metrics: (1) **phase coherence** — measuring directional alignment between expert outputs and the mixture at three timescales, (2) **constraint-dependent routing state** — revealing latent path dependence only when degrees of freedom collapse, and (3) **bimodality detection** — identifying when experts serve incompatible computational modes while maintaining superficially healthy averages. We validate these diagnostics empirically, showing they detect decoherence within 10 steps (vs. 100+ for task metrics), reveal routing history effects under top-1 constraint despite 0.016 L1 divergence in accumulated state, and distinguish stable-but-pathological experts from genuinely healthy ones. These diagnostics form a mechanistic substrate for lifecycle decisions (pruning, splitting) based on functional evidence rather than heuristics.
+Mixture-of-Experts (MoE) models achieve strong performance by routing inputs to specialized sub-networks, but existing metrics focus on load balancing and capacity utilization rather than functional contribution. We present three diagnostics that flag routing pathologies invisible to standard metrics: (1) **phase coherence** — measuring directional alignment between expert outputs and the mixture at three timescales, (2) **constraint-dependent routing state** — revealing latent path dependence only when degrees of freedom collapse, and (3) **bimodality diagnosis** — identifying when experts serve incompatible computational modes while maintaining superficially healthy averages. We validate these diagnostics empirically, showing they diagnose decoherence within 10 steps (vs. 100+ for task metrics), reveal routing history effects under top-1 constraint despite 0.016 L1 divergence in accumulated state, and distinguish stable-but-pathological experts from genuinely healthy ones. These diagnostics form a mechanistic substrate for lifecycle decisions (pruning, splitting) based on functional evidence rather than heuristics.
 
 ---
 
@@ -12,7 +12,7 @@ Mixture-of-Experts (MoE) models achieve strong performance by routing inputs to 
 
 Mixture-of-Experts (MoE) architectures route inputs to specialized sub-networks (experts), enabling efficient scaling of model capacity [1,2,3]. However, routing quality is typically measured by proxy metrics—load balancing, capacity utilization, auxiliary losses—that optimize for efficiency rather than functional contribution [4,5].
 
-Three pathologies remain undetected by existing methods:
+Three pathologies remain undiagnosed by existing methods:
 
 **1. Loss of functional coherence**: An expert may receive tokens (satisfying load balancing) but produce outputs misaligned with the mixture direction. Standard metrics see utilization; they miss functional degradation.
 
@@ -22,19 +22,19 @@ Three pathologies remain undetected by existing methods:
 
 We address these gaps with three diagnostics:
 
-- **Phase coherence (φ)**: Measures directional alignment between expert output and mixture at three exponential moving average (EMA) timescales (fast ~10 steps, medium ~100, slow ~1000). Detects functional degradation before task metrics drop.
+- **Phase coherence (φ)**: Measures directional alignment between expert output and mixture at three exponential moving average (EMA) timescales (fast ~10 steps, medium ~100, slow ~1000). Diagnoses functional degradation before task metrics drop.
 
 - **Capacity whiplash testing**: Two systems with different routing histories (β accumulated from coherence feedback) behave similarly under top-4 routing but choose different experts under top-1. Minimal divergence (0.016 L1) becomes decisive under constraint. Generalizes to any accumulated-state routing system.
 
-- **Bimodality detection**: Two-centroid tracking with separation × balance metric. Distinguishes experts serving one mode (healthy) from those serving two incompatible modes (split candidates) even when average coherence is similar.
+- **Bimodality diagnosis**: Two-centroid tracking with separation × balance metric. Distinguishes experts serving one mode (healthy) from those serving two incompatible modes (split candidates) even when average coherence is similar.
 
 **Contributions**:
-1. Phase coherence as a functional alignment metric (§3)
+1. Phase coherence as a functional alignment diagnostic (§3)
 2. Empirical demonstration that routing state is latent until constraint reveals it (§4)
-3. Bimodality detection distinguishing stability from health (§5)
+3. Bimodality diagnosis distinguishing stability from health (§5)
 4. Validation on toy MoE models showing diagnostic utility (§6)
 
-These diagnostics are **purely mechanistic**—they detect what's wrong, not what to do about it. Lifecycle actions (prune, split, merge) remain rule-based, justified by diagnostic evidence.
+These diagnostics are **purely mechanistic**—they diagnose what's wrong, not what to do about it. Lifecycle actions (prune, split, merge) remain rule-based, justified by diagnostic evidence.
 
 ---
 
@@ -68,7 +68,7 @@ Two-centroid clustering is standard [16], but applying it to expert output dynam
 
 ---
 
-## 3. Phase Coherence: Detecting Loss of Functional Alignment
+## 3. Phase Coherence: Diagnosing Loss of Functional Alignment
 
 ### 3.1 Definition
 
@@ -90,7 +90,7 @@ We track φ_e at three EMA timescales:
 
 | Clock | α (decay) | Half-life | Purpose |
 |-------|-----------|-----------|---------|
-| Fast  | 0.9       | ~10 steps | Immediate degradation detection |
+| Fast  | 0.9       | ~10 steps | Immediate degradation diagnosis |
 | Medium| 0.99      | ~100 steps| Context-level stability |
 | Slow  | 0.999     | ~1000 steps| Persistent trends |
 
@@ -108,19 +108,19 @@ We track φ_e at three EMA timescales:
 
 Phase coherence is:
 - **Fine-grained**: Per-expert, not layer-wide
-- **Fast**: Detects degradation within 10 steps (fast clock)
+- **Fast**: Diagnoses degradation within 10 steps (fast clock)
 - **Functional**: Measures directional contribution, not just utilization
 
-### 3.4 Validation: Detection Latency
+### 3.4 Validation: Diagnosis Latency
 
 **Setup**: 8-expert MoE, inject degradation in expert 3 at step 100 (outputs become random noise).
 
 **Results**:
-- φ_fast drops below 0.3 at step 110 (10-step detection latency)
+- φ_fast drops below 0.3 at step 110 (10-step diagnosis latency)
 - φ_slow confirms at step 200 (100-step confirmation)
 - Task accuracy unaffected until step 250+ (compensated by other experts)
 
-**Conclusion**: Phase coherence detects functional degradation **before task metrics drop**.
+**Conclusion**: Phase coherence diagnoses functional degradation **before task metrics drop**.
 
 ---
 
@@ -158,7 +158,7 @@ We test two routers with different routing histories:
 
 **Results**:
 - Phase 1: β divergence L1 = 0.4 (strong, seeded)
-- Phase 2: System A → expert 1, System B → expert 3 (divergence detected)
+- Phase 2: System A → expert 1, System B → expert 3 (divergence evident)
 - Phase 3: Hysteresis L1 = 0.027 (minimal persistence)
 
 **Validates**: Persistent state variable affects routing under constraint.
@@ -171,7 +171,7 @@ We test two routers with different routing histories:
 
 **Results**:
 - Phase 1: β divergence L1 = **0.016** (tiny, earned from interaction)
-- Phase 2: System A → expert 7, System B → expert 5 (divergence detected!)
+- Phase 2: System A → expert 7, System B → expert 5 (divergence evident!)
 - Phase 3: Hysteresis L1 = 0.171 (strong persistence, 6× higher than injected)
 
 **Key finding**: **0.016 L1 difference is sufficient** to cause divergence under top-1.
@@ -200,7 +200,7 @@ Earned divergence shows **stronger hysteresis** than injected (0.171 vs 0.027). 
 
 ---
 
-## 5. Bimodality: Detecting False Stability
+## 5. Bimodality: Diagnosing False Stability
 
 ### 5.1 Motivation
 
@@ -247,7 +247,7 @@ We track two centroids (running means) per expert:
 **Why two centroids, not k-means?**
 - Captures first non-trivial pathology (bimodality)
 - Computationally lightweight
-- Higher-order multimodality is future work
+- We focus on bimodality as the simplest non-trivial failure mode; higher-order multimodal structure (tri-modal experts, manifold-like dynamics) is left to future work
 
 ### 5.4 Validation
 
@@ -298,18 +298,18 @@ We track two centroids (running means) per expert:
 **Task**: Toy sequence modeling (validation only; scaling to real tasks is future work)
 **Baselines**: Load balancing (token counts), task accuracy
 
-### 6.2 Coherence Detection Latency
+### 6.2 Coherence Diagnosis Latency
 
 **Experiment**: Inject degradation (random outputs) in expert 3 at step 100.
 
-**Metrics**: Detection latency = steps until φ_fast < 0.3
+**Metrics**: Diagnosis latency = steps until φ_fast < 0.3
 
 **Results**:
 - Phase coherence (fast): 10 steps
 - Task accuracy drop: 150+ steps
-- Load balancing: No detection (expert still receives tokens)
+- Load balancing: Undetected (expert still receives tokens)
 
-**Conclusion**: Phase coherence detects functional degradation **15× faster** than task metrics.
+**Conclusion**: Phase coherence diagnoses functional degradation **15× faster** than task metrics.
 
 ### 6.3 Constraint Reveals History
 
@@ -351,7 +351,7 @@ We track two centroids (running means) per expert:
 
 We presented three diagnostics for MoE routing pathologies:
 
-1. **Phase coherence**: Functional alignment metric, three timescales, detects degradation 15× faster than task metrics
+1. **Phase coherence**: Functional alignment metric, three timescales, diagnoses degradation 15× faster than task metrics
 2. **Capacity whiplash**: Demonstrates routing state is latent until constraint forces choice
 3. **Bimodality**: Distinguishes stability from health, closes "false coherence" loophole
 
@@ -363,11 +363,15 @@ These form a **diagnostic substrate** for lifecycle decisions. Prune/split actio
 
 **Multimodality**: Two-centroid approach captures bimodality but not tri-modal or manifold-like experts. Higher-order multimodality is future work.
 
-**Lifecycle execution**: We detect pathologies; we don't yet execute splits/prunes or define a unified control objective. That's Phase 4+.
+**Lifecycle execution**: We diagnose pathologies; we don't yet execute splits/prunes or define a unified control objective. That's Phase 4+.
 
 **Task coverage**: Toy sequence modeling. Real tasks (language modeling, vision) needed for production validation.
 
-### 7.3 Broader Implications
+### 7.3 Scope and Non-Goals
+
+**Important**: These diagnostics are **not optimization objectives** and are not used for gradient-based training. They provide evidence for discrete lifecycle decisions (prune, split) but do not appear in the loss function. This separation is intentional—diagnostics flag problems; control objectives (future work) specify what to do about them.
+
+### 7.4 Broader Implications
 
 **Generalization**: Capacity whiplash testing applies beyond MoE:
 - Attention mechanisms (accumulated attention state under constraint)
@@ -389,14 +393,14 @@ These form a **diagnostic substrate** for lifecycle decisions. Prune/split actio
 
 - **Scaling**: Apply to GPT-scale MoE (billions of parameters)
 - **Control objective**: Unify spawn/prune/split/merge under free energy (Phase 4)
-- **Higher-order multimodality**: Detect tri-modal, manifold experts
+- **Higher-order multimodality**: Diagnose tri-modal, manifold experts
 - **Real tasks**: Language modeling (C4, Pile), vision (ImageNet)
 
 ---
 
 ## 8. Conclusion
 
-We presented three diagnostics that detect routing pathologies invisible to standard MoE metrics. Phase coherence measures functional alignment at three timescales, detecting degradation before task metrics drop. Capacity whiplash testing reveals latent path dependence—routing state that only matters under constraint. Bimodality detection distinguishes stable-but-pathological experts from genuinely healthy ones, closing the "false coherence" loophole.
+We presented three diagnostics that diagnose routing pathologies invisible to standard MoE metrics. Phase coherence measures functional alignment at three timescales, diagnosing degradation before task metrics drop. Capacity whiplash testing reveals latent path dependence—routing state that only matters under constraint. Bimodality diagnosis distinguishes stable-but-pathological experts from genuinely healthy ones, closing the "false coherence" loophole.
 
 These diagnostics form a mechanistic substrate for lifecycle decisions. An expert with φ_slow < 0.3 (persistently decoherent) can be pruned with functional justification. An expert with high bimodality (serving incompatible modes) should split, not be kept because average coherence looks acceptable.
 
