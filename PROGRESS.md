@@ -14,8 +14,8 @@
 - **Phase 3:** ✅ COMPLETE (Bimodality detector closes false coherence loophole)
 - **Phase 4:** ✅ COMPLETE (Free energy objective unifies all four terms)
 - **Stress Bands:** ✅ COMPLETE (Autonomic regulation, non-bypassable gates)
-- **Phase 5:** 🚧 IN PROGRESS (SPAWN complete, prune/split/merge pending)
-- **Next:** Prune implementation, then replay test
+- **Phase 5:** ✅ COMPLETE (All edits + INVARIANTS.md + MERGE replay test)
+- **Next:** Phase 6 (Expert Registry) or additional replay tests
 
 ---
 
@@ -818,12 +818,28 @@ Production-shaped edit execution: proposed, evaluated, gated, committed, logged.
 - [x] Split: Divide bimodal expert ✅
 - [x] Merge: Combine redundant experts ✅ (LAST - most dangerous)
 
+### Constitutional Validation
+
+- ✅ **INVARIANTS.md** ([`INVARIANTS.md`](INVARIANTS.md))
+  - Constitutional rules for lifecycle edits (non-bypassable)
+  - Enforcement points for all irreversible operations
+  - Forensic requirements (audit log completeness)
+  - Guardrails and reversibility spectrum
+
+- ✅ **MERGE Replay Test** ([`tests/test_merge_replay.py`](tests/test_merge_replay.py))
+  - Three-act structure: blocked path, calm path, causality check
+  - Act 1: Verifies gate enforcement (blocks when time_in_comfort < 500)
+  - Act 2: Two-step commit, MIN_DELTA_F threshold, guardrail warning
+  - Act 3: Causality check - merge causes real improvement (not tautological)
+  - All 8 invariants verified: gates, commit, threshold, guardrails, audit, causality, misfit stable, coherence stable
+  - ✅ ALL TESTS PASSED
+
 ### Future Enhancements
 
-- [ ] Replay test: save trace, show diagnostic improvement with/without edits
-- [ ] "Do nothing" threshold enforcement (already in evidence calculation)
+- [ ] "Do nothing" threshold enforcement with explicit rejection logging
 - [ ] Merge strategies: weighted_average (by utilization), keep_dominant
 - [ ] Split strategies: kmeans clustering, gradient-based separation
+- [ ] Replay tests for SPAWN, PRUNE, SPLIT (MERGE complete)
 
 ---
 
