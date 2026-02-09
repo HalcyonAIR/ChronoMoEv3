@@ -277,13 +277,17 @@ class ExpertRegistry:
 
         # Remove parameters from optimizer
         # Clean up optimizer state for this expert's parameters
-        for param in expert_module.parameters():
-            # Remove from param group
-            for group in optimizer.param_groups:
-                if param in group['params']:
-                    group['params'].remove(param)
+        expert_params = list(expert_module.parameters())
 
-            # Clean up optimizer state dict (momentum, variance, etc.)
+        for group in optimizer.param_groups:
+            # Filter out expert params (use identity comparison)
+            group['params'] = [
+                p for p in group['params']
+                if not any(p is ep for ep in expert_params)
+            ]
+
+        # Clean up optimizer state dict (momentum, variance, etc.)
+        for param in expert_params:
             if param in optimizer.state:
                 del optimizer.state[param]
 
@@ -357,10 +361,13 @@ class ExpertRegistry:
         # Handle optimizer state
         if optimizer_state_strategy == "reset":
             # Remove old states, let optimizer reinitialize on next step
-            for param in source_a_module.parameters():
+            source_a_params = list(source_a_module.parameters())
+            source_b_params = list(source_b_module.parameters())
+
+            for param in source_a_params:
                 if param in optimizer.state:
                     del optimizer.state[param]
-            for param in source_b_module.parameters():
+            for param in source_b_params:
                 if param in optimizer.state:
                     del optimizer.state[param]
 
@@ -368,13 +375,15 @@ class ExpertRegistry:
 
         elif optimizer_state_strategy == "keep_a" and merged_id == source_a_id:
             # Keep source_a state, remove source_b state
-            for param in source_b_module.parameters():
+            source_b_params = list(source_b_module.parameters())
+            for param in source_b_params:
                 if param in optimizer.state:
                     del optimizer.state[param]
 
         elif optimizer_state_strategy == "keep_b" and merged_id == source_b_id:
             # Keep source_b state, remove source_a state
-            for param in source_a_module.parameters():
+            source_a_params = list(source_a_module.parameters())
+            for param in source_a_params:
                 if param in optimizer.state:
                     del optimizer.state[param]
 
