@@ -92,6 +92,27 @@ from .lifecycle_gates import (
     DEFAULT_STRESS_CONFIG,
 )
 
+from .edit_proposals import (
+    EditType,
+    EditStatus,
+    EditEvidence,
+    EditProposal,
+    SpawnProposal,
+    AuditLogEntry,
+    create_spawn_proposal,
+)
+
+from .dry_run_evaluator import (
+    DryRunResult,
+    DryRunEvaluator,
+    create_spawn_evidence,
+)
+
+from .edit_executor import (
+    ExpertSpawnResult,
+    EditExecutor,
+)
+
 __version__ = "0.1.0"
 
 __all__ = [
@@ -162,4 +183,19 @@ __all__ = [
     "get_default_stress_config",
     "DEFAULT_COLLAPSE_THRESHOLDS",
     "DEFAULT_STRESS_CONFIG",
+    # Edit Proposals
+    "EditType",
+    "EditStatus",
+    "EditEvidence",
+    "EditProposal",
+    "SpawnProposal",
+    "AuditLogEntry",
+    "create_spawn_proposal",
+    # Dry Run Evaluator
+    "DryRunResult",
+    "DryRunEvaluator",
+    "create_spawn_evidence",
+    # Edit Executor
+    "ExpertSpawnResult",
+    "EditExecutor",
 ]
