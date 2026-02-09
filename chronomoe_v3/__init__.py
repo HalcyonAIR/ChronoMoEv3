@@ -60,6 +60,29 @@ from .free_energy import (
     create_free_energy_state,
 )
 
+from .stress_bands import (
+    Band,
+    EMA,
+    StressBandsConfig,
+    StressBandsState,
+    IrreversibleGates,
+    StressStepResult,
+    init_stress_bands,
+    classify_band,
+    irreversible_gates,
+    update_boundaries,
+    step_stress_bands,
+)
+
+from .collapse_detection import (
+    CollapseThresholds,
+    CollapseSignals,
+    compute_neff,
+    compute_saturation,
+    check_survival,
+    collapse_signals_from_free_energy,
+)
+
 __version__ = "0.1.0"
 
 __all__ = [
@@ -104,4 +127,23 @@ __all__ = [
     "compute_instability_term",
     "compute_free_energy",
     "create_free_energy_state",
+    # Stress Bands
+    "Band",
+    "EMA",
+    "StressBandsConfig",
+    "StressBandsState",
+    "IrreversibleGates",
+    "StressStepResult",
+    "init_stress_bands",
+    "classify_band",
+    "irreversible_gates",
+    "update_boundaries",
+    "step_stress_bands",
+    # Collapse Detection
+    "CollapseThresholds",
+    "CollapseSignals",
+    "compute_neff",
+    "compute_saturation",
+    "check_survival",
+    "collapse_signals_from_free_energy",
 ]
