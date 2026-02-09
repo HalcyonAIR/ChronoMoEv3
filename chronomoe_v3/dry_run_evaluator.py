@@ -250,3 +250,90 @@ def create_spawn_evidence(
         neff_predicted=neff_predicted,
         trigger="layer_starving",
     )
+
+
+def create_prune_evidence(
+    f_l_before: float,
+    components_before: Any,  # FreeEnergyComponents
+    psi_before: float,
+    neff_before: Optional[float],
+    # After prune predictions
+    num_experts_after: int,
+    target_expert_coherence: float,
+    target_expert_utilization: float,
+    predicted_psi_delta: float = 0.0,
+    lambda_complexity: float = 0.01,
+) -> EditEvidence:
+    """
+    Create evidence for prune proposal.
+
+    Predictions:
+    - Misfit increases slightly (less capacity) OR stays same if expert was useless
+    - Complexity decreases (one fewer expert)
+    - Redundancy improves (removing a redundant expert)
+    - Net F_l should decrease if prune justified
+
+    Args:
+        f_l_before: Current free energy
+        components_before: Current free energy components
+        psi_before: Current layer coherence
+        neff_before: Current effective expert count
+        num_experts_after: Number of experts after prune
+        target_expert_coherence: phi_slow of expert being pruned
+        target_expert_utilization: Utilization of expert being pruned
+        predicted_psi_delta: Expected coherence change (usually 0 or small negative)
+        lambda_complexity: Complexity weight
+
+    Returns:
+        EditEvidence with predictions
+    """
+    # Predict coherence change
+    # If expert is decoherent (low phi_slow), removing it has minimal impact
+    # If expert is low-utilization, removing it has minimal impact
+    psi_predicted = max(0.0, min(1.0, psi_before + predicted_psi_delta))
+
+    # Predict new misfit
+    misfit_predicted = 1.0 - psi_predicted
+
+    # Predict new complexity (one fewer expert)
+    complexity_predicted = lambda_complexity * num_experts_after
+
+    # Predict redundancy improvement (removing a decoherent expert reduces redundancy)
+    # If expert was decoherent, it was likely redundant or useless
+    redundancy_improvement = 0.05 if target_expert_coherence < 0.5 else 0.02
+    redundancy_predicted = max(0.0, components_before.redundancy - redundancy_improvement)
+
+    # Predict instability improvement (removing unstable expert helps)
+    instability_improvement = 0.03 if target_expert_coherence < 0.3 else 0.01
+    instability_predicted = max(0.0, components_before.instability - instability_improvement)
+
+    # Predict new F_l
+    f_l_predicted = (
+        misfit_predicted + complexity_predicted + redundancy_predicted + instability_predicted
+    )
+
+    # Predict Neff change (removing expert → lower Neff, but modest if expert was low-util)
+    neff_predicted = None
+    if neff_before is not None:
+        # If expert had low utilization, Neff barely changes
+        neff_delta = -0.2 if target_expert_utilization > 100 else -0.05
+        neff_predicted = max(1.0, neff_before + neff_delta)
+
+    return EditEvidence(
+        f_l_before=f_l_before,
+        f_l_predicted=f_l_predicted,
+        delta_f_l=f_l_predicted - f_l_before,
+        misfit_before=components_before.misfit,
+        misfit_predicted=misfit_predicted,
+        complexity_before=components_before.complexity,
+        complexity_predicted=complexity_predicted,
+        redundancy_before=components_before.redundancy,
+        redundancy_predicted=redundancy_predicted,
+        instability_before=components_before.instability,
+        instability_predicted=instability_predicted,
+        psi_before=psi_before,
+        psi_predicted=psi_predicted,
+        neff_before=neff_before,
+        neff_predicted=neff_predicted,
+        trigger="expert_decoherent",
+    )

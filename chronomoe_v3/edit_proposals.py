@@ -198,6 +198,37 @@ class AuditLogEntry:
         }
 
 
+@dataclass
+class PruneProposal(EditProposal):
+    """
+    Prune a decoherent expert.
+
+    Why PRUNE is careful:
+    - Destroys information (not reversible)
+    - Evidence: expert persistently decoherent (phi_slow < threshold)
+    - Must check starvation: removing expert won't collapse layer
+    - Requires sustained calm (identity change)
+    """
+
+    # Override to set default
+    edit_type: EditType = "PRUNE"
+
+    @property
+    def target_expert_id(self) -> Optional[int]:
+        """Expert to remove."""
+        return self.details.get("target_expert_id")
+
+    @property
+    def phi_slow_at_proposal(self) -> Optional[float]:
+        """Coherence at proposal time."""
+        return self.details.get("phi_slow")
+
+    @property
+    def utilization_at_proposal(self) -> Optional[float]:
+        """Utilization at proposal time."""
+        return self.details.get("utilization")
+
+
 def create_spawn_proposal(
     proposal_id: str,
     layer_id: int,
@@ -231,5 +262,45 @@ def create_spawn_proposal(
         details={
             "parent_expert_id": parent_expert_id,
             "perturbation_scale": perturbation_scale,
+        },
+    )
+
+
+def create_prune_proposal(
+    proposal_id: str,
+    layer_id: int,
+    step: int,
+    target_expert_id: int,
+    evidence: EditEvidence,
+    gates_state: Dict[str, Any],
+    phi_slow: float,
+    utilization: float,
+) -> PruneProposal:
+    """
+    Create a prune proposal.
+
+    Args:
+        proposal_id: Unique identifier
+        layer_id: Which layer
+        step: Current step
+        target_expert_id: Expert to remove
+        evidence: Why prune is beneficial
+        gates_state: Current gate state
+        phi_slow: Expert coherence at proposal
+        utilization: Expert utilization at proposal
+
+    Returns:
+        PruneProposal ready for evaluation
+    """
+    return PruneProposal(
+        proposal_id=proposal_id,
+        layer_id=layer_id,
+        proposed_at_step=step,
+        evidence=evidence,
+        gates_at_proposal=gates_state,
+        details={
+            "target_expert_id": target_expert_id,
+            "phi_slow": phi_slow,
+            "utilization": utilization,
         },
     )

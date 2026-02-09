@@ -666,17 +666,17 @@ Stress is allowed to exist. It's not allowed to decide who you become.
 
 ---
 
-## 🚧 Phase 5: Edit Proposal and Selection (IN PROGRESS - SPAWN COMPLETE)
+## 🚧 Phase 5: Edit Proposal and Selection (IN PROGRESS - SPAWN & PRUNE COMPLETE)
 
 **Lifecycle as slow-clock physics.**
 
 Production-shaped edit execution: proposed, evaluated, gated, committed, logged.
 
-### Implemented (SPAWN only)
+### Implemented (SPAWN & PRUNE)
 
 - ✅ **EditProposal System** ([`chronomoe_v3/edit_proposals.py`](chronomoe_v3/edit_proposals.py))
   - EditEvidence: ΔF_l prediction, diagnostic improvements, trigger reason
-  - EditProposal/SpawnProposal: what, why, when, with full context
+  - EditProposal/SpawnProposal/PruneProposal: what, why, when, with full context
   - AuditLogEntry: every proposal/approval/execution/rejection logged
   - Two-step commit: proposed at N, executed at N+1 if improvement holds
 
@@ -685,12 +685,15 @@ Production-shaped edit execution: proposed, evaluated, gated, committed, logged.
   - Answers: "Do Phase 1-4 signals improve?"
   - Keeps F_l a sensor, not an objective
   - Prevents "clever one-window hacks" from becoming architecture
+  - create_spawn_evidence(): predict capacity addition impact
+  - create_prune_evidence(): predict decoherent expert removal impact
 
 - ✅ **EditExecutor** ([`chronomoe_v3/edit_executor.py`](chronomoe_v3/edit_executor.py))
-  - propose_spawn(): Step 1, gate check, create proposal
-  - approve_spawn(): Step 1.5, dry-run evaluation
-  - execute_spawn(): Step 2, clone params + perturb, final gate check
-  - spawn_expert_full_pipeline(): Convenience method
+  - **SPAWN**: propose_spawn(), approve_spawn(), execute_spawn(), spawn_expert_full_pipeline()
+  - **PRUNE**: propose_prune(), approve_prune(), execute_prune(), prune_expert_full_pipeline()
+  - Step 1: Propose (gate check, create proposal, log PROPOSED)
+  - Step 1.5: Approve (dry-run evaluation, check improvement holds)
+  - Step 2: Execute (final gate check, apply edit, log EXECUTED)
   - Full audit trail (JSONL log)
 
 - ✅ **SPAWN Demo** ([`examples/spawn_demo.py`](examples/spawn_demo.py))
@@ -698,6 +701,14 @@ Production-shaped edit execution: proposed, evaluated, gated, committed, logged.
   - Spawn blocked at step 150 (time_in_comfort=150, need 500)
   - Spawn executed at step 750 (time_in_comfort=750 > 500)
   - Parameters cloned + perturbed successfully
+  - Full audit trail: PROPOSED → EXECUTED
+
+- ✅ **PRUNE Demo** ([`examples/prune_demo.py`](examples/prune_demo.py))
+  - Block-then-allow with actual edit execution
+  - Expert 4 becomes decoherent (phi=0.2, low utilization)
+  - Prune blocked at step 150 (time_in_comfort=150, need 500)
+  - Prune executed at step 750 (time_in_comfort=750 > 500)
+  - Expert removed successfully (identity change)
   - Full audit trail: PROPOSED → EXECUTED
 
 ### Why SPAWN First
@@ -713,9 +724,24 @@ Production-shaped edit execution: proposed, evaluated, gated, committed, logged.
 - Audit log captures everything
 - Parameters clone + perturb correctly
 
+### Why PRUNE is Careful
+
+**Dangerous properties:**
+- Destroys information (not reversible like spawn)
+- Evidence: expert persistently decoherent (phi_slow < threshold)
+- Must check starvation: removing expert won't collapse layer
+- Requires sustained calm (identity change)
+
+**Validates gates:**
+- Identity changes require more calm than behavior changes
+- Same gate enforcement as spawn (edit_calm_steps)
+- Full audit trail captures removal decision
+- Evidence includes complexity reduction justification
+
 ### To Implement
 
-- [ ] Prune: Remove expert when irreversibly decoherent
+- [x] Spawn: Add capacity when layer starving ✅
+- [x] Prune: Remove expert when irreversibly decoherent ✅
 - [ ] Split: Divide bimodal expert
 - [ ] Merge: Combine redundant experts (LAST - dangerous)
 - [ ] Replay test: save trace, show diagnostic improvement

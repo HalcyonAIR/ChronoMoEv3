@@ -98,14 +98,17 @@ from .edit_proposals import (
     EditEvidence,
     EditProposal,
     SpawnProposal,
+    PruneProposal,
     AuditLogEntry,
     create_spawn_proposal,
+    create_prune_proposal,
 )
 
 from .dry_run_evaluator import (
     DryRunResult,
     DryRunEvaluator,
     create_spawn_evidence,
+    create_prune_evidence,
 )
 
 from .edit_executor import (
@@ -189,12 +192,15 @@ __all__ = [
     "EditEvidence",
     "EditProposal",
     "SpawnProposal",
+    "PruneProposal",
     "AuditLogEntry",
     "create_spawn_proposal",
+    "create_prune_proposal",
     # Dry Run Evaluator
     "DryRunResult",
     "DryRunEvaluator",
     "create_spawn_evidence",
+    "create_prune_evidence",
     # Edit Executor
     "ExpertSpawnResult",
     "EditExecutor",

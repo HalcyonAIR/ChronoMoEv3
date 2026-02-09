@@ -22,9 +22,11 @@ import torch.nn.functional as F
 from .edit_proposals import (
     EditProposal,
     SpawnProposal,
+    PruneProposal,
     EditEvidence,
     AuditLogEntry,
     create_spawn_proposal,
+    create_prune_proposal,
 )
 from .dry_run_evaluator import DryRunEvaluator, DryRunResult
 from .lifecycle_gates import LifecycleGates, GateViolation
@@ -366,6 +368,281 @@ class EditExecutor:
             step=step,
             parent_params=parent_params,
             child_expert_id=child_expert_id,
+            gates=gates,
+        )
+
+    # ========================================================================
+    # PRUNE methods
+    # ========================================================================
+
+    def propose_prune(
+        self,
+        layer_id: int,
+        step: int,
+        target_expert_id: int,
+        evidence: EditEvidence,
+        gates: LifecycleGates,
+        phi_slow: float,
+        utilization: float,
+    ) -> Optional[PruneProposal]:
+        """
+        Propose pruning a decoherent expert.
+
+        Step 1 of two-step commit. Checks gates, creates proposal, logs it.
+
+        Args:
+            layer_id: Which layer
+            step: Current training step
+            target_expert_id: Expert to remove
+            evidence: Why prune is beneficial
+            gates: Current lifecycle gates
+            phi_slow: Expert coherence at proposal
+            utilization: Expert utilization at proposal
+
+        Returns:
+            PruneProposal if gates pass, None if blocked
+
+        Raises:
+            GateViolation: If calmness requirement not met
+        """
+        # Check gates (raises GateViolation if blocked)
+        # PRUNE requires edit permission (identity change)
+        gates.require_edit_allowed()
+
+        # Create proposal
+        proposal_id = f"prune_L{layer_id}_E{target_expert_id}_S{step}"
+        proposal = create_prune_proposal(
+            proposal_id=proposal_id,
+            layer_id=layer_id,
+            step=step,
+            target_expert_id=target_expert_id,
+            evidence=evidence,
+            gates_state={
+                "allow_edit": gates.check_edit_allowed(),
+                "current_band": gates.stress_state.current_band,
+                "time_in_comfort": gates.stress_state.time_in_comfort,
+            },
+            phi_slow=phi_slow,
+            utilization=utilization,
+        )
+
+        # Add to pending
+        self.pending_proposals[proposal_id] = proposal
+
+        # Log proposal
+        self._log_event(
+            event_type="PROPOSED",
+            proposal=proposal,
+            step=step,
+            stress_state=gates.stress_state,
+            gates=gates,
+        )
+
+        return proposal
+
+    def approve_prune(
+        self,
+        proposal_id: str,
+        step: int,
+        dry_run_result: DryRunResult,
+        gates: LifecycleGates,
+    ) -> bool:
+        """
+        Approve prune proposal after dry-run evaluation.
+
+        Step 1.5: Check if improvement signal holds.
+
+        Args:
+            proposal_id: Which proposal
+            step: Current step
+            dry_run_result: Result of dry-run simulation
+            gates: Current gates (checked again)
+
+        Returns:
+            True if approved, False if rejected
+        """
+        proposal = self.pending_proposals.get(proposal_id)
+        if proposal is None:
+            return False
+
+        # Check gates again (may have changed since proposal)
+        if not gates.check_edit_allowed():
+            proposal.status = "REJECTED"
+            self._log_event(
+                event_type="REJECTED",
+                proposal=proposal,
+                step=step,
+                stress_state=gates.stress_state,
+                gates=gates,
+                extra={"reason": "gates_changed", "dry_run": dry_run_result.to_dict()},
+            )
+            return False
+
+        # Check if improvement confirmed
+        if not dry_run_result.improvement_confirmed:
+            proposal.status = "REJECTED"
+            self._log_event(
+                event_type="REJECTED",
+                proposal=proposal,
+                step=step,
+                stress_state=gates.stress_state,
+                gates=gates,
+                extra={"reason": "no_improvement", "dry_run": dry_run_result.to_dict()},
+            )
+            return False
+
+        # Approve
+        proposal.status = "APPROVED"
+        proposal.approved_at_step = step
+
+        self._log_event(
+            event_type="APPROVED",
+            proposal=proposal,
+            step=step,
+            stress_state=gates.stress_state,
+            gates=gates,
+            extra={"dry_run": dry_run_result.to_dict()},
+        )
+
+        return True
+
+    def execute_prune(
+        self,
+        proposal_id: str,
+        step: int,
+        gates: LifecycleGates,
+    ) -> Optional[int]:
+        """
+        Execute approved prune proposal.
+
+        Step 2 of two-step commit. Returns expert ID to remove.
+
+        Args:
+            proposal_id: Which proposal
+            step: Current step
+            gates: Current gates (final check)
+
+        Returns:
+            Expert ID to remove if successful, None if blocked
+        """
+        proposal = self.pending_proposals.get(proposal_id)
+        if proposal is None or proposal.status != "APPROVED":
+            return None
+
+        # Final gate check
+        try:
+            gates.require_edit_allowed()
+        except GateViolation as e:
+            proposal.status = "REJECTED"
+            self._log_event(
+                event_type="REJECTED",
+                proposal=proposal,
+                step=step,
+                stress_state=gates.stress_state,
+                gates=gates,
+                extra={"reason": f"final_gate_check_failed: {e}"},
+            )
+            return None
+
+        # Mark as executed
+        proposal.status = "EXECUTED"
+        proposal.executed_at_step = step
+
+        target_expert_id = proposal.details.get("target_expert_id")
+
+        # Log execution
+        self._log_event(
+            event_type="EXECUTED",
+            proposal=proposal,
+            step=step,
+            stress_state=gates.stress_state,
+            gates=gates,
+            extra={"target_expert_id": target_expert_id},
+        )
+
+        # Remove from pending
+        del self.pending_proposals[proposal_id]
+
+        return target_expert_id
+
+    def prune_expert_full_pipeline(
+        self,
+        layer_id: int,
+        step: int,
+        target_expert_id: int,
+        evidence: EditEvidence,
+        gates: LifecycleGates,
+        phi_slow: float,
+        utilization: float,
+        dry_run_fn: Optional[Callable[[EditProposal], Dict[str, Any]]] = None,
+    ) -> Optional[int]:
+        """
+        Full prune pipeline: propose → evaluate → approve → execute.
+
+        Convenience method that runs all steps if you have everything ready.
+
+        Args:
+            layer_id: Which layer
+            step: Current step
+            target_expert_id: Expert to remove
+            evidence: Why prune is beneficial
+            gates: Lifecycle gates
+            phi_slow: Expert coherence
+            utilization: Expert utilization
+            dry_run_fn: Optional simulation function for dry-run
+
+        Returns:
+            Expert ID to remove if successful, None if blocked at any step
+        """
+        # Step 1: Propose
+        try:
+            proposal = self.propose_prune(
+                layer_id=layer_id,
+                step=step,
+                target_expert_id=target_expert_id,
+                evidence=evidence,
+                gates=gates,
+                phi_slow=phi_slow,
+                utilization=utilization,
+            )
+        except GateViolation:
+            return None
+
+        if proposal is None:
+            return None
+
+        # Step 1.5: Dry-run evaluation (if function provided)
+        if dry_run_fn is not None:
+            current_state = {
+                "f_l": evidence.f_l_before,
+                "psi": evidence.psi_before,
+                "neff": evidence.neff_before,
+            }
+            dry_run_result = self.dry_run_evaluator.evaluate_proposal(
+                proposal=proposal,
+                current_state=current_state,
+                simulate_fn=dry_run_fn,
+            )
+
+            # Step 2: Approve (or reject)
+            approved = self.approve_prune(
+                proposal_id=proposal.proposal_id,
+                step=step,
+                dry_run_result=dry_run_result,
+                gates=gates,
+            )
+
+            if not approved:
+                return None
+        else:
+            # No dry-run: auto-approve based on evidence alone
+            proposal.status = "APPROVED"
+            proposal.approved_at_step = step
+
+        # Step 3: Execute
+        return self.execute_prune(
+            proposal_id=proposal.proposal_id,
+            step=step,
             gates=gates,
         )
 
