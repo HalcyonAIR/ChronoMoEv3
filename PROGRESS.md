@@ -15,7 +15,8 @@
 - **Phase 4:** ✅ COMPLETE (Free energy objective unifies all four terms)
 - **Stress Bands:** ✅ COMPLETE (Autonomic regulation, non-bypassable gates)
 - **Phase 5:** ✅ COMPLETE (All edits + INVARIANTS.md + MERGE replay test)
-- **Next:** Phase 6 (Expert Registry) or additional replay tests
+- **Phase 6:** ✅ COMPLETE (ExpertRegistry + SwissMoEWrapper + integration validated)
+- **Next:** Real swiss-ai/MoE training validation or Phase 7 (ChronoSystem integration)
 
 ---
 
@@ -843,16 +844,87 @@ Production-shaped edit execution: proposed, evaluated, gated, committed, logged.
 
 ---
 
-## 📋 Phase 6: Expert Registry (NOT STARTED)
+## ✅ Phase 6: Expert Registry + Integration (COMPLETE)
 
-**Fixed-width router with masking.**
+**Fixed-width router with masking + signal extraction.**
 
-### To Implement
+Solves critical integration blockers identified in INTEGRATION_REVIEW.md.
 
-- [ ] ExpertRegistry managing active/cooling/archived states
-- [ ] Fixed-width router (max_experts per layer)
-- [ ] Active mask for spawn/prune
-- [ ] Optimizer state management on structural changes
+### Implemented
+
+#### 1. ExpertRegistry ([`chronomoe_v3/expert_registry.py`](chronomoe_v3/expert_registry.py))
+
+**Fixed-width routing with optimizer state management:**
+- ✅ Fixed-width capacity (max_experts per layer, e.g., 32)
+- ✅ Active mask enables structural edits without retraining router
+- ✅ Lifecycle states: ACTIVE → COOLING → ARCHIVED
+- ✅ Full optimizer state management:
+  - SPAWN: Registers new params in optimizer
+  - PRUNE: Cleans up deleted params (prevents memory leaks)
+  - MERGE: Handles two optimizer states → one ("reset" strategy)
+- ✅ Checkpoint save/load with full registry state
+- ✅ Utilization/coherence EMA tracking per expert
+
+**Tests**: 8/8 passing ✅
+
+#### 2. SwissMoEWrapper ([`chronomoe_v3/integration/swiss_moe_wrapper.py`](chronomoe_v3/integration/swiss_moe_wrapper.py))
+
+**Signal extraction without modifying swiss-ai/MoE source:**
+- ✅ Per-expert output capture (hooks expert dispatch loop)
+- ✅ Active mask injection (applied before topk selection)
+- ✅ MoETrace construction (full signal suite)
+- ✅ Drop-in replacement (same forward signature)
+- ✅ Zero overhead when registry=None
+- ✅ Multi-layer wrapping support
+
+**Architecture**:
+```python
+# Wrap single layer
+wrapper = SwissMoEWrapper(moe_layer, layer_id=0, registry=registry)
+
+# Wrap whole model
+wrappers = wrap_moe_model(
+    model,
+    moe_layer_names=["transformer.h.0.mlp", "transformer.h.1.mlp"],
+    registries={0: registry0, 1: registry1},
+)
+```
+
+**Tests**: 7/7 passing ✅
+
+#### 3. Integration Demo ([`examples/phase6_integration_demo.py`](examples/phase6_integration_demo.py))
+
+**End-to-end validation:**
+- ✅ Mock swiss-ai/MoE model with 2 layers
+- ✅ Registries with fixed-width routing (max 32 experts, 8 active)
+- ✅ Signal extraction via wrappers
+- ✅ Free energy computation from real traces (F_l = 0.7304)
+- ✅ SPAWN execution with real gradients (8 → 9 experts)
+- ✅ PRUNE execution with state cleanup (9 → 8 experts, 1 cooling)
+- ✅ Optimizer state verified clean (no memory leaks)
+
+**All validation checks passing** ✅
+
+### What This Enables
+
+**Before Phase 6**:
+- ❌ No optimizer state management → memory leaks
+- ❌ Router dimension changes → requires retraining
+- ❌ No per-expert outputs → can't compute coherence/redundancy/bimodality
+- ❌ Lifecycle system unusable with real models
+
+**After Phase 6**:
+- ✅ Full optimizer state lifecycle
+- ✅ Fixed-width routing (no retraining after edits)
+- ✅ Complete signal extraction
+- ✅ Ready for real MoE integration
+
+### Test Coverage
+
+**Total**: 15 tests, all passing ✅
+- ExpertRegistry: 8 tests
+- SwissMoEWrapper: 7 tests
+- Integration demo: End-to-end validation
 
 ---
 
