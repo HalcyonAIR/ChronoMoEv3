@@ -13,6 +13,7 @@
 - **Constraint Testing:** ✅ COMPLETE (Injected + earned divergence validated)
 - **Phase 3:** ✅ COMPLETE (Bimodality detector closes false coherence loophole)
 - **Phase 4:** ✅ COMPLETE (Free energy objective unifies all four terms)
+- **Stress Bands:** ✅ COMPLETE (Autonomic regulation, non-bypassable gates)
 - **Next:** Phase 5 (Edit proposal and selection under F_l)
 
 ---
@@ -548,6 +549,119 @@ The slow clock acts only when ΔF_l > threshold. This makes the system calm.
 - `chronomoe_v3/__init__.py` - Exports all free energy symbols
 - `tests/test_free_energy.py` - Comprehensive test suite (~450 lines)
 - `examples/free_energy_demo.py` - Six scenario demonstrations (~300 lines)
+
+---
+
+## ✅ Stress Bands: Autonomic Regulation (COMPLETE)
+
+**Principle: Pressure tunes behavior. Calm commits identity.**
+
+F_l is not an objective to minimize. It's a physiological sensor—like heart rate.
+
+### Implemented
+
+- ✅ **StressBands** ([`chronomoe_v3/stress_bands.py`](chronomoe_v3/stress_bands.py))
+  - Three learned bands: comfort, strain, panic
+  - Band boundaries adapt from operational experience (not hardcoded)
+  - Hysteresis prevents thrashing at boundaries
+  - Survival EMAs track whether system collapsed in each band
+
+- ✅ **Non-Bypassable Gates** ([`chronomoe_v3/lifecycle_gates.py`](chronomoe_v3/lifecycle_gates.py))
+  - `LifecycleGates` API enforces calmness requirements
+  - `GateViolation` raised if attempting irreversible without calm
+  - Context managers: `with gates.allow_edit(): spawn()`
+  - Frozen defaults: `get_default_collapse_thresholds()`, `get_default_stress_config()`
+
+- ✅ **Collapse Detection** ([`chronomoe_v3/collapse_detection.py`](chronomoe_v3/collapse_detection.py))
+  - Unified survival signal from internal integrity
+  - Four collapse modes: coherence, routing (Neff), saturation, instability
+  - Conservative thresholds (system allowed to be stressed)
+  - Tracks whether system held together, not task performance
+
+- ✅ **Integration** ([`examples/integration_demo.py`](examples/integration_demo.py))
+  - Full pipeline: Phase 1-4 + Stress Bands
+  - Proves block-then-allow: evidence blocked during stress, allowed when calm
+  - Double gate enforced: ΔF_l + time_in_comfort
+
+### Band Behaviors
+
+**Comfort band** (F_l < comfort_ceiling):
+- Normal operation
+- Reversible knobs adjust freely
+- Irreversibles allowed if: evidence + `time_in_comfort > threshold`
+
+**Strain band** (comfort_ceiling ≤ F_l < strain_ceiling):
+- Behavior changes, identity doesn't
+- Exploration temperature modulates
+- Proposal budgets tighten, deliberation slows
+- **Irreversible thresholds GO UP** (scar needs calm credit, crystallization/edits frozen)
+
+**Panic band** (F_l ≥ strain_ceiling):
+- Preservation mode
+- **Zero irreversibles**
+- Only reversible adaptations allowed
+
+### Key Results
+
+**Band learning validated:**
+- Robust system (always survives): comfort ceiling 0.5 → 1.31 (widened)
+- Fragile system (collapses often): comfort ceiling narrowed to 0.53
+- Volatile system (alternates calm/panic): learned caution (narrower bands)
+
+**Block-then-allow proven:**
+- Step 200: Evidence present (ΔF_l = -0.29), but gate blocks spawn
+- Step 800: Same evidence, now allowed (time_in_comfort > 500)
+- GateViolation raised when attempting bypass
+
+**Double gate enforced:**
+- Evidence gate: ΔF_l < -0.05 (Phase 4 free energy)
+- Calmness gate: time_in_comfort > 500 (stress bands)
+- Both required. Non-bypassable.
+
+### Integration Pattern
+
+```python
+# Compute free energy (Phase 4)
+components, _, f_l = compute_free_energy(...)
+
+# Check survival (collapse detection)
+signals = collapse_signals_from_free_energy(psi, utilization, router_probs, bimodality)
+survived, reason = check_survival(signals, thresholds)
+
+# Update stress bands
+result = step_stress_bands(stress_state, stress_cfg, f_l, survived)
+
+# Refresh gates
+gates = LifecycleGates(stress_state, stress_cfg)
+
+# Attempt irreversible (double gate)
+if evidence_met and gates.check_edit_allowed():
+    with gates.allow_edit():
+        spawn_expert()
+```
+
+### Why This Matters
+
+**What this prevents:**
+- ✗ Panic-driven crystallization (bad reflexes)
+- ✗ Stress-driven structural changes (identity churn)
+- ✗ Trauma becoming character
+
+**What this allows:**
+- ✓ Different systems tolerate different stress levels
+- ✓ Boundaries learned from experience, not hardcoded
+- ✓ Stress modulates behavior without rewriting identity
+
+**The principle:**
+Stress is allowed to exist. It's not allowed to decide who you become.
+
+### Files Created/Modified
+
+- `chronomoe_v3/stress_bands.py` - Core autonomic regulation (~350 lines)
+- `chronomoe_v3/collapse_detection.py` - Survival signal (~150 lines)
+- `chronomoe_v3/lifecycle_gates.py` - Non-bypassable gate API (~250 lines)
+- `examples/stress_bands_demo.py` - Five scenario demos (~450 lines)
+- `examples/integration_demo.py` - Full pipeline proof (~350 lines)
 
 ---
 

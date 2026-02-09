@@ -83,6 +83,15 @@ from .collapse_detection import (
     collapse_signals_from_free_energy,
 )
 
+from .lifecycle_gates import (
+    LifecycleGates,
+    GateViolation,
+    get_default_collapse_thresholds,
+    get_default_stress_config,
+    DEFAULT_COLLAPSE_THRESHOLDS,
+    DEFAULT_STRESS_CONFIG,
+)
+
 __version__ = "0.1.0"
 
 __all__ = [
@@ -146,4 +155,11 @@ __all__ = [
     "compute_saturation",
     "check_survival",
     "collapse_signals_from_free_energy",
+    # Lifecycle Gates
+    "LifecycleGates",
+    "GateViolation",
+    "get_default_collapse_thresholds",
+    "get_default_stress_config",
+    "DEFAULT_COLLAPSE_THRESHOLDS",
+    "DEFAULT_STRESS_CONFIG",
 ]
