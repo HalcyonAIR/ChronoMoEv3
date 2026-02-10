@@ -17,6 +17,13 @@ from typing import Optional, Tuple, Dict
 
 from chronomoe_integration.expert_registry import ExpertRegistry, ProbationConfig, ExpertState
 from chronomoe_integration.fixed_width_router import FixedWidthRouter
+from chronomoe_integration.stress_bands import (
+    StressBandsState,
+    StressBandsConfig,
+    init_stress_bands,
+    step_stress_bands,
+    Band,
+)
 
 
 class ChronoMoE(nn.Module):
@@ -36,6 +43,7 @@ class ChronoMoE(nn.Module):
         layer_id: int,
         max_experts: Optional[int] = None,
         probation_config: Optional[ProbationConfig] = None,
+        stress_bands_config: Optional[StressBandsConfig] = None,
     ):
         super().__init__()
 
@@ -67,10 +75,14 @@ class ChronoMoE(nn.Module):
             probation_config=probation_config,
         )
 
+        # Stress bands for calm gating
+        self.stress_bands_config = stress_bands_config or StressBandsConfig()
+        self.stress_bands = init_stress_bands(self.stress_bands_config)
+
         # Current step (updated externally before forward)
         self.current_step = 0
 
-        print(f"  [ChronoMoE Layer {layer_id}] {initial_experts} active → {self.max_experts} max experts")
+        print(f"  [ChronoMoE Layer {layer_id}] {initial_experts} active → {self.max_experts} max experts (stress bands: {self.stress_bands_config.comfort_ceiling_init:.2f}/{self.stress_bands_config.strain_ceiling_init:.2f})")
 
     def forward(self, inputs: torch.Tensor) -> Tuple[torch.Tensor, Dict]:
         """
@@ -154,7 +166,8 @@ class ChronoMoE(nn.Module):
         parent_id: int,
         strategy: str,
         optimizer: Optional[torch.optim.Optimizer] = None,
-    ) -> int:
+        check_calm_gate: bool = True,
+    ) -> Optional[int]:
         """
         Spawn a new expert from parent.
 
@@ -162,10 +175,19 @@ class ChronoMoE(nn.Module):
             parent_id: Parent expert ID (for cloning)
             strategy: "blank" or "clone"
             optimizer: Optimizer to register new parameters
+            check_calm_gate: If True, check stress bands calm gate before spawning
 
         Returns:
-            New expert ID
+            New expert ID, or None if spawn blocked by calm gate
         """
+        # Check calm gate
+        if check_calm_gate:
+            from chronomoe_integration.stress_bands import lifecycle_gates
+            gates = lifecycle_gates(self.stress_bands, self.stress_bands_config)
+            if not gates.allow_spawn:
+                print(f"  [ChronoMoE Layer {self.layer_id}] SPAWN BLOCKED: {gates.reason}")
+                return None
+
         assert self.registry.capacity_remaining > 0, \
             f"Layer {self.layer_id}: No capacity remaining"
 
@@ -204,26 +226,72 @@ class ChronoMoE(nn.Module):
 
         return new_expert_id
 
-    def prune_expert(self, expert_id: int) -> None:
+    def prune_expert(self, expert_id: int, check_calm_gate: bool = True) -> bool:
         """
         Prune expert (deactivate in mask).
 
         Does NOT physically remove from ModuleList (fixed-width).
+
+        Args:
+            expert_id: Expert to prune
+            check_calm_gate: If True, check stress bands calm gate before pruning
+
+        Returns:
+            True if pruned, False if blocked
         """
+        # Check calm gate
+        if check_calm_gate:
+            from chronomoe_integration.stress_bands import lifecycle_gates
+            gates = lifecycle_gates(self.stress_bands, self.stress_bands_config)
+            if not gates.allow_prune:
+                print(f"  [ChronoMoE Layer {self.layer_id}] PRUNE BLOCKED: Expert {expert_id}, {gates.reason}")
+                return False
+
         # Skip probation experts
         info = self.registry.experts.get(expert_id)
         if info and info.state == ExpertState.PROBATION:
-            return
+            return False
 
         self.registry.prune_expert(expert_id)
         print(f"  [ChronoMoE Layer {self.layer_id}] PRUNE: Expert {expert_id}")
+        return True
 
-    def check_probation_graduations(self, in_comfort_band: bool = True) -> None:
+    def update_stress_bands(self, stress: float) -> None:
+        """
+        Update stress bands based on current stress metric (e.g., loss).
+
+        Should be called once per step, typically after computing loss.
+
+        Args:
+            stress: Current stress metric (loss, free energy, etc.)
+        """
+        result = step_stress_bands(
+            state=self.stress_bands,
+            config=self.stress_bands_config,
+            stress=stress,
+        )
+
+        # Log band transitions
+        if result.band_now != result.band_prev:
+            print(f"  [ChronoMoE Layer {self.layer_id}] Stress band: {result.band_prev.value} → {result.band_now.value} (stress: {result.stress_smoothed:.4f})")
+
+    def check_probation_graduations(self, check_calm_gate: bool = True) -> None:
         """
         Check probation experts for graduation/failure.
 
         Should be called after forward pass at appropriate intervals.
+
+        Args:
+            check_calm_gate: If True, check stress bands calm gate before graduating
         """
+        # Check calm gate for graduation
+        if check_calm_gate:
+            from chronomoe_integration.stress_bands import lifecycle_gates
+            gates = lifecycle_gates(self.stress_bands, self.stress_bands_config)
+            in_comfort_band = gates.allow_graduate
+        else:
+            in_comfort_band = True
+
         results = self.registry.check_probation_status(
             current_step=self.current_step,
             in_comfort_band=in_comfort_band,
@@ -231,10 +299,15 @@ class ChronoMoE(nn.Module):
 
         for expert_id, status in results:
             if status == "graduate":
+                if not in_comfort_band and check_calm_gate:
+                    print(f"  [ChronoMoE Layer {self.layer_id}] GRADUATION BLOCKED: Expert {expert_id} (calm gate)")
+                    continue
+
                 self.registry.graduate_from_probation(expert_id, self.current_step)
                 tokens = self.registry.experts[expert_id].probation_tokens_accumulated
                 print(f"  [ChronoMoE Layer {self.layer_id}] GRADUATE: Expert {expert_id} ({tokens} tokens)")
             elif status == "fail":
-                self.prune_expert(expert_id)
+                # Probation failure triggers prune (skip calm gate check for failures)
+                self.prune_expert(expert_id, check_calm_gate=False)
                 tokens = self.registry.experts[expert_id].probation_tokens_accumulated
                 print(f"  [ChronoMoE Layer {self.layer_id}] PROBATION FAILURE: Expert {expert_id} ({tokens} tokens)")

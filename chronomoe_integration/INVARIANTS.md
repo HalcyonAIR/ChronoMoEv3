@@ -91,6 +91,46 @@
 
 ---
 
+### 6. Calm Gates for Lifecycle Operations
+
+**Rule:** Lifecycle operations (spawn/prune/graduate) respect stress bands and calm credit.
+
+**Stress Bands:**
+- COMFORT: stress < comfort_ceiling (default: 1.0)
+- STRAIN: comfort_ceiling <= stress < strain_ceiling (default: 2.0)
+- PANIC: stress >= strain_ceiling
+
+**Calm Credit:** Time spent continuously in COMFORT band (resets when leaving COMFORT).
+
+**Enforcement:**
+- PANIC band: All lifecycle operations frozen
+- STRAIN band: Prune frozen, spawn/graduate allowed with calm credit
+- COMFORT band: All operations allowed with calm credit
+
+**Calm Credit Requirements:**
+- Spawn: `spawn_calm_steps` (default: 200 steps in COMFORT)
+- Prune: `prune_calm_steps` (default: 500 steps in COMFORT)
+- Graduate: `graduate_calm_steps` (default: 200 steps in COMFORT)
+
+**Hysteresis:**
+- Entering worse band: At threshold
+- Exiting worse band: Below threshold - hysteresis margin (default: 5%)
+- Prevents thrashing when stress hovers near boundaries
+
+**Stress Signal:**
+- EMA-smoothed to prevent spikes from triggering band changes
+- Alpha (default: 0.05) controls smoothing rate
+
+**Violation symptoms:**
+- Spawn happens under high stress (panic/strain without calm)
+- Prune happens under strain (removes capacity when needed)
+- Graduation happens under stress (commits identity while unstable)
+- Lifecycle operations cause cascading failures
+
+**Test:** `test_stress_bands.py` verifies all calm gates enforced
+
+---
+
 ## Enforcement Points
 
 ### Initialization
