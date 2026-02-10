@@ -21,6 +21,16 @@ from chronomoe_integration.stress_bands import (
     step_stress_bands,
     lifecycle_gates,
 )
+from chronomoe_integration.controller import (
+    ChronoController,
+    ObservationSnapshot,
+    EditProposal,
+    EditResult,
+    create_controller,
+)
+from chronomoe_integration.coherence import (
+    CoherenceState,
+)
 
 __all__ = [
     "ChronoMoE",
@@ -36,4 +46,11 @@ __all__ = [
     "init_stress_bands",
     "step_stress_bands",
     "lifecycle_gates",
+    # Milestone A: Controller API
+    "ChronoController",
+    "ObservationSnapshot",
+    "EditProposal",
+    "EditResult",
+    "create_controller",
+    "CoherenceState",
 ]

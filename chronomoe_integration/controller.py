@@ -13,6 +13,14 @@ from dataclasses import dataclass
 from typing import List, Optional, Dict, Any
 import torch
 
+from .coherence import (
+    CoherenceState,
+    compute_coherence,
+    compute_expert_utilization,
+    update_coherence_ema,
+    compute_layer_coherence,
+)
+
 
 @dataclass
 class ObservationSnapshot:
@@ -110,7 +118,14 @@ class ChronoController:
         self.config = config or self._default_config()
 
         # Internal state (stays behind the boundary)
-        # Milestone A: Add coherence_state here
+        # Milestone A: Coherence tracking
+        self.coherence_states: Dict[int, CoherenceState] = {}
+        for expert_id in range(initial_active):
+            self.coherence_states[expert_id] = CoherenceState(
+                expert_id=expert_id,
+                layer_id=layer_id,
+            )
+
         # Milestone B: Add bimodality_state here
         # Milestone C: Add free_energy_state here
 
@@ -141,7 +156,8 @@ class ChronoController:
             self.observation_history.pop(0)
 
         # Milestone A: Update coherence state
-        # self._update_coherence(snapshot)
+        if snapshot.expert_outputs is not None:
+            self._update_coherence(snapshot)
 
         # Milestone B: Update bimodality state
         # self._update_bimodality(snapshot)
@@ -201,15 +217,88 @@ class ChronoController:
         Returns:
             Dictionary with signal values, band state, recent edits, etc.
         """
+        # Milestone A: Coherence stats
+        coherence_by_expert = {
+            expert_id: state.to_dict()
+            for expert_id, state in self.coherence_states.items()
+        }
+
+        layer_coherence_fast = compute_layer_coherence(
+            self.coherence_states, timescale="fast"
+        )
+        layer_coherence_mid = compute_layer_coherence(
+            self.coherence_states, timescale="mid"
+        )
+        layer_coherence_slow = compute_layer_coherence(
+            self.coherence_states, timescale="slow"
+        )
+
         return {
             "layer_id": self.layer_id,
             "max_experts": self.max_experts,
             "observations_count": len(self.observation_history),
             "edits_count": len(self.edit_log),
-            # Milestone A: Add coherence stats
+            # Milestone A: Coherence diagnostics
+            "coherence": {
+                "layer_coherence_fast": round(layer_coherence_fast, 4),
+                "layer_coherence_mid": round(layer_coherence_mid, 4),
+                "layer_coherence_slow": round(layer_coherence_slow, 4),
+                "by_expert": coherence_by_expert,
+            },
             # Milestone B: Add bimodality stats
             # Milestone C: Add free energy values
         }
+
+    def _update_coherence(self, snapshot: ObservationSnapshot) -> None:
+        """
+        Update coherence states from observation snapshot.
+
+        Milestone A: Coherence tracking only (no triggers, no edits).
+
+        Args:
+            snapshot: Current step's observation
+        """
+        # Get config values
+        config_coherence = self.config["coherence"]
+        alpha_fast = config_coherence["alpha_fast"]
+        alpha_mid = config_coherence["alpha_mid"]
+        alpha_slow = config_coherence["alpha_slow"]
+
+        # Compute coherence for all experts
+        # Need to build active_mask from utilization (proxy)
+        utilization = snapshot.utilization
+        active_mask = utilization > 0  # Experts that processed tokens
+
+        # Compute raw coherence scores
+        phi_raw = compute_coherence(
+            expert_outputs=snapshot.expert_outputs,
+            mixture_output=snapshot.mixture_output,
+            router_probs=snapshot.router_probs,
+            active_mask=active_mask,
+        )
+
+        # Update EMA states for each expert
+        for expert_id in range(len(phi_raw)):
+            if not active_mask[expert_id]:
+                continue  # Skip inactive experts
+
+            # Create state if doesn't exist (for spawned experts)
+            if expert_id not in self.coherence_states:
+                self.coherence_states[expert_id] = CoherenceState(
+                    expert_id=expert_id,
+                    layer_id=self.layer_id,
+                )
+
+            # Update with new measurement
+            update_coherence_ema(
+                state=self.coherence_states[expert_id],
+                phi_raw=phi_raw[expert_id].item(),
+                alpha_fast=alpha_fast,
+                alpha_mid=alpha_mid,
+                alpha_slow=alpha_slow,
+                step=snapshot.step,
+                num_tokens=int(utilization[expert_id].item()),
+            )
 
     @staticmethod
     def _default_config() -> Dict[str, Any]:

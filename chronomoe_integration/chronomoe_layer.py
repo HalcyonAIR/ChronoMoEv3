@@ -24,6 +24,11 @@ from chronomoe_integration.stress_bands import (
     step_stress_bands,
     Band,
 )
+from chronomoe_integration.controller import (
+    ChronoController,
+    ObservationSnapshot,
+    create_controller,
+)
 
 
 class ChronoMoE(nn.Module):
@@ -78,6 +83,13 @@ class ChronoMoE(nn.Module):
         # Stress bands for calm gating
         self.stress_bands_config = stress_bands_config or StressBandsConfig()
         self.stress_bands = init_stress_bands(self.stress_bands_config)
+
+        # Milestone A: Controller for signal processing (coherence tracking)
+        self.controller = create_controller(
+            layer_id=layer_id,
+            max_experts=self.max_experts,
+            initial_active=initial_experts,
+        )
 
         # Current step (updated externally before forward)
         self.current_step = 0
@@ -134,6 +146,13 @@ class ChronoMoE(nn.Module):
         results = torch.zeros_like(inputs_squashed)
         expert_utilization = torch.zeros(self.max_experts, dtype=torch.long, device=inputs.device)
 
+        # Milestone A: Capture per-expert outputs for coherence tracking
+        # [max_experts, B*T, d_model] - filled with expert outputs
+        expert_outputs = torch.zeros(
+            self.max_experts, num_tokens, inputs_squashed.shape[-1],
+            device=inputs.device, dtype=inputs_squashed.dtype
+        )
+
         for i, expert in enumerate(self.experts):
             if not active_mask[i]:
                 continue  # Skip inactive experts
@@ -143,6 +162,11 @@ class ChronoMoE(nn.Module):
                 continue
 
             output, _ = expert(inputs_squashed[batch_idx])
+
+            # Milestone A: Store per-expert output (before mixing)
+            expert_outputs[i, batch_idx] = output
+
+            # Mix into results
             results[batch_idx] += weights[batch_idx, nth_expert, None] * output
 
             # Track utilization (number of tokens processed)
@@ -154,11 +178,28 @@ class ChronoMoE(nn.Module):
                 num_tokens = int(expert_utilization[expert_id].item())
                 self.registry.update_probation_tokens(expert_id, num_tokens)
 
+        # Milestone A: Send observation to controller (coherence tracking)
+        snapshot = ObservationSnapshot(
+            step=self.current_step,
+            layer_id=self.layer_id,
+            router_probs=all_probs if self.softmax_order == "softmax_topk" else F.softmax(router_logits, dim=1),
+            selected_experts=selected_experts,
+            expert_outputs=expert_outputs,
+            mixture_output=results,
+            utilization=expert_utilization.float(),
+            loss=None,  # Will be set by training loop if needed
+        )
+        self.controller.observe(snapshot)
+
         # Return output and metadata
         return results.view_as(inputs), {
             "router_logits": router_logits,
             "selected_experts": selected_experts,
             "expert_utilization": expert_utilization,
+            # Milestone A: Per-expert outputs for coherence tracking
+            "expert_outputs": expert_outputs,  # [max_experts, B*T, d_model]
+            "mixture_output": results,  # [B*T, d_model]
+            "router_probs": all_probs if self.softmax_order == "softmax_topk" else F.softmax(router_logits, dim=1),
         }
 
     def spawn_expert(
