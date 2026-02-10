@@ -135,7 +135,7 @@ def test_spawn():
 
     # Spawn expert
     layer.current_step = 100
-    new_id = layer.spawn_expert(parent_id=0, strategy="blank")
+    new_id = layer.spawn_expert(parent_id=0, strategy="blank", check_calm_gate=False)
 
     assert new_id == 4, f"Expected new expert ID 4, got {new_id}"
     print(f"✓ Spawned expert ID: {new_id}")
@@ -180,7 +180,7 @@ def test_probation_boost():
 
     # Spawn expert
     layer.current_step = 100
-    new_id = layer.spawn_expert(parent_id=0, strategy="blank")
+    new_id = layer.spawn_expert(parent_id=0, strategy="blank", check_calm_gate=False)
 
     # Check boost value
     boost = layer.registry.get_probation_boost(new_id, 100)
@@ -327,7 +327,7 @@ def test_probation_graduation():
 
     # Spawn expert
     layer.current_step = 100
-    new_id = layer.spawn_expert(parent_id=0, strategy="blank")
+    new_id = layer.spawn_expert(parent_id=0, strategy="blank", check_calm_gate=False)
 
     # Run forward passes to accumulate tokens
     x = torch.randn(2, 32, 128)  # Larger sequence for more tokens
@@ -337,7 +337,7 @@ def test_probation_graduation():
 
     # Check probation graduation
     layer.current_step = 111
-    layer.check_probation_graduations(in_comfort_band=True)
+    layer.check_probation_graduations(check_calm_gate=False)
 
     # Expert should have graduated
     info = layer.registry.experts[new_id]
