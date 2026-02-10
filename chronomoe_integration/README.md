@@ -34,8 +34,11 @@ layer = ChronoMoE(
 layer.current_step = step
 output, metadata = layer(inputs)
 
-# Spawn new expert
-new_id = layer.spawn_expert(parent_id=0, strategy="blank", optimizer=optimizer)
+# Spawn new expert (defaults to blank strategy)
+new_id = layer.spawn_expert(parent_id=0, optimizer=optimizer)  # Uses blank by default
+
+# Explicit clone spawning (opt-in only, logs warning)
+new_id = layer.spawn_expert(parent_id=0, strategy="clone", optimizer=optimizer)
 
 # Check probation graduations
 layer.check_probation_graduations(in_comfort_band=True)
@@ -62,9 +65,35 @@ layer.prune_expert(expert_id=2)
 - **ACTIVE:** Graduated, normal routing
 - **ARCHIVED:** Pruned, hard-masked (unreachable)
 
+### Spawn Strategies
+
+**Default: Blank Initialization** (Recommended)
+- New expert uses random initialization (pre-allocated weights)
+- Combined with probation boost to ensure learning signal
+- This is the standard, proven approach
+
+**Opt-In: Clone from Parent**
+- New expert copies parent weights
+- Requires explicit `strategy="clone"` parameter
+- Logs warning when used (to prevent silent defaults)
+- Can be disabled entirely with `ProbationConfig.blank_only()`
+
+**Enforcement:**
+```python
+# Default behavior (recommended)
+layer.spawn_expert(parent_id=0)  # Uses blank + probation
+
+# Explicit clone (opt-in, logs warning)
+layer.spawn_expert(parent_id=0, strategy="clone")
+
+# Enforce blank-only (no clone allowed)
+layer = ChronoMoE(..., probation_config=ProbationConfig.blank_only())
+layer.spawn_expert(parent_id=0, strategy="clone")  # Raises ValueError
+```
+
 ### Probation Mechanism
 
-Prevents cold-start death spiral for newly spawned experts:
+Prevents cold-start death spiral for newly spawned experts (both blank and clone):
 
 1. Spawn creates expert in PROBATION state
 2. Router applies decaying logit boost

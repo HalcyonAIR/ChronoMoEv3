@@ -29,6 +29,10 @@ class ProbationConfig:
     share_cap: float = 0.05  # Not yet enforced
     require_comfort_band: bool = True
 
+    # Spawn strategy enforcement
+    allow_clone_spawn: bool = True  # If False, only blank spawning allowed
+    warn_on_clone: bool = True      # Log warning when clone strategy used
+
     @staticmethod
     def default() -> 'ProbationConfig':
         """Default probation config (balanced)."""
@@ -65,6 +69,24 @@ class ProbationConfig:
             min_tokens=1000,
             initial_boost=2.0,
             decay_type="linear",
+        )
+
+    @staticmethod
+    def blank_only() -> 'ProbationConfig':
+        """
+        Enforce blank-only spawning (no clone allowed).
+
+        Use this to ensure all spawns use random initialization + probation,
+        preventing any clone-seeded spawning.
+        """
+        return ProbationConfig(
+            enabled=True,
+            duration_steps=30,
+            min_tokens=1500,
+            initial_boost=1.0,
+            decay_type="linear",
+            allow_clone_spawn=False,  # Enforce blank-only
+            warn_on_clone=True,
         )
 
 

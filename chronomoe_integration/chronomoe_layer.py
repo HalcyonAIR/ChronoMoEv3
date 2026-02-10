@@ -164,16 +164,25 @@ class ChronoMoE(nn.Module):
     def spawn_expert(
         self,
         parent_id: int,
-        strategy: str,
+        strategy: str = "blank",  # DEFAULT TO BLANK
         optimizer: Optional[torch.optim.Optimizer] = None,
         check_calm_gate: bool = True,
     ) -> Optional[int]:
         """
         Spawn a new expert from parent.
 
+        Default strategy is "blank" (random init + probation). This is the
+        recommended approach as probation mechanism ensures new experts get
+        sufficient training signal.
+
+        Clone spawning is available as explicit opt-in for special cases where
+        inheriting parent weights is necessary.
+
         Args:
-            parent_id: Parent expert ID (for cloning)
-            strategy: "blank" or "clone"
+            parent_id: Parent expert ID (for cloning, if strategy="clone")
+            strategy: Spawn strategy (default: "blank")
+                - "blank": Random initialization + probation boost (recommended)
+                - "clone": Copy parent weights + probation boost (opt-in only)
             optimizer: Optimizer to register new parameters
             check_calm_gate: If True, check stress bands calm gate before spawning
 
@@ -193,6 +202,18 @@ class ChronoMoE(nn.Module):
 
         new_expert_id = self.registry.next_expert_id
 
+        # Validate and enforce strategy
+        if strategy == "clone":
+            # Clone spawning is opt-in only
+            if not self.registry.probation_config.allow_clone_spawn:
+                raise ValueError(
+                    f"Clone spawning is disabled (probation_config.allow_clone_spawn=False). "
+                    f"Use strategy='blank' or enable clone spawning in config."
+                )
+            if self.registry.probation_config.warn_on_clone:
+                print(f"  [ChronoMoE Layer {self.layer_id}] WARNING: Clone spawn used (strategy='clone'). "
+                      f"Blank spawn is recommended as default.")
+
         # Initialize expert (pre-existing slot)
         if strategy == "clone":
             # Clone parent weights
@@ -200,10 +221,10 @@ class ChronoMoE(nn.Module):
             new_expert = self.experts[new_expert_id]
             new_expert.load_state_dict(parent_expert.state_dict())
         elif strategy == "blank":
-            # Already randomly initialized
+            # Already randomly initialized (no action needed)
             pass
         else:
-            raise ValueError(f"Unknown spawn strategy: {strategy}")
+            raise ValueError(f"Unknown spawn strategy: {strategy}. Use 'blank' (default) or 'clone' (opt-in).")
 
         # Register in registry (activates in active_mask)
         self.registry.register_expert(
