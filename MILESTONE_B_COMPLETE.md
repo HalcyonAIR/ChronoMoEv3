@@ -136,7 +136,7 @@ Issue #3B complete: Bimodality detection integrated via the controller boundary.
 ## Git Commits
 
 ```
-[To be added after commit]
+17a40c5 Milestone B complete: Bimodality detection via controller boundary
 ```
 
 **Files created:**
