@@ -20,6 +20,11 @@ from .coherence import (
     update_coherence_ema,
     compute_layer_coherence,
 )
+from .bimodality import (
+    BimodalityState,
+    update_bimodality,
+    compute_layer_bimodality,
+)
 
 
 @dataclass
@@ -126,7 +131,10 @@ class ChronoController:
                 layer_id=layer_id,
             )
 
-        # Milestone B: Add bimodality_state here
+        # Milestone B: Bimodality tracking
+        self.bimodality_states: Dict[int, BimodalityState] = {}
+        # Note: Bimodality states created on-demand (need d_model from first observation)
+
         # Milestone C: Add free_energy_state here
 
         # Observation history (ring buffer)
@@ -160,7 +168,8 @@ class ChronoController:
             self._update_coherence(snapshot)
 
         # Milestone B: Update bimodality state
-        # self._update_bimodality(snapshot)
+        if snapshot.expert_outputs is not None:
+            self._update_bimodality(snapshot)
 
         # Milestone C: Compute free energy
         # self._compute_free_energy(snapshot)
@@ -233,6 +242,17 @@ class ChronoController:
             self.coherence_states, timescale="slow"
         )
 
+        # Milestone B: Bimodality stats
+        bimodality_by_expert = {
+            expert_id: state.to_dict()
+            for expert_id, state in self.bimodality_states.items()
+        }
+
+        layer_bimodality = compute_layer_bimodality(
+            self.bimodality_states,
+            min_observations=self.config["bimodality"]["min_observations"],
+        )
+
         return {
             "layer_id": self.layer_id,
             "max_experts": self.max_experts,
@@ -245,7 +265,11 @@ class ChronoController:
                 "layer_coherence_slow": round(layer_coherence_slow, 4),
                 "by_expert": coherence_by_expert,
             },
-            # Milestone B: Add bimodality stats
+            # Milestone B: Bimodality diagnostics
+            "bimodality": {
+                "layer_bimodality": round(layer_bimodality, 4),
+                "by_expert": bimodality_by_expert,
+            },
             # Milestone C: Add free energy values
         }
 
@@ -300,6 +324,49 @@ class ChronoController:
                 num_tokens=int(utilization[expert_id].item()),
             )
 
+    def _update_bimodality(self, snapshot: ObservationSnapshot) -> None:
+        """
+        Update bimodality states from observation snapshot.
+
+        Milestone B: Bimodality tracking only (no triggers, no edits).
+
+        Args:
+            snapshot: Current step's observation
+        """
+        # Get config values
+        config_bimodality = self.config["bimodality"]
+        alpha = config_bimodality["ema_alpha"]
+
+        # Get active experts
+        utilization = snapshot.utilization
+        active_mask = utilization > 0
+
+        # Get d_model from expert outputs
+        d_model = snapshot.expert_outputs.shape[2]
+
+        # Update bimodality for each active expert
+        for expert_id in range(len(active_mask)):
+            if not active_mask[expert_id]:
+                continue  # Skip inactive experts
+
+            # Create state if doesn't exist (for spawned experts or first observation)
+            if expert_id not in self.bimodality_states:
+                self.bimodality_states[expert_id] = BimodalityState(
+                    expert_id=expert_id,
+                    layer_id=self.layer_id,
+                    d_model=d_model,
+                    centroid_a=torch.zeros(d_model, device=snapshot.expert_outputs.device),
+                    centroid_b=torch.zeros(d_model, device=snapshot.expert_outputs.device),
+                    alpha=alpha,
+                )
+
+            # Update with expert output for this batch
+            expert_output = snapshot.expert_outputs[expert_id]  # [B*T, d_model]
+            update_bimodality(
+                state=self.bimodality_states[expert_id],
+                expert_output=expert_output,
+            )
+
     @staticmethod
     def _default_config() -> Dict[str, Any]:
         """
@@ -319,9 +386,9 @@ class ChronoController:
 
             # Bimodality detection (Milestone B)
             "bimodality": {
-                "ema_alpha": 0.1,
-                "min_observations": 100,  # Centroid initialization threshold
-                "split_threshold": 0.5,  # Bimodality score threshold
+                "ema_alpha": 0.95,  # ~20 steps half-life for centroid updates
+                "min_observations": 100,  # Minimum observations before reporting
+                "split_threshold": 0.5,  # Bimodality score threshold (future use)
             },
 
             # Free energy (Milestone C)

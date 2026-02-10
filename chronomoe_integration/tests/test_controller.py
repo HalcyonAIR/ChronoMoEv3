@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """
-Test controller boundary and coherence tracking (Milestone A).
+Test controller boundary, coherence tracking (Milestone A), and bimodality detection (Milestone B).
 
 Validates:
 - Controller API (observe, decide, apply, get_diagnostics)
 - Coherence tracking (phi_fast, phi_mid, phi_slow)
+- Bimodality detection (separation, balance, bimodality score)
 - Ring buffer behavior (no memory leaks)
 - NO edit proposals fired (decide() returns empty list)
 """
@@ -260,11 +261,165 @@ def test_ring_buffer_no_memory_leak():
     print("\n✓ TEST 5 PASSED: Ring buffer working\n")
 
 
+def test_bimodality_unimodal():
+    """Test 6: Bimodality detects unimodal (healthy) expert."""
+    print("=" * 70)
+    print("TEST 6: Bimodality - Unimodal (Healthy)")
+    print("=" * 70)
+
+    controller = create_controller(
+        layer_id=0,
+        max_experts=8,
+        initial_active=4,
+    )
+
+    B_T = 32
+    d_model = 128
+    num_experts = 8
+
+    # Create unimodal expert: outputs cluster around one direction
+    torch.manual_seed(42)  # Deterministic
+    base_direction = torch.randn(d_model)
+    base_direction = base_direction / base_direction.norm()  # Normalize
+
+    # Run 50 observations with expert 0 producing similar outputs
+    for step in range(50):
+        expert_outputs = torch.zeros(num_experts, B_T, d_model)
+
+        # Expert 0: unimodal (small variations around base direction)
+        noise = torch.randn(B_T, d_model) * 0.1
+        expert_outputs[0] = base_direction + noise
+
+        mixture_output = expert_outputs[0].clone()  # Simple mixture
+
+        snapshot = ObservationSnapshot(
+            step=step,
+            layer_id=0,
+            router_probs=torch.ones(B_T, num_experts) / num_experts,
+            selected_experts=torch.randint(0, 4, (B_T, 2)),
+            expert_outputs=expert_outputs,
+            mixture_output=mixture_output,
+            utilization=torch.tensor([32.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
+        )
+        controller.observe(snapshot)
+
+    # Get diagnostics
+    diagnostics = controller.get_diagnostics()
+    assert "bimodality" in diagnostics
+    bimodality_data = diagnostics["bimodality"]
+
+    print(f"✓ Layer bimodality: {bimodality_data['layer_bimodality']:.4f}")
+
+    # Check expert 0 bimodality
+    assert 0 in bimodality_data["by_expert"]
+    expert_0 = bimodality_data["by_expert"][0]
+
+    print(f"✓ Expert 0 (unimodal):")
+    print(f"  - Separation: {expert_0['separation']:.4f}")
+    print(f"  - Balance: {expert_0['balance']:.4f}")
+    print(f"  - Bimodality score: {expert_0['bimodality_score']:.4f}")
+    print(f"  - Observations: {expert_0['total_observations']}")
+
+    # Unimodal expert should have LOW bimodality score
+    assert expert_0["bimodality_score"] < 0.3, \
+        f"Unimodal expert should have low bimodality, got {expert_0['bimodality_score']:.4f}"
+
+    print(f"✓ Unimodal expert correctly identified (low score)")
+
+    print("\n✓ TEST 6 PASSED: Unimodal detection working\n")
+
+
+def test_bimodality_bimodal():
+    """Test 7: Bimodality detects bimodal expert."""
+    print("=" * 70)
+    print("TEST 7: Bimodality - Bimodal (Split Candidate)")
+    print("=" * 70)
+
+    controller = create_controller(
+        layer_id=0,
+        max_experts=8,
+        initial_active=4,
+    )
+
+    B_T = 32
+    d_model = 128
+    num_experts = 8
+
+    # Create bimodal expert: outputs alternate between two opposite directions
+    torch.manual_seed(42)  # Deterministic
+    direction_a = torch.randn(d_model)
+    direction_a = direction_a / direction_a.norm()
+    direction_b = -direction_a  # Opposite direction
+
+    # Run 50 observations with expert 0 alternating between two modes
+    for step in range(50):
+        expert_outputs = torch.zeros(num_experts, B_T, d_model)
+
+        # Expert 0: bimodal (alternates between opposite directions)
+        if step % 2 == 0:
+            # Mode A
+            noise = torch.randn(B_T, d_model) * 0.1
+            expert_outputs[0] = direction_a + noise
+        else:
+            # Mode B (opposite)
+            noise = torch.randn(B_T, d_model) * 0.1
+            expert_outputs[0] = direction_b + noise
+
+        mixture_output = expert_outputs[0].clone()
+
+        snapshot = ObservationSnapshot(
+            step=step,
+            layer_id=0,
+            router_probs=torch.ones(B_T, num_experts) / num_experts,
+            selected_experts=torch.randint(0, 4, (B_T, 2)),
+            expert_outputs=expert_outputs,
+            mixture_output=mixture_output,
+            utilization=torch.tensor([32.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
+        )
+        controller.observe(snapshot)
+
+    # Get diagnostics
+    diagnostics = controller.get_diagnostics()
+    bimodality_data = diagnostics["bimodality"]
+
+    print(f"✓ Layer bimodality: {bimodality_data['layer_bimodality']:.4f}")
+
+    # Check expert 0 bimodality
+    expert_0 = bimodality_data["by_expert"][0]
+
+    print(f"✓ Expert 0 (bimodal):")
+    print(f"  - Separation: {expert_0['separation']:.4f}")
+    print(f"  - Balance: {expert_0['balance']:.4f}")
+    print(f"  - Bimodality score: {expert_0['bimodality_score']:.4f}")
+    print(f"  - Observations: {expert_0['total_observations']}")
+
+    # Bimodal expert should have HIGH bimodality score
+    assert expert_0["bimodality_score"] > 0.5, \
+        f"Bimodal expert should have high bimodality, got {expert_0['bimodality_score']:.4f}"
+
+    # Should have balanced usage
+    assert expert_0["balance"] > 0.8, \
+        f"Bimodal expert should have balanced usage, got {expert_0['balance']:.4f}"
+
+    # Should have high separation (opposite directions)
+    assert expert_0["separation"] > 1.5, \
+        f"Bimodal expert should have high separation, got {expert_0['separation']:.4f}"
+
+    print(f"✓ Bimodal expert correctly identified (high score)")
+
+    # Verify NO edit proposals (Milestone B: diagnostics only)
+    proposals = controller.decide()
+    assert len(proposals) == 0, f"Expected 0 proposals in Milestone B, got {len(proposals)}"
+    print(f"✓ No edit proposals (Milestone B: diagnostics only)")
+
+    print("\n✓ TEST 7 PASSED: Bimodal detection working\n")
+
+
 def run_all_tests():
     """Run all controller tests."""
     print("\n" + "=" * 70)
-    print("CONTROLLER + COHERENCE TRACKING TESTS")
-    print("Milestone A Validation")
+    print("CONTROLLER + COHERENCE + BIMODALITY TRACKING TESTS")
+    print("Milestone A + B Validation")
     print("=" * 70)
 
     test_controller_api()
@@ -272,9 +427,11 @@ def run_all_tests():
     test_coherence_degradation_detection()
     test_no_edit_proposals()
     test_ring_buffer_no_memory_leak()
+    test_bimodality_unimodal()
+    test_bimodality_bimodal()
 
     print("=" * 70)
-    print("✓ ALL CONTROLLER TESTS PASSED (5/5)")
+    print("✓ ALL CONTROLLER TESTS PASSED (7/7)")
     print("=" * 70)
     print("\nController validated:")
     print("  1. API methods working ✓")
@@ -282,7 +439,10 @@ def run_all_tests():
     print("  3. Degradation detection working ✓")
     print("  4. No edit proposals (diagnostics only) ✓")
     print("  5. Ring buffer prevents memory leaks ✓")
+    print("  6. Bimodality unimodal detection ✓")
+    print("  7. Bimodality bimodal detection ✓")
     print("\nMilestone A: Coherence logging only, no triggers.")
+    print("Milestone B: Bimodality logging only, no triggers.")
     print("=" * 70)
 
 

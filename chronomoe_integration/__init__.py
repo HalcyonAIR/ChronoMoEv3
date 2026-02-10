@@ -31,6 +31,9 @@ from chronomoe_integration.controller import (
 from chronomoe_integration.coherence import (
     CoherenceState,
 )
+from chronomoe_integration.bimodality import (
+    BimodalityState,
+)
 
 __all__ = [
     "ChronoMoE",
@@ -53,4 +56,6 @@ __all__ = [
     "EditResult",
     "create_controller",
     "CoherenceState",
+    # Milestone B: Bimodality
+    "BimodalityState",
 ]
