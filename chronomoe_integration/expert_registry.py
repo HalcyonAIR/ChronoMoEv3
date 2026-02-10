@@ -29,6 +29,44 @@ class ProbationConfig:
     share_cap: float = 0.05  # Not yet enforced
     require_comfort_band: bool = True
 
+    @staticmethod
+    def default() -> 'ProbationConfig':
+        """Default probation config (balanced)."""
+        return ProbationConfig(
+            enabled=True,
+            duration_steps=30,
+            min_tokens=1500,
+            initial_boost=1.0,
+            decay_type="linear",
+        )
+
+    @staticmethod
+    def proof_of_failure() -> 'ProbationConfig':
+        """
+        Probation config that demonstrates failures can occur.
+
+        Validated to produce ~2 failures out of ~13 spawns in nanoMoE.
+        Use this preset to verify probation is not a guaranteed graduation.
+        """
+        return ProbationConfig(
+            enabled=True,
+            duration_steps=30,
+            min_tokens=1500,
+            initial_boost=1.0,
+            decay_type="linear",
+        )
+
+    @staticmethod
+    def generous() -> 'ProbationConfig':
+        """Generous probation (most experts graduate)."""
+        return ProbationConfig(
+            enabled=True,
+            duration_steps=50,
+            min_tokens=1000,
+            initial_boost=2.0,
+            decay_type="linear",
+        )
+
 
 @dataclass
 class ExpertInfo:

@@ -246,10 +246,67 @@ def test_hard_mask():
     print("\n✓ TEST 5 PASSED: Hard mask working (no ghost routing)\n")
 
 
-def test_probation_graduation():
-    """Test 6: Probation graduation works."""
+def test_ghost_routing_assertion():
+    """Test 6: Ghost routing assertion (hard fail if violated)."""
     print("=" * 70)
-    print("TEST 6: Probation Graduation")
+    print("TEST 6: Ghost Routing Assertion (Hard Fail)")
+    print("=" * 70)
+
+    config = MockConfig()
+    layer = ChronoMoE(
+        config=config,
+        mlp=MockMLP,
+        layer_id=0,
+        max_experts=8,
+    )
+
+    # Forward pass
+    x = torch.randn(2, 16, 128)
+    output, metadata = layer(x)
+
+    # Get router logits and masks
+    router_logits = metadata["router_logits"]
+    active_mask = layer.registry.active_mask
+    inactive_mask = ~active_mask
+
+    # HARD ASSERTIONS (must pass, not just log)
+
+    # 1. Inactive logits must be exactly -inf
+    inactive_logits = router_logits[:, inactive_mask]
+    min_inactive = inactive_logits.min().item()
+    max_inactive = inactive_logits.max().item()
+
+    assert min_inactive == float('-inf'), \
+        f"Min inactive logit must be -inf, got {min_inactive}"
+    assert max_inactive == float('-inf'), \
+        f"Max inactive logit must be -inf, got {max_inactive}"
+    print(f"✓ Inactive logits exactly -inf: min={min_inactive}, max={max_inactive}")
+
+    # 2. Softmax probability for inactive experts must be exactly 0
+    # Apply softmax to router logits
+    probs = torch.nn.functional.softmax(router_logits, dim=1)
+    inactive_probs = probs[:, inactive_mask]
+    max_inactive_prob = inactive_probs.max().item()
+
+    assert max_inactive_prob == 0.0, \
+        f"Max inactive probability must be 0.0, got {max_inactive_prob}"
+    print(f"✓ Inactive expert max probability: {max_inactive_prob} (exact zero)")
+
+    # 3. Inactive experts must have zero utilization
+    utilization = metadata["expert_utilization"]
+    inactive_util = utilization[inactive_mask]
+
+    assert torch.all(inactive_util == 0), \
+        f"All inactive experts must have 0 utilization, got {inactive_util.tolist()}"
+    print(f"✓ Inactive expert utilization: {inactive_util.tolist()} (all zeros)")
+
+    print("\n✓ TEST 6 PASSED: No ghost routing (hard assertions enforced)\n")
+
+
+def test_probation_graduation():
+    """Test 7: Probation graduation works."""
+    print("=" * 70)
+    print("TEST 7: Probation Graduation")
     print("=" * 70)
 
     config = MockConfig()
@@ -292,7 +349,7 @@ def test_probation_graduation():
     else:
         print(f"✗ Expert {new_id} did not graduate (may need more tokens)")
 
-    print("\n✓ TEST 6 PASSED: Probation graduation mechanism works\n")
+    print("\n✓ TEST 7 PASSED: Probation graduation mechanism works\n")
 
 
 def run_all_tests():
@@ -307,10 +364,11 @@ def run_all_tests():
     test_spawn()
     test_probation_boost()
     test_hard_mask()
+    test_ghost_routing_assertion()
     test_probation_graduation()
 
     print("=" * 70)
-    print("✓ ALL TESTS PASSED")
+    print("✓ ALL TESTS PASSED (7/7)")
     print("=" * 70)
     print("\nFixed-width routing validated in swiss-ai/MoE:")
     print("  1. Router outputs max_experts logits ✓")
@@ -318,8 +376,9 @@ def run_all_tests():
     print("  3. Spawn activates slot (no resize) ✓")
     print("  4. Probation boost applied ✓")
     print("  5. Hard mask prevents ghost routing ✓")
-    print("  6. Probation graduation works ✓")
-    print("\nReady for production use.")
+    print("  6. Ghost routing assertion (hard fail) ✓")
+    print("  7. Probation graduation works ✓")
+    print("\nAll invariants enforced. Integration-ready.")
     print("=" * 70)
 
 

@@ -274,6 +274,20 @@ Order: compute logits → apply boost → hard mask → softmax
 
 Same as swiss-ai/MoE (see repository LICENSE).
 
+## Next Steps
+
+See open tracking issues for post-graduation work:
+
+**Issue #1:** [Port stress bands + calm gating](../../ChronoMoEv3/TRACKING_ISSUES.md#issue-1-port-stress-bands--calm-gating-into-swiss-aimoe-integration)
+- Integrate comfort/strain/panic bands
+- Enforce calm gates for lifecycle operations
+- Add validation tests
+
+**Issue #2:** [Blank spawn as default](../../ChronoMoEv3/TRACKING_ISSUES.md#issue-2-implement-blank-spawn-with-probation-as-default-keep-clone-seeded-as-optional)
+- Make blank+probation the standard spawn behavior
+- Keep clone-seeded as optional fallback
+- Add config to enforce blank-only
+
 ## Contact
 
 Questions? See ChronoMoEv3 repository or swiss-ai/MoE maintainers.

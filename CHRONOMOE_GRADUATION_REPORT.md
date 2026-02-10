@@ -7,7 +7,7 @@
 
 ## Executive Summary
 
-Fixed-width routing architecture has been validated in nanoMoE and successfully ported to swiss-ai/MoE. The pattern is production-ready.
+Fixed-width routing architecture has been validated in nanoMoE and successfully ported to swiss-ai/MoE. The pattern is integration-ready - invariants proven, governance validated, awaiting real training dynamics validation.
 
 **Core Principle:** The router's action space is fixed-width from step 0. Lifecycle events change masks and state, never tensor shapes mid-flight.
 
@@ -234,7 +234,7 @@ swiss-ai-MoE/
 
 ---
 
-## Production Readiness
+## Integration Readiness
 
 ### ✓ Validated Components
 
@@ -291,7 +291,7 @@ Save/load registry state for checkpoint resumption.
 
 ### swiss-ai/MoE Integration
 - `swiss-ai-MoE/test_chronomoe.py` - 6 validation tests (all pass)
-- `swiss-ai-MoE/chronomoe_integration/` - Production-ready code
+- `swiss-ai-MoE/chronomoe_integration/` - Integration-ready code
 
 ### Ghost Routing Verification
 Step 130 verification across 4 layers:
@@ -306,9 +306,9 @@ Layer 3: Min/Max masked logit = -1e9 (exact)
 
 ## Conclusion
 
-Fixed-width routing has graduated from research prototype (nanoMoE) to production pattern (swiss-ai/MoE).
+Fixed-width routing has graduated from research prototype (nanoMoE) to validated integration pattern (swiss-ai/MoE).
 
-**Status:** Ready for real-world MoE lifecycle experiments.
+**Status:** Integration-ready. Invariants enforced, governance validated. Next: prove lifecycle operations survive real training dynamics.
 
 **Quote from Halcyon:**
 > "Only after nanoMoE passes that end-to-end, you port the exact same fixed-width pattern into swiss-ai/MoE. At that point it's plumbing, not discovery."
@@ -323,4 +323,4 @@ Fixed-width routing has graduated from research prototype (nanoMoE) to productio
 **Graduation Date:** February 10, 2026
 **Validated By:** ChronoMoEv3 + nanoMoE integration tests
 **Ported To:** swiss-ai/MoE (GPT-2 style)
-**Production Status:** Ready
+**Integration Status:** Pattern validated and ported, awaiting real training run
