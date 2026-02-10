@@ -192,7 +192,10 @@ class ChronoMoE(nn.Module):
         )
 
         # Add to optimizer if provided
-        if optimizer is not None:
+        # Note: In fixed-width design, experts are pre-allocated, so parameters
+        # are already in optimizer. Only add if using dynamic allocation.
+        # For now, skip adding (already in optimizer from model creation)
+        if optimizer is not None and False:  # Disabled for pre-allocated experts
             optimizer.add_param_group({
                 'params': self.experts[new_expert_id].parameters()
             })
