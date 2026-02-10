@@ -49,6 +49,44 @@ layer.prune_expert(expert_id=2)
 
 ## Architecture
 
+ChronoMoE integration follows a **two-layer design** with strict boundary enforcement:
+
+### Layer 1: Lifecycle Mechanics (✅ Complete)
+
+Infrastructure for structural changes without retraining the router.
+
+**Components:**
+- **Fixed-width routing:** Router outputs `max_experts` logits from step 0
+- **Pre-allocated experts:** All expert slots created upfront (mask-based activation)
+- **Probation mechanism:** Temporary boost for spawned experts (prevents cold-start death)
+- **Stress bands + calm gates:** Non-bypassable lifecycle gating (COMFORT/STRAIN/PANIC)
+- **Blank spawn default:** Random initialization + probation (clone as opt-in)
+
+**Status:** 18/18 tests passing. Ready for production use.
+
+### Layer 2: Decision Intelligence (🟡 Incremental Integration)
+
+Autonomous decision-making driven by coherence, free energy, and evidence.
+
+**Boundary:** `chronomoe_integration/controller.py` is the ONLY interface to ChronoMoEv3 logic.
+
+**Integration milestones:**
+- **Milestone A (Issue #3A):** Coherence tracking (Phase 1) - logging only
+- **Milestone B (Issue #3B):** Bimodality detection (Phase 3) - logging only
+- **Milestone C (Issue #3C):** Free energy sensor (Phase 4) - logging only
+- **Milestone D (Issue #3D):** Autonomous SPAWN/PRUNE triggers
+- **Milestone E (Issue #3E):** SPLIT/MERGE operations (FUTURE)
+
+**Current status:** Milestones A-E proposed. Layer 1 complete. Layer 2 being integrated incrementally.
+
+**Philosophy:** Thin interface layer, incremental signal ports, prove each milestone before next.
+
+See tracking issues: [ChronoMoEv3/TRACKING_ISSUES.md](../../ChronoMoEv3/TRACKING_ISSUES.md)
+
+---
+
+## Layer 1: Lifecycle Mechanics (COMPLETE)
+
 ### Fixed-Width Routing
 
 **Key Principle:** Router action space is fixed-width from step 0. Lifecycle operations change masks, not tensor shapes.
