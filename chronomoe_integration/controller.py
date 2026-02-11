@@ -94,6 +94,33 @@ class EditResult:
     reason: str = ""  # Why it failed (if not success)
 
 
+@dataclass
+class PendingSplitLatch:
+    """
+    Pending SPLIT proposal with TTL.
+
+    When SPLIT is proposed but blocked (e.g., in STRAIN), the evidence is latched
+    and can be executed later in COMFORT once calm credit is met, provided:
+    - TTL hasn't expired (evidence not too stale)
+    - Evidence hasn't been contradicted (bimodality still valid)
+    """
+    expert_id: int
+    evidence: Dict[str, Any]  # Original bimodality evidence
+    proposed_at_step: int
+    ttl_steps: int  # Time-to-live (e.g., 500 steps)
+    calm_credit_required: int
+    delta_f_l: float
+
+    def is_expired(self, current_step: int) -> bool:
+        """Check if latch has expired."""
+        return current_step >= self.proposed_at_step + self.ttl_steps
+
+    def is_valid(self, current_bimodality_score: float, threshold: float) -> bool:
+        """Check if evidence is still valid (not contradicted)."""
+        # Original evidence must still hold
+        return current_bimodality_score >= threshold
+
+
 class ChronoController:
     """
     The ONLY way swiss-ai/MoE talks to ChronoMoEv3 decision logic.
@@ -158,6 +185,10 @@ class ChronoController:
 
         # Edit audit trail
         self.edit_log: List[Dict[str, Any]] = []
+
+        # Pending SPLIT latch (Milestone E)
+        # When SPLIT is proposed but blocked, latch the evidence with TTL
+        self.pending_split_latch: Optional[PendingSplitLatch] = None
 
     def observe(self, snapshot: ObservationSnapshot) -> None:
         """
@@ -235,7 +266,12 @@ class ChronoController:
             proposals.append(prune_proposal)
 
         # SPLIT trigger (Milestone E)
-        split_proposal = self._try_propose_split()
+        # Check for pending latched SPLIT first
+        split_proposal = self._check_pending_split_latch()
+        if not split_proposal:
+            # No latched SPLIT ready, try proposing new one
+            split_proposal = self._try_propose_split()
+
         if split_proposal:
             proposals.append(split_proposal)
 
@@ -264,6 +300,10 @@ class ChronoController:
             # Reset bimodality state for parent (now inactive)
             if result.expert_id in self.bimodality_states:
                 del self.bimodality_states[result.expert_id]
+
+            # Clear pending split latch (SPLIT executed successfully)
+            if self.pending_split_latch and self.pending_split_latch.expert_id == result.expert_id:
+                self.pending_split_latch = None
 
             # Note: new children will initialize bimodality states on first observation
 
@@ -450,6 +490,60 @@ class ChronoController:
             delta_f_l=predicted_delta_f,
         )
 
+    def _check_pending_split_latch(self) -> Optional[EditProposal]:
+        """
+        Check if there's a pending latched SPLIT that can be executed now.
+
+        Milestone E: Pending split latch with TTL.
+
+        When SPLIT is proposed but blocked (e.g., in STRAIN), the evidence is latched.
+        This method checks if the latched SPLIT can now be executed:
+        - TTL hasn't expired
+        - Evidence hasn't been contradicted (bimodality still valid)
+        - Returns proposal if ready, None otherwise
+
+        Returns:
+            EditProposal if latched SPLIT is ready, None otherwise
+        """
+        if self.pending_split_latch is None:
+            return None  # No latched SPLIT
+
+        current_step = len(self.observation_history)
+        latch = self.pending_split_latch
+
+        # Check if latch has expired
+        if latch.is_expired(current_step):
+            self.pending_split_latch = None  # Clear expired latch
+            return None
+
+        # Check if evidence is still valid (re-check bimodality)
+        expert_id = latch.expert_id
+        if expert_id not in self.bimodality_states:
+            # Expert no longer exists or not tracked
+            self.pending_split_latch = None
+            return None
+
+        state = self.bimodality_states[expert_id]
+        current_score = state.compute_bimodality_score()
+        split_threshold = self.config["bimodality"]["split_threshold"]
+
+        if not latch.is_valid(current_score, split_threshold):
+            # Evidence contradicted (bimodality dropped below threshold)
+            self.pending_split_latch = None
+            return None
+
+        # Latch is still valid, return the proposal
+        # Note: Caller (swiss-ai/MoE layer) will check stress bands and calm credit
+        # If executed, caller will call apply() and we'll clear the latch
+        return EditProposal(
+            edit_type="split",
+            expert_id=latch.expert_id,
+            reason=f"Expert {latch.expert_id} latched SPLIT (from step {latch.proposed_at_step}, bimodality={current_score:.2f})",
+            evidence=latch.evidence,
+            calm_credit_required=latch.calm_credit_required,
+            delta_f_l=latch.delta_f_l,
+        )
+
     def _try_propose_split(self) -> Optional[EditProposal]:
         """
         Try to propose SPLIT if expert exhibits high bimodality.
@@ -511,19 +605,36 @@ class ChronoController:
         if predicted_delta_f >= min_delta_f:
             return None  # Edit won't help enough
 
+        # Create evidence dict
+        evidence = {
+            "bimodality_score": best_score,
+            "separation": best_state.compute_separation(),
+            "balance": best_state.compute_balance(),
+            "count_a": best_state.count_a,
+            "count_b": best_state.count_b,
+            "predicted_delta_f": predicted_delta_f,
+        }
+
+        # Create latch if it doesn't exist yet (preserve evidence across band transitions)
+        if self.pending_split_latch is None or self.pending_split_latch.expert_id != best_candidate:
+            current_step = len(self.observation_history)
+            ttl_steps = self.config["triggers"]["split_latch_ttl"]
+
+            self.pending_split_latch = PendingSplitLatch(
+                expert_id=best_candidate,
+                evidence=evidence,
+                proposed_at_step=current_step,
+                ttl_steps=ttl_steps,
+                calm_credit_required=self.config["triggers"]["split_calm_steps"],
+                delta_f_l=predicted_delta_f,
+            )
+
         # Create proposal
         return EditProposal(
             edit_type="split",
             expert_id=best_candidate,
             reason=f"Expert {best_candidate} bimodal (score={best_score:.2f}), splitting for specialization",
-            evidence={
-                "bimodality_score": best_score,
-                "separation": best_state.compute_separation(),
-                "balance": best_state.compute_balance(),
-                "count_a": best_state.count_a,
-                "count_b": best_state.count_b,
-                "predicted_delta_f": predicted_delta_f,
-            },
+            evidence=evidence,
             calm_credit_required=self.config["triggers"]["split_calm_steps"],  # 300
             delta_f_l=predicted_delta_f,
         )
@@ -724,6 +835,7 @@ class ChronoController:
                 "spawn_calm_steps": 200,  # Calm credit required for spawn
                 "prune_calm_steps": 500,  # Calm credit required for prune (stricter than spawn)
                 "split_calm_steps": 300,  # NEW (Milestone E): Calm credit for split (between spawn and prune)
+                "split_latch_ttl": 500,  # Time-to-live for pending SPLIT latch (steps)
             },
 
             # Stress bands (already integrated)
