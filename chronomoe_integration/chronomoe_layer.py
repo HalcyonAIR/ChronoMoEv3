@@ -379,6 +379,80 @@ class ChronoMoE(nn.Module):
                 tokens = self.registry.experts[expert_id].probation_tokens_accumulated
                 print(f"  [ChronoMoE Layer {self.layer_id}] PROBATION FAILURE: Expert {expert_id} ({tokens} tokens)")
 
+    def split_expert(
+        self,
+        parent_id: int,
+        optimizer: Optional[torch.optim.Optimizer] = None,
+        check_calm_gate: bool = True,
+    ) -> Optional[Tuple[int, int]]:
+        """
+        Split expert into two specialized children (Milestone E).
+
+        Creates two new experts by cloning parent, then prunes parent.
+        Both children start in PROBATION state.
+
+        Args:
+            parent_id: Expert to split
+            optimizer: Optional optimizer (for gradient state management)
+            check_calm_gate: Whether to check stress band gates
+
+        Returns:
+            (child_a_id, child_b_id) if successful, None if blocked
+
+        NOTE: SPLIT requires 2 free slots (net +1 after parent pruned).
+        """
+        # Check calm gate
+        if check_calm_gate:
+            from chronomoe_integration.stress_bands import lifecycle_gates
+            gates = lifecycle_gates(self.stress_bands, self.stress_bands_config)
+            if not gates.allow_split:
+                print(f"  [ChronoMoE Layer {self.layer_id}] SPLIT BLOCKED: {gates.reason}")
+                return None
+
+        # Check capacity: need 2 slots (net +1 after parent pruned)
+        assert self.registry.capacity_remaining >= 2, \
+            f"Layer {self.layer_id}: Need 2 slots for split, only {self.registry.capacity_remaining} available"
+
+        # Verify parent exists and is active
+        assert parent_id in self.registry.experts, f"Parent expert {parent_id} not found"
+        assert self.registry.experts[parent_id].state == ExpertState.ACTIVE, \
+            f"Can only split ACTIVE experts (parent {parent_id} is {self.registry.experts[parent_id].state})"
+
+        # Get two new expert IDs
+        child_a_id = self.registry.next_expert_id
+        child_b_id = self.registry.next_expert_id + 1
+
+        # Clone parent weights to both children
+        parent_expert = self.experts[parent_id]
+        child_a_expert = self.experts[child_a_id]
+        child_b_expert = self.experts[child_b_id]
+
+        child_a_expert.load_state_dict(parent_expert.state_dict())
+        child_b_expert.load_state_dict(parent_expert.state_dict())
+
+        # Register both children (PROBATION state)
+        self.registry.register_expert(
+            expert_id=child_a_id,
+            parent_id=parent_id,
+            strategy="split_a",  # New strategy marker
+            current_step=self.current_step,
+        )
+
+        self.registry.register_expert(
+            expert_id=child_b_id,
+            parent_id=parent_id,
+            strategy="split_b",  # New strategy marker
+            current_step=self.current_step,
+        )
+
+        # Prune parent
+        self.registry.prune_expert(parent_id)
+
+        print(f"  [ChronoMoE Layer {self.layer_id}] SPLIT: Expert {parent_id} → "
+              f"[{child_a_id}, {child_b_id}] (probation)")
+
+        return (child_a_id, child_b_id)
+
     def process_controller_proposals(self, optimizer: Optional[torch.optim.Optimizer] = None) -> Dict:
         """
         Process autonomous proposals from controller (Milestone D).
@@ -533,8 +607,43 @@ class ChronoMoE(nn.Module):
                         reason=log_entry["block_reason"],
                     ))
 
+            elif proposal.edit_type == "split":
+                result = self.split_expert(
+                    parent_id=proposal.expert_id,
+                    optimizer=optimizer,
+                    check_calm_gate=False,  # Already checked above
+                )
+                if result is not None:
+                    child_a_id, child_b_id = result
+                    log_entry["child_a_id"] = child_a_id
+                    log_entry["child_b_id"] = child_b_id
+                    results["executed"] += 1
+                    print(f"  [ChronoMoE Layer {self.layer_id}] PROPOSAL EXECUTED: SPLIT expert {proposal.expert_id} → [{child_a_id}, {child_b_id}]")
+
+                    # Report success to controller
+                    self.controller.apply(EditResult(
+                        edit_type="split",
+                        success=True,
+                        expert_id=proposal.expert_id,
+                        new_expert_id=child_a_id,  # Primary child for compatibility
+                        reason=f"Split into experts {child_a_id} and {child_b_id}",
+                    ))
+                else:
+                    log_entry["action"] = "REJECTED"
+                    log_entry["block_reason"] = "Split failed (capacity/gates)"
+                    results["rejected"] += 1
+                    print(f"  [ChronoMoE Layer {self.layer_id}] PROPOSAL FAILED: SPLIT - {log_entry['block_reason']}")
+
+                    # Report failure to controller
+                    self.controller.apply(EditResult(
+                        edit_type="split",
+                        success=False,
+                        expert_id=proposal.expert_id,
+                        reason=log_entry["block_reason"],
+                    ))
+
             else:
-                # SPLIT/MERGE not implemented yet (Milestone E)
+                # MERGE not implemented yet (Milestone E deferred)
                 log_entry["action"] = "REJECTED"
                 log_entry["block_reason"] = f"Unsupported edit type: {proposal.edit_type}"
                 results["rejected"] += 1

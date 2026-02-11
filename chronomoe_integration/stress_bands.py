@@ -58,6 +58,7 @@ class StressBandsConfig:
     # Calm credit requirements (steps in comfort before allowing irreversibles)
     spawn_calm_steps: int = 200       # Minimum calm before spawn allowed
     prune_calm_steps: int = 500       # Minimum calm before prune allowed
+    split_calm_steps: int = 300       # NEW (Milestone E): Minimum calm before split (between spawn and prune)
     graduate_calm_steps: int = 200    # Minimum calm before probation graduation
 
     # EMA smoothing of stress signal
@@ -113,6 +114,7 @@ class LifecycleGates:
     allow_spawn: bool
     allow_prune: bool
     allow_graduate: bool
+    allow_split: bool  # NEW (Milestone E): Allow expert splitting
     reason: str
 
 
@@ -190,12 +192,13 @@ def lifecycle_gates(
             allow_spawn=False,
             allow_prune=False,
             allow_graduate=False,
+            allow_split=False,  # NEW (Milestone E)
             reason="panic: preservation mode, all lifecycle frozen",
         )
 
     if state.current_band == Band.STRAIN:
         # During strain: can spawn/graduate if calm credit sufficient
-        # Prune is frozen (don't remove capacity under pressure)
+        # Prune and split are frozen (don't modify topology under pressure)
         allow_spawn = state.time_in_comfort >= config.spawn_calm_steps
         allow_graduate = state.time_in_comfort >= config.graduate_calm_steps
 
@@ -203,18 +206,21 @@ def lifecycle_gates(
             allow_spawn=allow_spawn,
             allow_prune=False,
             allow_graduate=allow_graduate,
-            reason=f"strain: prune frozen, spawn/graduate need calm ({state.time_in_comfort} steps)",
+            allow_split=False,  # NEW (Milestone E): Freeze split in strain
+            reason=f"strain: prune/split frozen, spawn/graduate need calm ({state.time_in_comfort} steps)",
         )
 
     # COMFORT band: all operations allowed if calm credit sufficient
     allow_spawn = state.time_in_comfort >= config.spawn_calm_steps
     allow_prune = state.time_in_comfort >= config.prune_calm_steps
     allow_graduate = state.time_in_comfort >= config.graduate_calm_steps
+    allow_split = state.time_in_comfort >= config.split_calm_steps  # NEW (Milestone E)
 
     return LifecycleGates(
         allow_spawn=allow_spawn,
         allow_prune=allow_prune,
         allow_graduate=allow_graduate,
+        allow_split=allow_split,  # NEW (Milestone E)
         reason=f"comfort: calm credit {state.time_in_comfort} steps",
     )
 

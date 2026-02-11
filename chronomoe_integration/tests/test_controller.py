@@ -778,6 +778,102 @@ def test_min_delta_f_threshold():
     print("\n✓ TEST 12 PASSED: MIN_DELTA_F filtering working\n")
 
 
+def test_autonomous_split_proposal():
+    """Test 13: SPLIT proposal for bimodal expert (Milestone E)."""
+    print("=" * 70)
+    print("TEST 13: AUTONOMOUS Mode - SPLIT Proposal")
+    print("=" * 70)
+
+    # Create controller in AUTONOMOUS mode
+    controller = create_controller(
+        layer_id=0,
+        max_experts=8,
+        initial_active=4,
+        autonomous_mode=True,  # AUTONOMOUS mode
+    )
+
+    # Inject bimodal observations for expert 0
+    # Alternate between two opposite directions to create high separation
+    B_T = 32  # batch * time
+    d_model = 64
+    num_experts = 8
+
+    torch.manual_seed(42)  # Deterministic
+
+    # Create two centroids (opposite directions)
+    centroid_a = torch.randn(d_model)
+    centroid_a = centroid_a / centroid_a.norm()  # Normalize
+    centroid_b = -centroid_a  # Opposite direction (separation = 2.0)
+
+    mixture_output = torch.zeros(B_T, d_model)  # Placeholder
+
+    # Run 150 observations alternating between modes
+    for step in range(150):
+        expert_outputs = torch.zeros(num_experts, B_T, d_model)
+
+        # Expert 0: alternate between centroid_a and centroid_b (bimodal)
+        if step % 2 == 0:
+            expert_outputs[0] = centroid_a.unsqueeze(0).expand(B_T, d_model) + torch.randn(B_T, d_model) * 0.1
+        else:
+            expert_outputs[0] = centroid_b.unsqueeze(0).expand(B_T, d_model) + torch.randn(B_T, d_model) * 0.1
+
+        # Other experts: unimodal (random but stable)
+        for i in range(1, 4):
+            expert_outputs[i] = torch.randn(B_T, d_model)
+
+        snapshot = ObservationSnapshot(
+            step=step,
+            layer_id=0,
+            router_probs=torch.ones(B_T, num_experts) / num_experts,
+            selected_experts=torch.randint(0, 4, (B_T, 2)),
+            expert_outputs=expert_outputs,
+            mixture_output=mixture_output,
+            utilization=torch.tensor([8.0, 8.0, 8.0, 8.0, 0.0, 0.0, 0.0, 0.0]),  # 4 active, 4 free
+        )
+
+        controller.observe(snapshot)
+
+    # Check bimodality state
+    bimodality = controller.bimodality_states[0]
+    bimodality_score = bimodality.compute_bimodality_score()
+    print(f"✓ Expert 0 bimodality score: {bimodality_score:.4f}")
+    print(f"✓ Separation: {bimodality.compute_separation():.4f}")
+    print(f"✓ Balance: {bimodality.compute_balance():.4f}")
+
+    # Verify high bimodality
+    assert bimodality_score > 0.5, \
+        f"Expected high bimodality (> 0.5), got {bimodality_score:.4f}"
+
+    # Call decide() - should generate SPLIT proposal
+    proposals = controller.decide()
+
+    print(f"✓ Proposals generated: {len(proposals)}")
+
+    # Should have SPLIT proposal for expert 0
+    split_proposals = [p for p in proposals if p.edit_type == "split"]
+    assert len(split_proposals) > 0, \
+        f"Expected SPLIT proposal, got {[p.edit_type for p in proposals]}"
+
+    proposal = split_proposals[0]
+    print(f"✓ SPLIT proposal:")
+    print(f"  - Target expert: {proposal.expert_id}")
+    print(f"  - Reason: {proposal.reason}")
+    print(f"  - Calm credit required: {proposal.calm_credit_required}")
+    print(f"  - Bimodality score: {proposal.evidence['bimodality_score']:.4f}")
+
+    # Verify proposal details
+    assert proposal.expert_id == 0, \
+        f"Should target bimodal expert 0, got {proposal.expert_id}"
+    assert proposal.calm_credit_required == 300, \
+        f"Should require 300 calm steps, got {proposal.calm_credit_required}"
+    assert proposal.evidence["bimodality_score"] > 0.5, \
+        f"Should have high bimodality, got {proposal.evidence['bimodality_score']:.4f}"
+
+    print("✓ SPLIT proposal is well-formed")
+
+    print("\n✓ TEST 13 PASSED: SPLIT proposal logic working\n")
+
+
 def run_all_tests():
     """Run all controller tests."""
     print("\n" + "=" * 70)
@@ -797,9 +893,10 @@ def run_all_tests():
     test_autonomous_spawn_proposal()
     test_autonomous_prune_proposal()
     test_min_delta_f_threshold()
+    test_autonomous_split_proposal()
 
     print("=" * 70)
-    print("✓ ALL CONTROLLER TESTS PASSED (12/12)")
+    print("✓ ALL CONTROLLER TESTS PASSED (13/13)")
     print("=" * 70)
     print("\nController validated:")
     print("  1. API methods working ✓")
@@ -814,10 +911,12 @@ def run_all_tests():
     print(" 10. Autonomous SPAWN proposals ✓")
     print(" 11. Autonomous PRUNE proposals ✓")
     print(" 12. MIN_DELTA_F threshold filtering ✓")
+    print(" 13. Autonomous SPLIT proposals ✓")
     print("\nMilestone A: Coherence logging only, no triggers.")
     print("Milestone B: Bimodality logging only, no triggers.")
     print("Milestone C: Free energy logging only, no triggers.")
     print("Milestone D: Autonomous triggers (SPAWN/PRUNE only).")
+    print("Milestone E: SPLIT operation (MERGE deferred).")
     print("=" * 70)
 
 

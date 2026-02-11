@@ -234,6 +234,11 @@ class ChronoController:
         if prune_proposal:
             proposals.append(prune_proposal)
 
+        # SPLIT trigger (Milestone E)
+        split_proposal = self._try_propose_split()
+        if split_proposal:
+            proposals.append(split_proposal)
+
         return proposals
 
     def apply(self, result: EditResult) -> None:
@@ -254,7 +259,13 @@ class ChronoController:
         })
 
         # Update internal state if needed
-        # (e.g., reset coherence state for spawned expert)
+        if result.success and result.edit_type == "split":
+            # Parent expert was pruned, two children were created
+            # Reset bimodality state for parent (now inactive)
+            if result.expert_id in self.bimodality_states:
+                del self.bimodality_states[result.expert_id]
+
+            # Note: new children will initialize bimodality states on first observation
 
     def get_diagnostics(self) -> Dict[str, Any]:
         """
@@ -436,6 +447,84 @@ class ChronoController:
                 "f_l_current": self.free_energy_state.components.total,
             },
             calm_credit_required=self.config["triggers"]["prune_calm_steps"],
+            delta_f_l=predicted_delta_f,
+        )
+
+    def _try_propose_split(self) -> Optional[EditProposal]:
+        """
+        Try to propose SPLIT if expert exhibits high bimodality.
+
+        Milestone E: SPLIT trigger logic.
+
+        Conditions:
+        - Expert has high bimodality score (> split_threshold)
+        - Capacity available for 2 new experts (net +1 after parent pruned)
+        - Sufficient observations (min_observations threshold)
+        - Predicted ΔF_l < MIN_DELTA_F (edit will help)
+
+        NOTE: split_threshold is TEST-CALIBRATED for 8-expert layers.
+        Real training may need different thresholds.
+        """
+        # Check if we have free energy state
+        if self.free_energy_state is None:
+            return None
+
+        # Check capacity: need 2 slots (parent will be pruned, net +1)
+        capacity_needed = 2
+        num_active = self.free_energy_state.num_active_experts
+        capacity_available = self.max_experts - num_active
+
+        if capacity_available < capacity_needed:
+            return None  # Not enough capacity
+
+        # Get config thresholds
+        split_threshold = self.config["bimodality"]["split_threshold"]  # 0.5
+        min_observations = self.config["bimodality"]["min_observations"]  # 100
+        min_delta_f = self.config["triggers"]["min_delta_f"]  # -0.001
+
+        # Find expert with highest bimodality
+        best_candidate = None
+        best_score = split_threshold  # Must exceed threshold
+        best_state = None
+
+        for expert_id, state in self.bimodality_states.items():
+            total_obs = state.count_a + state.count_b
+            if total_obs < min_observations:
+                continue  # Need more observations
+
+            score = state.compute_bimodality_score()
+            if score > best_score:
+                best_score = score
+                best_candidate = expert_id
+                best_state = state
+
+        if best_candidate is None:
+            return None  # No bimodal experts above threshold
+
+        # Predict ΔF_l from splitting
+        # Splitting a bimodal expert should reduce redundancy
+        # (expert currently serving two incompatible modes)
+        rho = self.config["free_energy"]["rho_redundancy"]
+        predicted_delta_f = -rho * 0.5  # Estimate: 50% redundancy reduction
+
+        # Filter by MIN_DELTA_F threshold
+        if predicted_delta_f >= min_delta_f:
+            return None  # Edit won't help enough
+
+        # Create proposal
+        return EditProposal(
+            edit_type="split",
+            expert_id=best_candidate,
+            reason=f"Expert {best_candidate} bimodal (score={best_score:.2f}), splitting for specialization",
+            evidence={
+                "bimodality_score": best_score,
+                "separation": best_state.compute_separation(),
+                "balance": best_state.compute_balance(),
+                "count_a": best_state.count_a,
+                "count_b": best_state.count_b,
+                "predicted_delta_f": predicted_delta_f,
+            },
+            calm_credit_required=self.config["triggers"]["split_calm_steps"],  # 300
             delta_f_l=predicted_delta_f,
         )
 
@@ -634,6 +723,7 @@ class ChronoController:
                 "min_delta_f": -0.001,  # ΔF_l threshold (test-calibrated for 8-expert layers)
                 "spawn_calm_steps": 200,  # Calm credit required for spawn
                 "prune_calm_steps": 500,  # Calm credit required for prune (stricter than spawn)
+                "split_calm_steps": 300,  # NEW (Milestone E): Calm credit for split (between spawn and prune)
             },
 
             # Stress bands (already integrated)
