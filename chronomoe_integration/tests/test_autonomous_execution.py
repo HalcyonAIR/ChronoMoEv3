@@ -454,6 +454,7 @@ def run_all_tests():
     print("  16. SPLIT execution in COMFORT ✓")
     print("\nNon-bypassable gates enforced at executor boundary.")
     print("=" * 70)
+    print("\n[PASS] Autonomous execution tests: all 4 tests validated")
 
 
 if __name__ == "__main__":
