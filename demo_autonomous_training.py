@@ -103,9 +103,16 @@ def train_step(model, optimizer, idx, targets, step):
 
 
 def main():
-    """Run training demo with three proposal scenarios."""
+    """Run training demo with three proposal scenarios.
+
+    Returns:
+        0 if all three phases pass
+        1 if any phase fails
+    """
     print_section("AUTONOMOUS EXECUTION DEMO: Real Training Loop")
     print("Demonstrating propose→reject, propose→queue, propose→execute\n")
+
+    phases_passed = 0
 
     # Setup
     config = TinyConfig()
@@ -158,8 +165,15 @@ def main():
             if action != "EXECUTED":
                 print(f"      Reason: {reason}")
 
-    print(f"\n✓ PHASE 1 COMPLETE: Baseline execution in COMFORT")
-    print(f"  (Shows propose→execute when gates pass)\n")
+    # Validate Phase 1: Should have at least 1 execution OR no proposals (both are valid)
+    if results['rejected'] == 0:  # No stress band rejections
+        print(f"\n✓ PHASE 1 COMPLETE: Baseline execution in COMFORT")
+        print(f"  (Shows propose→execute when gates pass)\n")
+        phases_passed += 1
+    else:
+        print(f"\n✗ PHASE 1 FAILED: Unexpected rejections in COMFORT")
+        print(f"  Expected 0 rejections, got {results['rejected']}\n")
+        return 1
 
     # Phase 2: Reject in STRAIN
     print_section("PHASE 2: Reject in STRAIN (stress band gate)")
@@ -203,8 +217,15 @@ def main():
             if action != "EXECUTED":
                 print(f"      Reason: {reason}")
 
-    print(f"\n✓ PHASE 2 COMPLETE: Proposals rejected due to stress band gate")
-    print(f"  (Shows propose→reject when not in COMFORT)\n")
+    # Validate Phase 2: Should have rejections (or no proposals, which is also valid)
+    if results['proposals'] == 0 or (results['rejected'] > 0 and results['executed'] == 0):
+        print(f"\n✓ PHASE 2 COMPLETE: Proposals rejected due to stress band gate")
+        print(f"  (Shows propose→reject when not in COMFORT)\n")
+        phases_passed += 1
+    else:
+        print(f"\n✗ PHASE 2 FAILED: Expected rejections, got executions")
+        print(f"  Rejected: {results['rejected']}, Executed: {results['executed']}\n")
+        return 1
 
     # Phase 3: Queue with insufficient calm credit
     print_section("PHASE 3: Queue with insufficient calm credit (calm gate)")
@@ -249,8 +270,15 @@ def main():
             if action != "EXECUTED":
                 print(f"      Reason: {reason}")
 
-    print(f"\n✓ PHASE 3 COMPLETE: Proposals queued due to insufficient calm credit")
-    print(f"  (Shows propose→queue when calm gate not met)\n")
+    # Validate Phase 3: Should have queued proposals (or no proposals, which is also valid)
+    if results['proposals'] == 0 or (results['queued'] > 0 and results['executed'] == 0):
+        print(f"\n✓ PHASE 3 COMPLETE: Proposals queued due to insufficient calm credit")
+        print(f"  (Shows propose→queue when calm gate not met)\n")
+        phases_passed += 1
+    else:
+        print(f"\n✗ PHASE 3 FAILED: Expected queued proposals")
+        print(f"  Queued: {results['queued']}, Executed: {results['executed']}\n")
+        return 1
 
     # Summary
     print_section("SUMMARY: Three Proposal Scenarios Demonstrated")
@@ -261,6 +289,14 @@ def main():
     print("Non-bypassable gates enforced at executor boundary.")
     print_separator()
 
+    # Final validation
+    if phases_passed == 3:
+        print("\n[PASS] Autonomous execution demo: all 3 phases validated")
+        return 0
+    else:
+        print(f"\n[FAIL] Autonomous execution demo: {phases_passed}/3 phases passed")
+        return 1
+
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
