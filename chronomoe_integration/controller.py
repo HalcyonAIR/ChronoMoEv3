@@ -90,8 +90,9 @@ class EditResult:
     edit_type: str
     success: bool
     expert_id: int
-    new_expert_id: Optional[int] = None  # For spawn
+    new_expert_id: Optional[int] = None  # For spawn (child_a for split)
     reason: str = ""  # Why it failed (if not success)
+    metadata: Optional[Dict[str, Any]] = None  # Additional data (e.g., child_b_id for split)
 
 
 @dataclass
@@ -197,6 +198,14 @@ class ChronoController:
         # Pending SPLIT latch (Milestone E)
         # When SPLIT is proposed but blocked, latch the evidence with TTL
         self.pending_split_latch: Optional[PendingSplitLatch] = None
+
+        # Split lineage cooldown (Milestone E enhancement)
+        # Prevents repeated splits on transient bimodality signals
+        # Maps expert_id -> step when expert or its parent was split
+        self.split_lineage_history: Dict[int, int] = {}
+
+        # Track edits count
+        self.edits_count: int = 0
 
     def observe(self, snapshot: ObservationSnapshot) -> None:
         """
@@ -305,6 +314,8 @@ class ChronoController:
         # Update internal state if needed
         if result.success and result.edit_type == "split":
             # Parent expert was pruned, two children were created
+            current_step = len(self.observation_history)
+
             # Reset bimodality state for parent (now inactive)
             if result.expert_id in self.bimodality_states:
                 del self.bimodality_states[result.expert_id]
@@ -313,7 +324,21 @@ class ChronoController:
             if self.pending_split_latch and self.pending_split_latch.expert_id == result.expert_id:
                 self.pending_split_latch = None
 
+            # Track split lineage for cooldown enforcement
+            # Record parent and both children to prevent re-splitting too soon
+            parent_id = result.expert_id
+            child_a_id = result.new_expert_id
+            child_b_id = result.metadata.get("child_b_id") if result.metadata else None
+
+            self.split_lineage_history[parent_id] = current_step
+            if child_a_id is not None:
+                self.split_lineage_history[child_a_id] = current_step
+            if child_b_id is not None:
+                self.split_lineage_history[child_b_id] = current_step
+
             # Note: new children will initialize bimodality states on first observation
+
+        self.edits_count += 1
 
     def get_diagnostics(self) -> Dict[str, Any]:
         """
@@ -603,6 +628,18 @@ class ChronoController:
         if best_candidate is None:
             return None  # No bimodal experts above threshold
 
+        # Check lineage cooldown (prevent repeated splits on transient signals)
+        current_step = len(self.observation_history)
+        cooldown_window = self.config["triggers"]["split_lineage_cooldown"]
+
+        if best_candidate in self.split_lineage_history:
+            last_split_step = self.split_lineage_history[best_candidate]
+            steps_since_split = current_step - last_split_step
+
+            if steps_since_split < cooldown_window:
+                # Expert or its lineage was recently split, skip
+                return None
+
         # Predict ΔF_l from splitting
         # Splitting a bimodal expert should reduce redundancy
         # (expert currently serving two incompatible modes)
@@ -844,6 +881,7 @@ class ChronoController:
                 "prune_calm_steps": 500,  # Calm credit required for prune (stricter than spawn)
                 "split_calm_steps": 300,  # NEW (Milestone E): Calm credit for split (between spawn and prune)
                 "split_latch_ttl": 500,  # Time-to-live for pending SPLIT latch (steps)
+                "split_lineage_cooldown": 500,  # Prevent re-splitting children or siblings (steps)
             },
 
             # Stress bands (already integrated)

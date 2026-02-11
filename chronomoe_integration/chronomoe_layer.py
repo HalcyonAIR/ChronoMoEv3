@@ -627,6 +627,7 @@ class ChronoMoE(nn.Module):
                         expert_id=proposal.expert_id,
                         new_expert_id=child_a_id,  # Primary child for compatibility
                         reason=f"Split into experts {child_a_id} and {child_b_id}",
+                        metadata={"child_b_id": child_b_id},  # For lineage tracking
                     ))
                 else:
                     log_entry["action"] = "REJECTED"

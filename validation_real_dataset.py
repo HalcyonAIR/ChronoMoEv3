@@ -35,7 +35,7 @@ class RealDatasetCriteria:
     split_proposed: bool = False
     split_blocked_in_strain: bool = False  # If STRAIN occurs
     split_executed_in_comfort: bool = False
-    children_outcome: Optional[str] = None  # "took_load" or "failed_probation"
+    children_outcome: Optional[str] = None  # "both_graduated", "both_pruned", "one_graduated", "mixed"
 
     # Tracking
     first_proposal_step: int = None
@@ -43,17 +43,23 @@ class RealDatasetCriteria:
     calm_at_execution: int = None
     child_a_id: int = None
     child_b_id: int = None
+    outcome_resolved_step: int = None
+
+    # Children state tracking
+    child_a_final_state: Optional[str] = None
+    child_b_final_state: Optional[str] = None
 
     def passes(self) -> bool:
         """
-        Pass if SPLIT executed in COMFORT after calm credit.
+        Pass if SPLIT executed in COMFORT after calm credit AND outcome resolved.
 
-        Children outcome is tracked but not required for pass
-        (may need longer training to observe graduation/pruning).
+        Outcome must be resolved (children either graduated or pruned).
         """
         return (
             self.split_proposed and
-            self.split_executed_in_comfort
+            self.split_executed_in_comfort and
+            self.children_outcome is not None and
+            self.children_outcome != "pending"
         )
 
     def one_line_summary(self, seed: int) -> str:
@@ -64,7 +70,8 @@ class RealDatasetCriteria:
             f"split_proposed={1 if self.split_proposed else 0} "
             f"executed_step={self.execution_step or 'NONE'} "
             f"calm_at_exec={self.calm_at_execution or 'NONE'} "
-            f"children_outcome={self.children_outcome or 'NONE'}"
+            f"outcome={self.children_outcome or 'NONE'} "
+            f"states=({self.child_a_final_state or '?'},{self.child_b_final_state or '?'})"
         )
 
 
@@ -158,7 +165,54 @@ class TinyModel(nn.Module):
         return logits, loss, metadata
 
 
-def run_real_validation(seed=42, max_steps=2000):
+def classify_children_outcome(
+    model,
+    child_a_id: int,
+    child_b_id: int,
+) -> tuple[str, str, str]:
+    """
+    Classify outcome of split children.
+
+    Returns:
+        (outcome, child_a_state, child_b_state)
+
+    Outcomes:
+        - "both_graduated": Both children graduated to ACTIVE
+        - "both_pruned": Both children pruned (ARCHIVED)
+        - "one_graduated": One graduated, one pruned
+        - "pending": Still in PROBATION or not yet determined
+    """
+    child_a = model.moe.registry.experts.get(child_a_id)
+    child_b = model.moe.registry.experts.get(child_b_id)
+
+    if not child_a or not child_b:
+        return "pending", None, None
+
+    state_a = child_a.state.value
+    state_b = child_b.state.value
+
+    # Both still in probation
+    if state_a == "probation" and state_b == "probation":
+        return "pending", state_a, state_b
+
+    # At least one resolved
+    a_graduated = state_a == "active"
+    b_graduated = state_b == "active"
+    a_pruned = state_a == "archived"
+    b_pruned = state_b == "archived"
+
+    if a_graduated and b_graduated:
+        return "both_graduated", state_a, state_b
+    elif a_pruned and b_pruned:
+        return "both_pruned", state_a, state_b
+    elif (a_graduated and b_pruned) or (a_pruned and b_graduated):
+        return "one_graduated", state_a, state_b
+    else:
+        # Mixed or unknown state
+        return "pending", state_a, state_b
+
+
+def run_real_validation(seed=42, max_steps=3000):
     """
     Run real dataset validation.
 
@@ -245,21 +299,26 @@ def run_real_validation(seed=42, max_steps=2000):
                     print(f"    Parent: {entry['expert_id']} → Children: [{criteria.child_a_id}, {criteria.child_b_id}]")
 
             # Track children outcome (if SPLIT happened)
-            if criteria.child_a_id is not None and step > criteria.execution_step + 500:
-                # Check after probation window (500 steps)
-                child_a = model.moe.registry.experts.get(criteria.child_a_id)
-                child_b = model.moe.registry.experts.get(criteria.child_b_id)
+            if criteria.child_a_id is not None and criteria.children_outcome is None:
+                # Check continuously after SPLIT execution
+                if step >= criteria.execution_step + 30:  # Probation duration is 30 steps
+                    outcome, state_a, state_b = classify_children_outcome(
+                        model, criteria.child_a_id, criteria.child_b_id
+                    )
 
-                if child_a and child_b:
-                    # Check if graduated (took load)
-                    if child_a.state == ExpertState.ACTIVE or child_b.state == ExpertState.ACTIVE:
-                        criteria.children_outcome = "took_load"
-                        print(f"  [CHILDREN] Took load (graduated to ACTIVE)")
+                    if outcome != "pending":
+                        criteria.children_outcome = outcome
+                        criteria.child_a_final_state = state_a
+                        criteria.child_b_final_state = state_b
+                        criteria.outcome_resolved_step = step
+                        print(f"  [CHILDREN OUTCOME] {outcome} at step {step}")
+                        print(f"    Child {criteria.child_a_id}: {state_a}")
+                        print(f"    Child {criteria.child_b_id}: {state_b}")
 
-                    # Check if pruned (failed probation)
-                    elif child_a.state == ExpertState.ARCHIVED or child_b.state == ExpertState.ARCHIVED:
-                        criteria.children_outcome = "failed_probation"
-                        print(f"  [CHILDREN] Failed probation (pruned)")
+                        # Exit early if outcome resolved (success)
+                        if criteria.passes():
+                            print(f"  [VALIDATION] Outcome resolved, exiting early")
+                            break
 
             # Log progress
             if step % 200 == 0:
@@ -303,6 +362,11 @@ def run_real_validation(seed=42, max_steps=2000):
                 "first_proposal_step": criteria.first_proposal_step,
                 "execution_step": criteria.execution_step,
                 "calm_at_execution": criteria.calm_at_execution,
+                "outcome_resolved_step": criteria.outcome_resolved_step,
+                "child_a_id": criteria.child_a_id,
+                "child_b_id": criteria.child_b_id,
+                "child_a_final_state": criteria.child_a_final_state,
+                "child_b_final_state": criteria.child_b_final_state,
             }
         }, f, indent=2)
 
@@ -324,6 +388,10 @@ def run_real_validation(seed=42, max_steps=2000):
         print(f"   Executed at step {criteria.execution_step}, calm={criteria.calm_at_execution}")
 
     print(f"4. Children outcome: {criteria.children_outcome or 'PENDING'}")
+    if criteria.outcome_resolved_step:
+        print(f"   Resolved at step {criteria.outcome_resolved_step}")
+        print(f"   Child {criteria.child_a_id}: {criteria.child_a_final_state}")
+        print(f"   Child {criteria.child_b_id}: {criteria.child_b_final_state}")
 
     print("=" * 70)
     print(f"OVERALL: [{'PASS' if criteria.passes() else 'FAIL'}]")
@@ -344,7 +412,7 @@ if __name__ == "__main__":
     print()
 
     for seed in seeds:
-        passed, criteria = run_real_validation(seed=seed, max_steps=2000)
+        passed, criteria = run_real_validation(seed=seed, max_steps=3000)
         results.append((seed, passed, criteria))
         print()
         print()
