@@ -855,23 +855,122 @@ def test_autonomous_split_proposal():
         f"Expected SPLIT proposal, got {[p.edit_type for p in proposals]}"
 
     proposal = split_proposals[0]
+
+    # Get expected calm credit from config
+    expected_calm = controller.config["triggers"]["split_calm_steps"]
+
     print(f"✓ SPLIT proposal:")
     print(f"  - Target expert: {proposal.expert_id}")
     print(f"  - Reason: {proposal.reason}")
-    print(f"  - Calm credit required: {proposal.calm_credit_required}")
+    print(f"  - Calm credit required: {proposal.calm_credit_required} (config: {expected_calm})")
     print(f"  - Bimodality score: {proposal.evidence['bimodality_score']:.4f}")
 
     # Verify proposal details
     assert proposal.expert_id == 0, \
         f"Should target bimodal expert 0, got {proposal.expert_id}"
-    assert proposal.calm_credit_required == 300, \
-        f"Should require 300 calm steps, got {proposal.calm_credit_required}"
+    assert proposal.calm_credit_required == expected_calm, \
+        f"Should require {expected_calm} calm steps (from config), got {proposal.calm_credit_required}"
     assert proposal.evidence["bimodality_score"] > 0.5, \
         f"Should have high bimodality, got {proposal.evidence['bimodality_score']:.4f}"
 
     print("✓ SPLIT proposal is well-formed")
 
     print("\n✓ TEST 13 PASSED: SPLIT proposal logic working\n")
+
+
+def test_no_split_below_threshold():
+    """Test 14: No SPLIT when bimodality below threshold (Milestone E)."""
+    print("=" * 70)
+    print("TEST 14: No SPLIT Below Threshold (Negative Test)")
+    print("=" * 70)
+
+    # Create controller in AUTONOMOUS mode
+    controller = create_controller(
+        layer_id=0,
+        max_experts=8,
+        initial_active=4,
+        autonomous_mode=True,
+    )
+
+    # Create moderate bimodality case: skewed balance (90/10 split)
+    # This keeps separation moderate but balance low → score below threshold
+    B_T = 32
+    d_model = 64
+    num_experts = 8
+
+    torch.manual_seed(43)  # Different seed from Test 13
+
+    # Two centroids with moderate separation (not opposite)
+    centroid_a = torch.randn(d_model)
+    centroid_a = centroid_a / centroid_a.norm()
+
+    # centroid_b at 60 degrees (cos=0.5, separation=0.5)
+    centroid_b = torch.randn(d_model)
+    centroid_b = centroid_b / centroid_b.norm()
+    # Adjust to get desired angle
+    centroid_b = 0.5 * centroid_a + 0.866 * centroid_b  # cos(60°) = 0.5
+    centroid_b = centroid_b / centroid_b.norm()
+
+    mixture_output = torch.zeros(B_T, d_model)
+
+    # Run 150 observations with skewed balance (90% mode A, 10% mode B)
+    for step in range(150):
+        expert_outputs = torch.zeros(num_experts, B_T, d_model)
+
+        # Expert 0: 90% centroid_a, 10% centroid_b (skewed balance)
+        if step % 10 < 9:  # 90% of the time
+            expert_outputs[0] = centroid_a.unsqueeze(0).expand(B_T, d_model) + torch.randn(B_T, d_model) * 0.1
+        else:  # 10% of the time
+            expert_outputs[0] = centroid_b.unsqueeze(0).expand(B_T, d_model) + torch.randn(B_T, d_model) * 0.1
+
+        # Other experts: stable unimodal (fixed centroids)
+        for i in range(1, 4):
+            stable_centroid = torch.randn(d_model)
+            stable_centroid = stable_centroid / stable_centroid.norm()
+            expert_outputs[i] = stable_centroid.unsqueeze(0).expand(B_T, d_model) + torch.randn(B_T, d_model) * 0.05
+
+        snapshot = ObservationSnapshot(
+            step=step,
+            layer_id=0,
+            router_probs=torch.ones(B_T, num_experts) / num_experts,
+            selected_experts=torch.randint(0, 4, (B_T, 2)),
+            expert_outputs=expert_outputs,
+            mixture_output=mixture_output,
+            utilization=torch.tensor([8.0, 8.0, 8.0, 8.0, 0.0, 0.0, 0.0, 0.0]),
+        )
+
+        controller.observe(snapshot)
+
+    # Check bimodality state
+    bimodality = controller.bimodality_states[0]
+    bimodality_score = bimodality.compute_bimodality_score()
+    separation = bimodality.compute_separation()
+    balance = bimodality.compute_balance()
+
+    print(f"✓ Expert 0 bimodality score: {bimodality_score:.4f}")
+    print(f"✓ Separation: {separation:.4f}")
+    print(f"✓ Balance: {balance:.4f}")
+
+    # Verify LOW bimodality (below threshold)
+    split_threshold = controller.config["bimodality"]["split_threshold"]  # 0.5
+    assert bimodality_score < split_threshold, \
+        f"Expected low bimodality (< {split_threshold}), got {bimodality_score:.4f}"
+
+    print(f"✓ Bimodality below threshold ({split_threshold})")
+
+    # Call decide() - should NOT generate SPLIT proposal
+    proposals = controller.decide()
+
+    print(f"✓ Proposals generated: {len(proposals)}")
+
+    # Should have NO SPLIT proposal
+    split_proposals = [p for p in proposals if p.edit_type == "split"]
+    assert len(split_proposals) == 0, \
+        f"Expected no SPLIT proposal (score below threshold), got {len(split_proposals)}"
+
+    print(f"✓ No SPLIT proposal (bimodality {bimodality_score:.4f} < threshold {split_threshold})")
+
+    print("\n✓ TEST 14 PASSED: SPLIT correctly not triggered below threshold\n")
 
 
 def run_all_tests():
@@ -894,9 +993,10 @@ def run_all_tests():
     test_autonomous_prune_proposal()
     test_min_delta_f_threshold()
     test_autonomous_split_proposal()
+    test_no_split_below_threshold()
 
     print("=" * 70)
-    print("✓ ALL CONTROLLER TESTS PASSED (13/13)")
+    print("✓ ALL CONTROLLER TESTS PASSED (14/14)")
     print("=" * 70)
     print("\nController validated:")
     print("  1. API methods working ✓")
@@ -912,6 +1012,7 @@ def run_all_tests():
     print(" 11. Autonomous PRUNE proposals ✓")
     print(" 12. MIN_DELTA_F threshold filtering ✓")
     print(" 13. Autonomous SPLIT proposals ✓")
+    print(" 14. No SPLIT below threshold ✓")
     print("\nMilestone A: Coherence logging only, no triggers.")
     print("Milestone B: Bimodality logging only, no triggers.")
     print("Milestone C: Free energy logging only, no triggers.")
