@@ -1,0 +1,30 @@
+======================================================================
+MERGE DIAGNOSTIC VALIDATION (Milestone F Phase 1)
+======================================================================
+
+Configuration:
+  - Controller mode: AUTONOMOUS (proposals allowed)
+  - merge.enabled: True (diagnostic proposals)
+  - Merge execution: HARD DISABLED (no apply path)
+
+  [FixedWidthRouter] Extended router from 4 → 16 logits
+  [ChronoMoE Layer 0] 4 active → 16 max experts (stress bands: 5.00/8.00)
+Training for 2000 steps
+Dataset: TinyStories-like (synthetic)
+Starting experts: 4
+CSV output: merge_candidates.csv
+
+  [ChronoMoE Layer 0] Stress band: comfort → panic (stress: 8.5118)
+Step    0: loss=8.5118, band=PANIC  , calm=  0, candidate=NO, total_candidates=0
+Traceback (most recent call last):
+  File "/Users/jeff/projects/swiss-ai-MoE/validation_merge_diagnostic.py", line 353, in <module>
+    criteria = run_merge_diagnostic(seed=42, max_steps=2000, csv_path="merge_candidates.csv")
+  File "/Users/jeff/projects/swiss-ai-MoE/validation_merge_diagnostic.py", line 217, in run_merge_diagnostic
+    results = model.moe.process_controller_proposals(optimizer)
+  File "/Users/jeff/projects/swiss-ai-MoE/chronomoe_integration/chronomoe_layer.py", line 480, in process_controller_proposals
+    proposals = self.controller.decide()
+  File "/Users/jeff/projects/swiss-ai-MoE/chronomoe_integration/controller.py", line 296, in decide
+    merge_proposal = self._try_propose_merge()
+  File "/Users/jeff/projects/swiss-ai-MoE/chronomoe_integration/controller.py", line 772, in _try_propose_merge
+    util_a = self.coherence_states[expert_a].utilization
+AttributeError: 'CoherenceState' object has no attribute 'utilization'

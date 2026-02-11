@@ -1,0 +1,9 @@
+{
+  "criteria": {
+    "split_proposed": true,
+    "split_blocked_in_strain": true,
+    "split_executed_in_comfort": false,
+    "parent_pruned": false,
+    "children_in_probation": false
+  }
+}

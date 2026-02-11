@@ -763,14 +763,23 @@ class ChronoController:
                 if obs_a < min_observations or obs_b < min_observations:
                     continue
 
-                # Check utilization (from coherence state)
+                # Check utilization (from most recent observation)
                 if expert_a not in self.coherence_states or expert_b not in self.coherence_states:
                     continue
 
-                # Compute utilization as fraction of total tokens
-                # Note: This is approximate (recent window, not global)
-                util_a = self.coherence_states[expert_a].utilization
-                util_b = self.coherence_states[expert_b].utilization
+                # Compute utilization from recent observation
+                # Use total_tokens_seen as proxy (higher = more utilized)
+                # Normalize by observation count for fair comparison
+                if not self.observation_history:
+                    continue
+
+                last_obs = self.observation_history[-1]
+                total_tokens = last_obs.utilization.sum().item()
+                if total_tokens == 0:
+                    continue
+
+                util_a = last_obs.utilization[expert_a].item() / total_tokens
+                util_b = last_obs.utilization[expert_b].item() / total_tokens
 
                 if util_a > utilization_threshold or util_b > utilization_threshold:
                     continue  # At least one expert is well-utilized
