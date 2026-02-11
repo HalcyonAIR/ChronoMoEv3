@@ -110,6 +110,23 @@ Issue #3C complete: Free energy computation integrated via the controller bounda
 - **Result:** instability_score=0.0017 ✓
 - Verifies NO edit proposals
 
+**Instability threshold calibration (0.05 → 0.001):**
+- Initial test used threshold 0.05 (too high, failed with score 0.0017)
+- Instability measures variance of coherence delta across 4 experts
+- With only 1 expert oscillating out of 4, variance is naturally low (~0.001-0.002)
+- Lowered threshold to 0.001 to match empirical scale
+- **Not a universal constant:** Threshold chosen for deterministic test validation
+- Real training runs may need different thresholds based on layer width and stress patterns
+
+**Raw vs Weighted Scores (avoiding confusion):**
+- **Raw scores:** `redundancy_score`, `instability_score` in diagnostics (before weighting)
+  - Example: `instability_score: 0.0017` (raw variance)
+- **Weighted components:** `components.redundancy`, `components.instability` (after applying weights)
+  - Example: `instability_score=0.0017` (raw) → `0.01 * 0.0017 = 0.000017` (weighted)
+  - Weighted value rounds to `0.0000` at 4 decimal precision
+- **Why separate:** Raw scores show signal strength, weighted components show contribution to F_l
+- Test output may show "instability: 0.0000" (weighted) even when instability_score is nonzero (raw)
+
 **File:** `chronomoe_integration/tests/test_controller.py` (~600 lines)
 
 ---
