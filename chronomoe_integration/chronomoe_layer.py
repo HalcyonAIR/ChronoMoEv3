@@ -49,6 +49,7 @@ class ChronoMoE(nn.Module):
         max_experts: Optional[int] = None,
         probation_config: Optional[ProbationConfig] = None,
         stress_bands_config: Optional[StressBandsConfig] = None,
+        autonomous_mode: bool = False,
     ):
         super().__init__()
 
@@ -84,12 +85,16 @@ class ChronoMoE(nn.Module):
         self.stress_bands_config = stress_bands_config or StressBandsConfig()
         self.stress_bands = init_stress_bands(self.stress_bands_config)
 
-        # Milestone A: Controller for signal processing (coherence tracking)
+        # Milestone A-D: Controller for signal processing and autonomous triggers
+        # DIAGNOSTIC mode (default): signals only, no autonomous proposals
+        # AUTONOMOUS mode (explicit): generates autonomous SPAWN/PRUNE proposals
         self.controller = create_controller(
             layer_id=layer_id,
             max_experts=self.max_experts,
             initial_active=initial_experts,
+            autonomous_mode=autonomous_mode,
         )
+        self.autonomous_mode = autonomous_mode
 
         # Current step (updated externally before forward)
         self.current_step = 0
@@ -373,3 +378,176 @@ class ChronoMoE(nn.Module):
                 self.prune_expert(expert_id, check_calm_gate=False)
                 tokens = self.registry.experts[expert_id].probation_tokens_accumulated
                 print(f"  [ChronoMoE Layer {self.layer_id}] PROBATION FAILURE: Expert {expert_id} ({tokens} tokens)")
+
+    def process_controller_proposals(self, optimizer: Optional[torch.optim.Optimizer] = None) -> Dict:
+        """
+        Process autonomous proposals from controller (Milestone D).
+
+        Non-bypassable enforcement:
+        - Checks stress bands (COMFORT/STRAIN/PANIC)
+        - Checks calm credit requirements
+        - Only executes in COMFORT with sufficient calm credit
+        - Logs all decisions (propose, queue, reject, execute)
+
+        This is the TWO-STEP COMMIT boundary:
+        1. Controller proposes (based on signals)
+        2. Layer decides (based on stress bands + calm gates)
+
+        Args:
+            optimizer: Optional optimizer for spawn operations
+
+        Returns:
+            Dict with execution results and logs
+        """
+        from chronomoe_integration.stress_bands import lifecycle_gates
+        from chronomoe_integration.controller import EditResult
+
+        # Get proposals from controller (AUTONOMOUS mode must be enabled)
+        proposals = self.controller.decide()
+
+        if not proposals:
+            return {"proposals": 0, "executed": 0, "rejected": 0, "queued": 0, "log": []}
+
+        # Check current stress band and calm gates
+        gates = lifecycle_gates(self.stress_bands, self.stress_bands_config)
+        current_band = self.stress_bands.current_band
+        time_in_comfort = self.stress_bands.time_in_comfort
+
+        results = {
+            "proposals": len(proposals),
+            "executed": 0,
+            "rejected": 0,
+            "queued": 0,
+            "log": [],
+        }
+
+        for proposal in proposals:
+            log_entry = {
+                "step": self.current_step,
+                "type": proposal.edit_type,
+                "expert_id": proposal.expert_id,
+                "reason": proposal.reason,
+                "delta_f_l": proposal.delta_f_l,
+                "calm_required": proposal.calm_credit_required,
+                "calm_actual": time_in_comfort,
+                "band": current_band.value,
+            }
+
+            # NON-BYPASSABLE GATE ENFORCEMENT
+            # Check 1: Must be in COMFORT band
+            if current_band != Band.COMFORT:
+                log_entry["action"] = "REJECTED"
+                log_entry["block_reason"] = f"Not in COMFORT (current: {current_band.value})"
+                results["rejected"] += 1
+                results["log"].append(log_entry)
+                print(f"  [ChronoMoE Layer {self.layer_id}] PROPOSAL REJECTED: {proposal.edit_type} expert {proposal.expert_id} - {log_entry['block_reason']}")
+
+                # Report to controller
+                self.controller.apply(EditResult(
+                    edit_type=proposal.edit_type,
+                    success=False,
+                    expert_id=proposal.expert_id,
+                    reason=log_entry["block_reason"],
+                ))
+                continue
+
+            # Check 2: Must have sufficient calm credit
+            if time_in_comfort < proposal.calm_credit_required:
+                log_entry["action"] = "QUEUED"
+                log_entry["block_reason"] = f"Insufficient calm credit ({time_in_comfort} < {proposal.calm_credit_required})"
+                results["queued"] += 1
+                results["log"].append(log_entry)
+                print(f"  [ChronoMoE Layer {self.layer_id}] PROPOSAL QUEUED: {proposal.edit_type} expert {proposal.expert_id} - {log_entry['block_reason']}")
+
+                # Report to controller
+                self.controller.apply(EditResult(
+                    edit_type=proposal.edit_type,
+                    success=False,
+                    expert_id=proposal.expert_id,
+                    reason=log_entry["block_reason"],
+                ))
+                continue
+
+            # Gates passed - EXECUTE
+            log_entry["action"] = "EXECUTED"
+
+            if proposal.edit_type == "spawn":
+                new_expert_id = self.spawn_expert(
+                    parent_id=proposal.expert_id,
+                    strategy="blank",  # Default to blank
+                    optimizer=optimizer,
+                    check_calm_gate=False,  # Already checked above
+                )
+                if new_expert_id is not None:
+                    log_entry["new_expert_id"] = new_expert_id
+                    results["executed"] += 1
+                    print(f"  [ChronoMoE Layer {self.layer_id}] PROPOSAL EXECUTED: SPAWN expert {new_expert_id} (parent: {proposal.expert_id})")
+
+                    # Report success to controller
+                    self.controller.apply(EditResult(
+                        edit_type="spawn",
+                        success=True,
+                        expert_id=proposal.expert_id,
+                        new_expert_id=new_expert_id,
+                    ))
+                else:
+                    log_entry["action"] = "REJECTED"
+                    log_entry["block_reason"] = "Spawn failed (capacity?)"
+                    results["rejected"] += 1
+                    print(f"  [ChronoMoE Layer {self.layer_id}] PROPOSAL FAILED: SPAWN - {log_entry['block_reason']}")
+
+                    # Report failure to controller
+                    self.controller.apply(EditResult(
+                        edit_type="spawn",
+                        success=False,
+                        expert_id=proposal.expert_id,
+                        reason=log_entry["block_reason"],
+                    ))
+
+            elif proposal.edit_type == "prune":
+                success = self.prune_expert(
+                    expert_id=proposal.expert_id,
+                    check_calm_gate=False,  # Already checked above
+                )
+                if success:
+                    results["executed"] += 1
+                    print(f"  [ChronoMoE Layer {self.layer_id}] PROPOSAL EXECUTED: PRUNE expert {proposal.expert_id}")
+
+                    # Report success to controller
+                    self.controller.apply(EditResult(
+                        edit_type="prune",
+                        success=True,
+                        expert_id=proposal.expert_id,
+                    ))
+                else:
+                    log_entry["action"] = "REJECTED"
+                    log_entry["block_reason"] = "Prune failed (probation?)"
+                    results["rejected"] += 1
+                    print(f"  [ChronoMoE Layer {self.layer_id}] PROPOSAL FAILED: PRUNE - {log_entry['block_reason']}")
+
+                    # Report failure to controller
+                    self.controller.apply(EditResult(
+                        edit_type="prune",
+                        success=False,
+                        expert_id=proposal.expert_id,
+                        reason=log_entry["block_reason"],
+                    ))
+
+            else:
+                # SPLIT/MERGE not implemented yet (Milestone E)
+                log_entry["action"] = "REJECTED"
+                log_entry["block_reason"] = f"Unsupported edit type: {proposal.edit_type}"
+                results["rejected"] += 1
+                print(f"  [ChronoMoE Layer {self.layer_id}] PROPOSAL REJECTED: {log_entry['block_reason']}")
+
+                # Report to controller
+                self.controller.apply(EditResult(
+                    edit_type=proposal.edit_type,
+                    success=False,
+                    expert_id=proposal.expert_id,
+                    reason=log_entry["block_reason"],
+                ))
+
+            results["log"].append(log_entry)
+
+        return results
