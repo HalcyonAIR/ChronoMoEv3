@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """
-Test controller boundary, coherence tracking (Milestone A), and bimodality detection (Milestone B).
+Test controller boundary, coherence (Milestone A), bimodality (Milestone B), and free energy (Milestone C).
 
 Validates:
 - Controller API (observe, decide, apply, get_diagnostics)
 - Coherence tracking (phi_fast, phi_mid, phi_slow)
 - Bimodality detection (separation, balance, bimodality score)
+- Free energy computation (complexity, redundancy, instability, F_l)
 - Ring buffer behavior (no memory leaks)
 - NO edit proposals fired (decide() returns empty list)
 """
@@ -415,11 +416,158 @@ def test_bimodality_bimodal():
     print("\n✓ TEST 7 PASSED: Bimodal detection working\n")
 
 
+def test_free_energy_redundancy():
+    """Test 8: Free energy detects high redundancy (duplicate expert outputs)."""
+    print("=" * 70)
+    print("TEST 8: Free Energy - High Redundancy")
+    print("=" * 70)
+
+    controller = create_controller(
+        layer_id=0,
+        max_experts=8,
+        initial_active=4,
+    )
+
+    B_T = 32
+    d_model = 128
+    num_experts = 8
+
+    # Create duplicate expert outputs (high redundancy)
+    torch.manual_seed(42)  # Deterministic
+    shared_output = torch.randn(B_T, d_model)
+
+    # Run 50 observations with experts producing nearly identical outputs
+    for step in range(50):
+        expert_outputs = torch.zeros(num_experts, B_T, d_model)
+
+        # Experts 0, 1, 2, 3 produce nearly identical outputs (high redundancy)
+        for i in range(4):
+            noise = torch.randn(B_T, d_model) * 0.01  # Tiny noise
+            expert_outputs[i] = shared_output + noise
+
+        mixture_output = shared_output.clone()  # Mixture matches shared output
+
+        snapshot = ObservationSnapshot(
+            step=step,
+            layer_id=0,
+            router_probs=torch.ones(B_T, num_experts) / num_experts,
+            selected_experts=torch.randint(0, 4, (B_T, 2)),
+            expert_outputs=expert_outputs,
+            mixture_output=mixture_output,
+            utilization=torch.tensor([8.0, 8.0, 8.0, 8.0, 0.0, 0.0, 0.0, 0.0]),
+        )
+        controller.observe(snapshot)
+
+    # Get diagnostics
+    diagnostics = controller.get_diagnostics()
+    assert "free_energy" in diagnostics
+    fe_data = diagnostics["free_energy"]
+
+    print(f"✓ Free energy components:")
+    print(f"  - Complexity: {fe_data['components']['complexity']:.4f}")
+    print(f"  - Redundancy: {fe_data['components']['redundancy']:.4f}")
+    print(f"  - Instability: {fe_data['components']['instability']:.4f}")
+    print(f"  - Total F_l: {fe_data['components']['total']:.4f}")
+    print(f"  - Is partial (no misfit): {fe_data['components']['is_partial']}")
+
+    # Verify high redundancy detected
+    redundancy_score = fe_data["redundancy_score"]
+    print(f"✓ Redundancy score: {redundancy_score:.4f}")
+
+    assert redundancy_score > 0.9, \
+        f"Expected high redundancy (> 0.9), got {redundancy_score:.4f}"
+
+    print(f"✓ High redundancy correctly detected (duplicate expert outputs)")
+
+    # Verify NO edit proposals (Milestone C: diagnostics only)
+    proposals = controller.decide()
+    assert len(proposals) == 0, f"Expected 0 proposals in Milestone C, got {len(proposals)}"
+    print(f"✓ No edit proposals (Milestone C: diagnostics only)")
+
+    print("\n✓ TEST 8 PASSED: Redundancy detection working\n")
+
+
+def test_free_energy_instability():
+    """Test 9: Free energy detects high instability (coherence oscillation)."""
+    print("=" * 70)
+    print("TEST 9: Free Energy - High Instability")
+    print("=" * 70)
+
+    controller = create_controller(
+        layer_id=0,
+        max_experts=8,
+        initial_active=4,
+    )
+
+    B_T = 32
+    d_model = 128
+    num_experts = 8
+
+    torch.manual_seed(42)  # Deterministic
+    mixture_output = torch.randn(B_T, d_model)
+
+    # Run observations with oscillating expert coherence
+    for step in range(100):
+        expert_outputs = torch.zeros(num_experts, B_T, d_model)
+
+        # Expert 0: oscillates between aligned and orthogonal
+        if step % 2 == 0:
+            # Aligned with mixture (high coherence)
+            expert_outputs[0] = mixture_output + torch.randn(B_T, d_model) * 0.1
+        else:
+            # Orthogonal to mixture (low coherence)
+            orthogonal = torch.randn(B_T, d_model)
+            orthogonal = orthogonal - (orthogonal * mixture_output).sum(dim=1, keepdim=True) / (mixture_output ** 2).sum(dim=1, keepdim=True) * mixture_output
+            expert_outputs[0] = orthogonal
+
+        # Other experts stable (for contrast)
+        for i in range(1, 4):
+            expert_outputs[i] = mixture_output + torch.randn(B_T, d_model) * 0.1
+
+        snapshot = ObservationSnapshot(
+            step=step,
+            layer_id=0,
+            router_probs=torch.ones(B_T, num_experts) / num_experts,
+            selected_experts=torch.randint(0, 4, (B_T, 2)),
+            expert_outputs=expert_outputs,
+            mixture_output=mixture_output,
+            utilization=torch.tensor([8.0, 8.0, 8.0, 8.0, 0.0, 0.0, 0.0, 0.0]),
+        )
+        controller.observe(snapshot)
+
+    # Get diagnostics
+    diagnostics = controller.get_diagnostics()
+    fe_data = diagnostics["free_energy"]
+
+    print(f"✓ Free energy components:")
+    print(f"  - Complexity: {fe_data['components']['complexity']:.4f}")
+    print(f"  - Redundancy: {fe_data['components']['redundancy']:.4f}")
+    print(f"  - Instability: {fe_data['components']['instability']:.4f}")
+    print(f"  - Total F_l: {fe_data['components']['total']:.4f}")
+    print(f"  - Is partial (no misfit): {fe_data['components']['is_partial']}")
+
+    # Verify high instability detected
+    instability_score = fe_data["instability_score"]
+    print(f"✓ Instability score: {instability_score:.4f}")
+
+    assert instability_score > 0.001, \
+        f"Expected high instability (> 0.001), got {instability_score:.4f}"
+
+    print(f"✓ High instability correctly detected (coherence oscillation)")
+
+    # Verify NO edit proposals (Milestone C: diagnostics only)
+    proposals = controller.decide()
+    assert len(proposals) == 0, f"Expected 0 proposals in Milestone C, got {len(proposals)}"
+    print(f"✓ No edit proposals (Milestone C: diagnostics only)")
+
+    print("\n✓ TEST 9 PASSED: Instability detection working\n")
+
+
 def run_all_tests():
     """Run all controller tests."""
     print("\n" + "=" * 70)
-    print("CONTROLLER + COHERENCE + BIMODALITY TRACKING TESTS")
-    print("Milestone A + B Validation")
+    print("CONTROLLER + COHERENCE + BIMODALITY + FREE ENERGY TESTS")
+    print("Milestone A + B + C Validation")
     print("=" * 70)
 
     test_controller_api()
@@ -429,9 +577,11 @@ def run_all_tests():
     test_ring_buffer_no_memory_leak()
     test_bimodality_unimodal()
     test_bimodality_bimodal()
+    test_free_energy_redundancy()
+    test_free_energy_instability()
 
     print("=" * 70)
-    print("✓ ALL CONTROLLER TESTS PASSED (7/7)")
+    print("✓ ALL CONTROLLER TESTS PASSED (9/9)")
     print("=" * 70)
     print("\nController validated:")
     print("  1. API methods working ✓")
@@ -441,8 +591,11 @@ def run_all_tests():
     print("  5. Ring buffer prevents memory leaks ✓")
     print("  6. Bimodality unimodal detection ✓")
     print("  7. Bimodality bimodal detection ✓")
+    print("  8. Free energy redundancy detection ✓")
+    print("  9. Free energy instability detection ✓")
     print("\nMilestone A: Coherence logging only, no triggers.")
     print("Milestone B: Bimodality logging only, no triggers.")
+    print("Milestone C: Free energy logging only, no triggers.")
     print("=" * 70)
 
 

@@ -34,6 +34,10 @@ from chronomoe_integration.coherence import (
 from chronomoe_integration.bimodality import (
     BimodalityState,
 )
+from chronomoe_integration.free_energy import (
+    FreeEnergyState,
+    FreeEnergyComponents,
+)
 
 __all__ = [
     "ChronoMoE",
@@ -58,4 +62,7 @@ __all__ = [
     "CoherenceState",
     # Milestone B: Bimodality
     "BimodalityState",
+    # Milestone C: Free Energy
+    "FreeEnergyState",
+    "FreeEnergyComponents",
 ]

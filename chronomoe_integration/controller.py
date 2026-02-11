@@ -25,6 +25,10 @@ from .bimodality import (
     update_bimodality,
     compute_layer_bimodality,
 )
+from .free_energy import (
+    FreeEnergyState,
+    create_free_energy_state,
+)
 
 
 @dataclass
@@ -135,7 +139,9 @@ class ChronoController:
         self.bimodality_states: Dict[int, BimodalityState] = {}
         # Note: Bimodality states created on-demand (need d_model from first observation)
 
-        # Milestone C: Add free_energy_state here
+        # Milestone C: Free energy tracking
+        self.free_energy_state: Optional[FreeEnergyState] = None
+        # Note: Created on first observation with full coherence + bimodality data
 
         # Observation history (ring buffer)
         self.observation_history: List[ObservationSnapshot] = []
@@ -172,7 +178,8 @@ class ChronoController:
             self._update_bimodality(snapshot)
 
         # Milestone C: Compute free energy
-        # self._compute_free_energy(snapshot)
+        if snapshot.expert_outputs is not None:
+            self._update_free_energy(snapshot)
 
     def decide(self) -> List[EditProposal]:
         """
@@ -270,7 +277,10 @@ class ChronoController:
                 "layer_bimodality": round(layer_bimodality, 4),
                 "by_expert": bimodality_by_expert,
             },
-            # Milestone C: Add free energy values
+            # Milestone C: Free energy diagnostics
+            "free_energy": (
+                self.free_energy_state.to_dict() if self.free_energy_state else None
+            ),
         }
 
     def _update_coherence(self, snapshot: ObservationSnapshot) -> None:
@@ -366,6 +376,52 @@ class ChronoController:
                 state=self.bimodality_states[expert_id],
                 expert_output=expert_output,
             )
+
+    def _update_free_energy(self, snapshot: ObservationSnapshot) -> None:
+        """
+        Update free energy state from observation snapshot.
+
+        Milestone C: Free energy tracking only (no triggers, no edits).
+
+        Args:
+            snapshot: Current step's observation
+        """
+        # Get config values
+        config_fe = self.config["free_energy"]
+        lambda_complexity = config_fe["lambda_complexity"]
+        rho_redundancy = config_fe["rho_redundancy"]
+        kappa_instability = config_fe["kappa_instability"]
+        min_tokens_active = config_fe["min_tokens_active"]
+
+        # Build active mask from utilization
+        utilization = snapshot.utilization
+        active_mask = utilization >= min_tokens_active
+        num_active = active_mask.sum().item()
+
+        # Build coherence tensors from coherence states
+        num_experts = len(self.coherence_states)
+        coherence_fast = torch.zeros(num_experts)
+        coherence_slow = torch.zeros(num_experts)
+
+        for expert_id, state in self.coherence_states.items():
+            coherence_fast[expert_id] = state.phi_fast
+            coherence_slow[expert_id] = state.phi_slow
+
+        # Create free energy state
+        self.free_energy_state = create_free_energy_state(
+            layer_id=self.layer_id,
+            step=snapshot.step,
+            num_active_experts=num_active,
+            max_experts=self.max_experts,
+            expert_outputs=snapshot.expert_outputs,
+            coherence_fast=coherence_fast,
+            coherence_slow=coherence_slow,
+            active_mask=active_mask,
+            lambda_complexity=lambda_complexity,
+            rho_redundancy=rho_redundancy,
+            kappa_instability=kappa_instability,
+            misfit=None,  # Leave as None (partial F_l) until canonical misfit proxy exists
+        )
 
     @staticmethod
     def _default_config() -> Dict[str, Any]:
