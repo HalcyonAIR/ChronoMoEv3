@@ -270,6 +270,9 @@ def run_real_validation(seed=42, max_steps=3000):
             # Process proposals
             results = model.moe.process_controller_proposals(optimizer)
 
+            # Check probation graduations (CRITICAL: without this, children stay in probation forever)
+            model.moe.check_probation_graduations(check_calm_gate=True)
+
             # Track SPLIT events
             split_log = [e for e in results.get("log", []) if e["type"] == "split"]
 
