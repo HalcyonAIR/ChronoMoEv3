@@ -151,7 +151,7 @@ Issue #3C complete: Free energy computation integrated via the controller bounda
 ## Git Commits
 
 ```
-[To be added after commit]
+557ef6f Milestone C complete: Free energy sensor via controller boundary
 ```
 
 **Files created:**
