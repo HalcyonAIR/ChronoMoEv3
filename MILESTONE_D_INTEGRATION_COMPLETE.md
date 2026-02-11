@@ -321,13 +321,17 @@ def __init__(
 
 ```
 3edc380 Milestone D: Wire proposal execution into swiss-ai/MoE with non-bypassable gates
+f1aacf2 Add Milestone D integration completion documentation
+a838cf5 Add autonomous training demo: propose→reject/queue/execute
 ```
 
 **Files modified:**
 - `chronomoe_integration/chronomoe_layer.py` (+180 lines)
+- `MILESTONE_D_INTEGRATION_COMPLETE.md` (updated with training loop validation)
 
 **Files created:**
 - `chronomoe_integration/tests/test_autonomous_execution.py` (248 lines)
+- `demo_autonomous_training.py` (266 lines)
 
 ---
 
@@ -459,25 +463,76 @@ if time_in_comfort < proposal.calm_credit_required:
 
 ---
 
-## Next Steps: Real Training Loop
+## Real Training Loop Validation: Complete ✅
 
-**TODO (from user request):**
-> "Then run a short real training loop to demonstrate propose→reject, propose→queue (two-step), and propose→execute in comfort."
+**File:** `demo_autonomous_training.py` (266 lines)
 
-**Not yet implemented:**
-- Short real training loop showing all 3 scenarios:
-  1. Propose → Reject (in STRAIN/PANIC)
-  2. Propose → Queue (insufficient calm credit)
-  3. Propose → Execute (in COMFORT with sufficient calm)
+Successfully demonstrated all three proposal scenarios in real training:
 
-**Waiting for:** User approval to proceed with real training loop validation.
+### Phase 1: Execute in COMFORT
+
+**Setup:** 250 training steps with low stress (0.5)
+
+**Result:**
+```
+✓ Accumulated 250 steps of calm credit
+  [ChronoMoE Layer 0] SPAWN: Expert 4 (blank from 1)
+  [ChronoMoE Layer 0] PROPOSAL EXECUTED: SPAWN expert 4 (parent: 1)
+  Proposals: 1
+  Executed: 1
+  Rejected: 0
+  Queued: 0
+```
+
+**Validation:** Gates passed, proposal executed ✓
+
+### Phase 2: Reject in STRAIN
+
+**Setup:** 50 training steps with high stress (1.5), forcing STRAIN band
+
+**Result:**
+```
+✓ Now in STRAIN band
+  [ChronoMoE Layer 0] PROPOSAL REJECTED: spawn expert 1 - Not in COMFORT (current: strain)
+  Proposals: 1
+  Executed: 0
+  Rejected: 1
+  Queued: 0
+
+  Decision log:
+    - REJECTED: spawn expert 1
+      Reason: Not in COMFORT (current: strain)
+```
+
+**Validation:** Stress band gate enforced, proposal rejected ✓
+
+### Phase 3: Queue with insufficient calm credit
+
+**Setup:** Return to COMFORT but only accumulate 36 steps (< 200 required)
+
+**Result:**
+```
+✓ Back in COMFORT band
+✓ Calm credit: 36 steps (< 200 for SPAWN, < 500 for PRUNE)
+  [ChronoMoE Layer 0] PROPOSAL QUEUED: spawn expert 4 - Insufficient calm credit (36 < 200)
+  Proposals: 1
+  Executed: 0
+  Rejected: 0
+  Queued: 1
+
+  Decision log:
+    - QUEUED: spawn expert 4
+      Reason: Insufficient calm credit (36 < 200)
+```
+
+**Validation:** Calm credit gate enforced, proposal queued ✓
 
 ---
 
-## What's Blocked
+## What's Next
 
-- ❌ Real training loop validation - blocked until integration approved
-- ❌ Issue #3E (SPLIT/MERGE) - blocked until #3D proven stable in real training
+- ✅ Real training loop validation - **COMPLETE**
+- ⏸️ Issue #3E (SPLIT/MERGE) - awaiting user approval to proceed
 
 ---
 
