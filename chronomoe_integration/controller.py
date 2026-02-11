@@ -292,6 +292,11 @@ class ChronoController:
         if split_proposal:
             proposals.append(split_proposal)
 
+        # MERGE trigger (Milestone F Phase 1: diagnostic-only)
+        merge_proposal = self._try_propose_merge()
+        if merge_proposal:
+            proposals.append(merge_proposal)
+
         return proposals
 
     def apply(self, result: EditResult) -> None:
@@ -374,6 +379,23 @@ class ChronoController:
             min_observations=self.config["bimodality"]["min_observations"],
         )
 
+        # Milestone F: Merge candidate diagnostics (Phase 1: diagnostic-only)
+        merge_diagnostics = None
+        if self.config["merge"]["enabled"]:
+            merge_proposal = self._try_propose_merge()
+            if merge_proposal:
+                merge_diagnostics = {
+                    "candidate_found": True,
+                    "expert_a": merge_proposal.expert_id,
+                    "expert_b": merge_proposal.evidence.get("expert_b_id"),
+                    "similarity": round(merge_proposal.evidence.get("similarity_score", 0.0), 4),
+                    "utilization_a": round(merge_proposal.evidence.get("utilization_a", 0.0), 4),
+                    "utilization_b": round(merge_proposal.evidence.get("utilization_b", 0.0), 4),
+                    "predicted_delta_f": round(merge_proposal.delta_f_l, 4),
+                }
+            else:
+                merge_diagnostics = {"candidate_found": False}
+
         return {
             "layer_id": self.layer_id,
             "max_experts": self.max_experts,
@@ -395,6 +417,8 @@ class ChronoController:
             "free_energy": (
                 self.free_energy_state.to_dict() if self.free_energy_state else None
             ),
+            # Milestone F: Merge diagnostics (Phase 1: diagnostic-only)
+            "merge": merge_diagnostics,
         }
 
     def _try_propose_spawn(self) -> Optional[EditProposal]:
@@ -684,6 +708,125 @@ class ChronoController:
             delta_f_l=predicted_delta_f,
         )
 
+    def _try_propose_merge(self) -> Optional[EditProposal]:
+        """
+        Try to propose MERGE if two experts are redundant (Milestone F Phase 1).
+
+        Diagnostic-only mode: Proposals logged but not executed.
+
+        Conditions:
+        - Both experts have low utilization (< utilization_threshold)
+        - High output similarity (cosine similarity > similarity_threshold)
+        - Sufficient observations (min_observations threshold)
+        - Predicted ΔF_l < MIN_DELTA_F (merge will reduce redundancy)
+
+        NOTE: merge thresholds are TEST-CALIBRATED. Real training may need tuning.
+        """
+        # Check if merge detection is enabled (diagnostic mode)
+        if not self.config["merge"]["enabled"]:
+            return None
+
+        # Check if we have free energy state
+        if self.free_energy_state is None:
+            return None
+
+        # Get config thresholds
+        similarity_threshold = self.config["merge"]["similarity_threshold"]  # 0.8
+        utilization_threshold = self.config["merge"]["utilization_threshold"]  # 0.1
+        min_observations = self.config["merge"]["min_observations"]  # 100
+        min_delta_f = self.config["triggers"]["min_delta_f"]  # -0.001
+
+        # Find expert pairs with low utilization and high similarity
+        best_pair = None
+        best_score = similarity_threshold  # Must exceed threshold
+        best_evidence = None
+
+        expert_ids = list(self.bimodality_states.keys())
+        num_active = self.free_energy_state.num_active_experts
+
+        # Only consider merge if we have at least 2 experts
+        if num_active < 2:
+            return None
+
+        # Consider all pairs of experts
+        for i in range(len(expert_ids)):
+            for j in range(i + 1, len(expert_ids)):
+                expert_a = expert_ids[i]
+                expert_b = expert_ids[j]
+
+                # Check minimum observations for both experts
+                state_a = self.bimodality_states[expert_a]
+                state_b = self.bimodality_states[expert_b]
+                obs_a = state_a.count_a + state_a.count_b
+                obs_b = state_b.count_a + state_b.count_b
+
+                if obs_a < min_observations or obs_b < min_observations:
+                    continue
+
+                # Check utilization (from coherence state)
+                if expert_a not in self.coherence_states or expert_b not in self.coherence_states:
+                    continue
+
+                # Compute utilization as fraction of total tokens
+                # Note: This is approximate (recent window, not global)
+                util_a = self.coherence_states[expert_a].utilization
+                util_b = self.coherence_states[expert_b].utilization
+
+                if util_a > utilization_threshold or util_b > utilization_threshold:
+                    continue  # At least one expert is well-utilized
+
+                # Compute cosine similarity between centroids
+                # Both centroids from mode_a (primary mode) since we're checking overall similarity
+                centroid_a = state_a.centroid_a
+                centroid_b = state_b.centroid_a
+
+                if centroid_a is None or centroid_b is None:
+                    continue  # Not enough data yet
+
+                # Cosine similarity
+                sim = torch.nn.functional.cosine_similarity(
+                    centroid_a.unsqueeze(0),
+                    centroid_b.unsqueeze(0),
+                    dim=1
+                ).item()
+
+                if sim > best_score:
+                    best_score = sim
+                    best_pair = (expert_a, expert_b)
+                    best_evidence = {
+                        "expert_a_id": expert_a,
+                        "expert_b_id": expert_b,
+                        "similarity_score": sim,
+                        "utilization_a": util_a,
+                        "utilization_b": util_b,
+                    }
+
+        if best_pair is None:
+            return None  # No merge candidates
+
+        expert_a, expert_b = best_pair
+
+        # Predict ΔF_l from merging
+        # Merging two redundant experts should reduce redundancy term
+        rho = self.config["free_energy"]["rho_redundancy"]
+        predicted_delta_f = -rho * 0.3  # Estimate: 30% redundancy reduction
+
+        # Filter by MIN_DELTA_F threshold
+        if predicted_delta_f >= min_delta_f:
+            return None  # Merge won't help enough
+
+        best_evidence["predicted_delta_f"] = predicted_delta_f
+
+        # Create proposal
+        return EditProposal(
+            edit_type="merge",
+            expert_id=expert_a,  # Primary expert (will absorb expert_b)
+            reason=f"Experts {expert_a} and {expert_b} redundant (similarity={best_score:.2f}, util={best_evidence['utilization_a']:.2f}/{best_evidence['utilization_b']:.2f})",
+            evidence=best_evidence,
+            calm_credit_required=self.config["triggers"]["merge_calm_steps"],  # 400
+            delta_f_l=predicted_delta_f,
+        )
+
     def _update_coherence(self, snapshot: ObservationSnapshot) -> None:
         """
         Update coherence states from observation snapshot.
@@ -860,6 +1003,15 @@ class ChronoController:
                 "split_threshold": 0.5,  # Bimodality score threshold (future use)
             },
 
+            # Merge detection (Milestone F Phase 1)
+            # NOTE: Diagnostic-only mode (proposals logged, not executed)
+            "merge": {
+                "enabled": False,  # Phase 1: diagnostic only, Phase 2: execution
+                "similarity_threshold": 0.8,  # Cosine similarity > 0.8 = merge candidate
+                "utilization_threshold": 0.1,  # Both experts < 10% utilization
+                "min_observations": 100,  # Minimum observations before considering
+            },
+
             # Free energy (Milestone C)
             "free_energy": {
                 "lambda_complexity": 0.01,  # Weight for complexity term
@@ -882,6 +1034,7 @@ class ChronoController:
                 "split_calm_steps": 300,  # NEW (Milestone E): Calm credit for split (between spawn and prune)
                 "split_latch_ttl": 500,  # Time-to-live for pending SPLIT latch (steps)
                 "split_lineage_cooldown": 500,  # Prevent re-splitting children or siblings (steps)
+                "merge_calm_steps": 400,  # NEW (Milestone F): Calm credit for merge (between split and prune)
             },
 
             # Stress bands (already integrated)
