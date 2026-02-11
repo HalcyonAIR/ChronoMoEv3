@@ -238,6 +238,13 @@ diagnostics = controller.get_diagnostics()
 - Update assigned centroid with EMA: `centroid = alpha * centroid + (1 - alpha) * new_value`
 - Increment assignment count
 
+**EMA Configuration (`alpha=0.95`):**
+- **Justification:** Slow-moving state for stability. Centroids should drift gradually to avoid chasing transient noise.
+- **Half-life:** ~20 steps (1 / (1 - alpha) ≈ 20)
+- **Configurable:** Exposed in `controller._default_config()["bimodality"]["ema_alpha"]`
+- **Public config surface:** Can be overridden via config dict in `create_controller(config={...})`
+- **Rationale:** Bimodality detection requires stable centroids. Too fast (alpha < 0.9) and you chase noise. Too slow (alpha > 0.98) and you miss phase transitions. Alpha=0.95 balances responsiveness with stability.
+
 **Metrics:**
 - **Separation:** Cosine distance (scale-invariant, directionality)
   - Formula: `1.0 - cosine_similarity(centroid_a, centroid_b)`
@@ -251,8 +258,10 @@ diagnostics = controller.get_diagnostics()
 
 - **Bimodality Score:** Combined metric
   - Formula: `separation × balance`
-  - Range: [0, 2]
+  - Range: [0, 2] (cosine distance [0, 2] × balance [0, 1])
   - High score (> 0.5) indicates split candidate
+
+**Important note on thresholds:** The test thresholds (0.3 for unimodal, 0.5 for bimodal) are **defaults for validation**, not universal constants. The bimodality score naturally lives in [0, 2] due to cosine distance scaling. These thresholds were chosen to demonstrate clear separation in deterministic tests, not as absolute decision boundaries. Future work may adjust thresholds based on empirical distribution across real training runs.
 
 ### Router-Agnostic Design
 
