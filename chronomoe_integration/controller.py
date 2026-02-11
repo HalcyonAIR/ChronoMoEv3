@@ -116,9 +116,17 @@ class PendingSplitLatch:
         return current_step >= self.proposed_at_step + self.ttl_steps
 
     def is_valid(self, current_bimodality_score: float, threshold: float) -> bool:
-        """Check if evidence is still valid (not contradicted)."""
-        # Original evidence must still hold
-        return current_bimodality_score >= threshold
+        """
+        Check if evidence is still valid (not contradicted).
+
+        Evidence is contradicted if bimodality drops to near-zero, indicating
+        the expert's behavior fundamentally changed. Small drops below threshold
+        are not contradictions - just noise/variance.
+        """
+        # Use a relaxed threshold: evidence is only contradicted if bimodality
+        # drops significantly (e.g., below 20% of original threshold)
+        relaxed_threshold = threshold * 0.2
+        return current_bimodality_score >= relaxed_threshold
 
 
 class ChronoController:
