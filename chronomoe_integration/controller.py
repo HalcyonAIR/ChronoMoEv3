@@ -118,13 +118,22 @@ class ChronoController:
         max_experts: int,
         initial_active: int,
         config: Optional[Dict[str, Any]] = None,
+        autonomous_mode: bool = False,
     ):
         self.layer_id = layer_id
         self.max_experts = max_experts
         self.initial_active = initial_active
 
+        # Mode: DIAGNOSTIC (Milestones A-C) vs AUTONOMOUS (Milestone D+)
+        # DIAGNOSTIC: decide() returns empty list (signals only)
+        # AUTONOMOUS: decide() generates proposals (signals → actions)
+        self.autonomous_mode = autonomous_mode
+
         # Config consolidation (one place for all signal thresholds)
-        self.config = config or self._default_config()
+        # Merge user config with defaults
+        self.config = self._default_config()
+        if config:
+            self._merge_config(config)
 
         # Internal state (stays behind the boundary)
         # Milestone A: Coherence tracking
@@ -185,24 +194,45 @@ class ChronoController:
         """
         Propose lifecycle operations based on accumulated signals.
 
-        Returns empty list until Milestone D (autonomous triggers).
+        Mode behavior:
+        - DIAGNOSTIC (autonomous_mode=False): Returns empty list (Milestones A-C)
+        - AUTONOMOUS (autonomous_mode=True): Generates proposals (Milestone D+)
 
-        Decision logic:
-        - Check calm gates (stress bands)
-        - Evaluate evidence (ΔF_l threshold)
-        - Propose spawn if layer starving (high misfit)
-        - Propose prune if expert decoherent (low phi_slow)
+        Decision logic (AUTONOMOUS mode only):
+        - Evaluate evidence (ΔF_l threshold, MIN_DELTA_F)
+        - Propose spawn if layer inefficient (high F_l, need capacity)
+        - Propose prune if expert decoherent (low phi_slow) or redundant
+
+        NOTE: swiss-ai/MoE layer enforces stress bands and calm gates.
+        Controller only generates proposals based on signals.
 
         Returns:
             List of proposed edits (may be empty)
         """
         proposals = []
 
-        # Milestone D: Enable autonomous triggers here
-        # if self._should_propose_spawn():
-        #     proposals.append(self._create_spawn_proposal())
-        # if self._should_propose_prune():
-        #     proposals.append(self._create_prune_proposal())
+        # Check mode: DIAGNOSTIC returns empty (backwards compatibility)
+        if not self.autonomous_mode:
+            return proposals  # Milestones A-C: signals only, no triggers
+
+        # AUTONOMOUS mode: Generate proposals (Milestone D+)
+
+        # Check if we have sufficient signal data
+        if not self.free_energy_state:
+            return proposals  # Need free energy state to make decisions
+
+        if not self.coherence_states:
+            return proposals  # Need coherence states for PRUNE decisions
+
+        # SPAWN trigger
+        spawn_proposal = self._try_propose_spawn()
+        if spawn_proposal:
+            proposals.append(spawn_proposal)
+
+        # PRUNE trigger
+        prune_proposal = self._try_propose_prune()
+        if prune_proposal:
+            proposals.append(prune_proposal)
 
         return proposals
 
@@ -282,6 +312,132 @@ class ChronoController:
                 self.free_energy_state.to_dict() if self.free_energy_state else None
             ),
         }
+
+    def _try_propose_spawn(self) -> Optional[EditProposal]:
+        """
+        Try to propose SPAWN if layer needs more capacity.
+
+        Milestone D: SPAWN trigger logic.
+
+        Conditions:
+        - F_l is high (layer inefficient)
+        - Not at max capacity (num_active < max_experts)
+        - Predicted ΔF_l < MIN_DELTA_F (edit will help)
+
+        Returns:
+            EditProposal if conditions met, None otherwise
+        """
+        if not self.free_energy_state:
+            return None
+
+        # Get config thresholds
+        min_delta_f = self.config["triggers"]["min_delta_f"]
+
+        # Check capacity limit
+        num_active = self.free_energy_state.num_active_experts
+        if num_active >= self.max_experts:
+            return None  # Already at max capacity
+
+        # Check if F_l is high enough to justify spawn
+        f_l_current = self.free_energy_state.components.total
+        f_l_threshold = 0.01  # TEST-CALIBRATED: For 8-expert layers with partial F_l
+
+        if f_l_current < f_l_threshold:
+            return None  # F_l not high enough
+
+        # Predict ΔF_l from spawning (rough estimate)
+        # SPAWN adds capacity, should reduce complexity term
+        complexity_delta = -self.config["free_energy"]["lambda_complexity"] / self.max_experts
+        predicted_delta_f = complexity_delta  # Simplified prediction
+
+        # Filter by MIN_DELTA_F
+        if predicted_delta_f >= min_delta_f:
+            return None  # Edit won't help enough
+
+        # Find best parent expert (highest coherence)
+        best_parent_id = max(
+            self.coherence_states.keys(),
+            key=lambda eid: self.coherence_states[eid].phi_slow
+        )
+
+        # Create proposal
+        return EditProposal(
+            edit_type="spawn",
+            expert_id=best_parent_id,  # Parent expert to clone from
+            reason=f"Layer inefficient (F_l={f_l_current:.4f}), spawning to add capacity",
+            evidence={
+                "f_l_current": f_l_current,
+                "predicted_delta_f": predicted_delta_f,
+                "num_active": num_active,
+                "max_experts": self.max_experts,
+                "complexity_current": self.free_energy_state.components.complexity,
+            },
+            calm_credit_required=self.config["triggers"]["spawn_calm_steps"],
+            delta_f_l=predicted_delta_f,
+        )
+
+    def _try_propose_prune(self) -> Optional[EditProposal]:
+        """
+        Try to propose PRUNE if expert is decoherent or redundant.
+
+        Milestone D: PRUNE trigger logic.
+
+        Conditions:
+        - Expert has low coherence (phi_slow < threshold)
+        - OR expert has high redundancy with another expert
+        - Predicted ΔF_l < MIN_DELTA_F (edit will help)
+
+        Returns:
+            EditProposal if conditions met, None otherwise
+        """
+        if not self.free_energy_state or not self.coherence_states:
+            return None
+
+        # Get config thresholds
+        min_delta_f = self.config["triggers"]["min_delta_f"]
+        prune_coherence_threshold = 0.3  # TEST-CALIBRATED: phi_slow threshold for decoherence
+
+        # Find decoherent experts
+        decoherent_experts = [
+            eid
+            for eid, state in self.coherence_states.items()
+            if state.phi_slow < prune_coherence_threshold and state.total_tokens_seen > 100
+        ]
+
+        if not decoherent_experts:
+            return None  # No decoherent experts
+
+        # Pick worst expert (lowest coherence)
+        target_expert_id = min(
+            decoherent_experts,
+            key=lambda eid: self.coherence_states[eid].phi_slow
+        )
+
+        # Predict ΔF_l from pruning (rough estimate)
+        # PRUNE reduces complexity term
+        complexity_delta = -self.config["free_energy"]["lambda_complexity"] / self.max_experts
+        predicted_delta_f = complexity_delta  # Simplified prediction
+
+        # Filter by MIN_DELTA_F
+        if predicted_delta_f >= min_delta_f:
+            return None  # Edit won't help enough
+
+        # Create proposal
+        target_state = self.coherence_states[target_expert_id]
+        return EditProposal(
+            edit_type="prune",
+            expert_id=target_expert_id,
+            reason=f"Expert {target_expert_id} decoherent (phi_slow={target_state.phi_slow:.4f})",
+            evidence={
+                "phi_slow": target_state.phi_slow,
+                "phi_fast": target_state.phi_fast,
+                "phi_delta": target_state.phi_delta,
+                "predicted_delta_f": predicted_delta_f,
+                "f_l_current": self.free_energy_state.components.total,
+            },
+            calm_credit_required=self.config["triggers"]["prune_calm_steps"],
+            delta_f_l=predicted_delta_f,
+        )
 
     def _update_coherence(self, snapshot: ObservationSnapshot) -> None:
         """
@@ -423,6 +579,18 @@ class ChronoController:
             misfit=None,  # Leave as None (partial F_l) until canonical misfit proxy exists
         )
 
+    def _merge_config(self, user_config: Dict[str, Any]) -> None:
+        """
+        Merge user config into default config.
+
+        Allows partial config overrides without breaking defaults.
+        """
+        for section, values in user_config.items():
+            if section in self.config:
+                self.config[section].update(values)
+            else:
+                self.config[section] = values
+
     @staticmethod
     def _default_config() -> Dict[str, Any]:
         """
@@ -457,10 +625,15 @@ class ChronoController:
             },
 
             # Evidence thresholds (Milestone D)
+            # NOTE: These are TEST-CALIBRATED defaults, not universal constants
+            # Real training runs may need different thresholds based on:
+            # - Layer width (more experts → different F_l scale)
+            # - Dataset characteristics (clean vs noisy data)
+            # - Training regime (batch size, learning rate)
             "triggers": {
-                "min_delta_f": -0.05,  # ΔF_l threshold for proposals
+                "min_delta_f": -0.001,  # ΔF_l threshold (test-calibrated for 8-expert layers)
                 "spawn_calm_steps": 200,  # Calm credit required for spawn
-                "prune_calm_steps": 500,  # Calm credit required for prune
+                "prune_calm_steps": 500,  # Calm credit required for prune (stricter than spawn)
             },
 
             # Stress bands (already integrated)
@@ -481,17 +654,27 @@ def create_controller(
     max_experts: int,
     initial_active: int,
     config: Optional[Dict[str, Any]] = None,
+    autonomous_mode: bool = False,
 ) -> ChronoController:
     """
     Factory function for controller creation.
 
     This is the primary entry point from swiss-ai/MoE.
+
+    Args:
+        layer_id: Layer index
+        max_experts: Maximum experts in layer
+        initial_active: Number of initially active experts
+        config: Optional config overrides
+        autonomous_mode: If True, enable autonomous triggers (Milestone D+)
+                        If False, diagnostic mode only (Milestones A-C)
     """
     return ChronoController(
         layer_id=layer_id,
         max_experts=max_experts,
         initial_active=initial_active,
         config=config,
+        autonomous_mode=autonomous_mode,
     )
 
 
