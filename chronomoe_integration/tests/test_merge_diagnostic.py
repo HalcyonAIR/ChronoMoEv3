@@ -22,17 +22,20 @@ from chronomoe_integration.controller import (
 
 def test_merge_proposal_positive():
     """
-    Test 17: MERGE Proposal (Positive Test)
+    Test 17: MERGE Proposal (Positive Test) - FULLY DETERMINISTIC
 
-    Two experts with high centroid similarity AND low utilization
-    should trigger MERGE proposal.
+    Directly constructs controller state with:
+    - Two experts with identical centroids (similarity = 1.0)
+    - Both experts with low utilization (< 10%)
+    - Sufficient observations (> 100)
+
+    No randomness. No sampling. Pure unit test of detection logic.
     """
     print("\n" + "=" * 70)
     print("TEST 17: MERGE Proposal (Positive Test)")
     print("=" * 70)
 
-    # Set seed for deterministic test
-    torch.manual_seed(123)  # Seed that produces high similarity
+    from chronomoe_integration.bimodality import BimodalityState
 
     # Create controller with MERGE enabled
     controller = create_controller(
@@ -42,62 +45,102 @@ def test_merge_proposal_positive():
         autonomous_mode=True,
     )
 
-    # Enable MERGE diagnostic mode with LOW similarity threshold
-    # (EMA-smoothed centroids with noise rarely achieve 0.8+ similarity)
+    # Enable MERGE diagnostic mode
     controller.config["merge"]["enabled"] = True
-    controller.config["merge"]["similarity_threshold"] = 0.3  # Lower for deterministic test
+    controller.config["merge"]["similarity_threshold"] = 0.8
     controller.config["merge"]["utilization_threshold"] = 0.1
     controller.config["merge"]["min_observations"] = 100
-    controller.config["triggers"]["min_delta_f"] = 1.0  # Disable ΔF_l filter for test
+    controller.config["triggers"]["min_delta_f"] = 1.0  # Disable ΔF_l filter
 
-    # Feed observations to build up state
+    # DETERMINISTIC CONSTRUCTION: Manually create bimodality states
     d_model = 128
+
+    # Create identical centroid for experts 0 and 1
+    identical_centroid = torch.ones(d_model)  # Deterministic vector
+
+    # Expert 0: bimodality state with sufficient observations
+    controller.bimodality_states[0] = BimodalityState(
+        expert_id=0,
+        layer_id=0,
+        d_model=d_model,
+        centroid_a=identical_centroid.clone(),
+        centroid_b=torch.zeros(d_model),  # Unused but required
+        count_a=150,  # > min_observations
+        count_b=0,
+    )
+
+    # Expert 1: bimodality state with IDENTICAL centroid
+    controller.bimodality_states[1] = BimodalityState(
+        expert_id=1,
+        layer_id=0,
+        d_model=d_model,
+        centroid_a=identical_centroid.clone(),
+        centroid_b=torch.zeros(d_model),  # Unused but required
+        count_a=150,  # > min_observations
+        count_b=0,
+    )
+
+    # Expert 2: different centroid (control)
+    controller.bimodality_states[2] = BimodalityState(
+        expert_id=2,
+        layer_id=0,
+        d_model=d_model,
+        centroid_a=torch.zeros(d_model),  # Different
+        centroid_b=torch.zeros(d_model),
+        count_a=150,
+        count_b=0,
+    )
+
+    # Expert 3: different centroid (control)
+    controller.bimodality_states[3] = BimodalityState(
+        expert_id=3,
+        layer_id=0,
+        d_model=d_model,
+        centroid_a=torch.ones(d_model) * -1,  # Different
+        centroid_b=torch.zeros(d_model),
+        count_a=150,
+        count_b=0,
+    )
+
+    # Create free energy state (required for MERGE detection)
+    from chronomoe_integration.free_energy import FreeEnergyState, FreeEnergyComponents
+    controller.free_energy_state = FreeEnergyState(
+        layer_id=0,
+        step=100,
+        components=FreeEnergyComponents(
+            misfit=None,
+            complexity=0.01,
+            redundancy=0.01,
+            instability=0.01,
+        ),
+        num_active_experts=4,
+        max_experts=8,
+        redundancy_score=0.01,
+        instability_score=0.01,
+    )
+
+    # Create observation with LOW utilization for experts 0 and 1
     batch_size = 32
+    utilization = torch.zeros(4)
+    utilization[0] = 2  # 2 tokens out of 32 = 6.25% (LOW)
+    utilization[1] = 3  # 3 tokens out of 32 = 9.38% (LOW)
+    utilization[2] = 13  # 13 tokens = 40.6% (HIGH)
+    utilization[3] = 14  # 14 tokens = 43.8% (HIGH)
 
-    # Create two experts (0 and 1) with VERY similar centroids
-    # and low utilization
-    for step in range(500):  # More steps to ensure convergence
-        # Router probs: low but sufficient utilization for experts 0 and 1
-        # Keep below 10% threshold but give them enough observations
-        router_probs = torch.zeros(batch_size, 4)
-        router_probs[:, 0] = 0.08  # Expert 0: 8% utilization (LOW but observable)
-        router_probs[:, 1] = 0.09  # Expert 1: 9% utilization (LOW but observable)
-        router_probs[:, 2] = 0.40  # Expert 2: 40% utilization
-        router_probs[:, 3] = 0.43  # Expert 3: 43% utilization
+    snapshot = ObservationSnapshot(
+        step=100,
+        layer_id=0,
+        router_probs=torch.zeros(batch_size, 4),
+        selected_experts=torch.zeros(batch_size, 1, dtype=torch.long),
+        expert_outputs=None,
+        mixture_output=torch.zeros(batch_size, d_model),
+        utilization=utilization,
+        loss=1.0,
+    )
 
-        # Sample from distribution to ensure all experts get some selections
-        selected = torch.multinomial(router_probs, num_samples=1).squeeze()
+    controller.observation_history.append(snapshot)
 
-        # Create expert outputs
-        # Experts 0 and 1: VERY SIMILAR outputs (high cosine similarity)
-        # Use same base vector + tiny noise
-        base_vector = torch.randn(d_model)
-        expert_outputs = torch.zeros(4, batch_size, d_model)
-        expert_outputs[0] = base_vector + torch.randn(batch_size, d_model) * 0.01  # Expert 0
-        expert_outputs[1] = base_vector + torch.randn(batch_size, d_model) * 0.01  # Expert 1 (SIMILAR)
-        expert_outputs[2] = torch.randn(batch_size, d_model)  # Expert 2 (DIFFERENT)
-        expert_outputs[3] = torch.randn(batch_size, d_model)  # Expert 3 (DIFFERENT)
-
-        mixture = expert_outputs.mean(dim=0)
-
-        utilization = torch.zeros(4)
-        for i in range(4):
-            utilization[i] = (selected == i).sum().item()
-
-        snapshot = ObservationSnapshot(
-            step=step,
-            layer_id=0,
-            router_probs=router_probs,
-            selected_experts=selected.unsqueeze(1),
-            expert_outputs=expert_outputs,
-            mixture_output=mixture,
-            utilization=utilization,
-            loss=1.0,
-        )
-
-        controller.observe(snapshot)
-
-    # Try to propose MERGE
+    # Call decide() to generate proposals
     proposals = controller.decide()
 
     merge_proposals = [p for p in proposals if p.edit_type == "merge"]
@@ -105,16 +148,7 @@ def test_merge_proposal_positive():
     print(f"✓ Total proposals: {len(proposals)}")
     print(f"✓ MERGE proposals: {len(merge_proposals)}")
 
-    # TODO: Test structure correct but needs seed tuning for deterministic similarity
-    # The core logic works (verified manually with seed tuning during development)
-    # Skipping assertion until seed is found that produces >0.3 similarity deterministically
-    if len(merge_proposals) == 0:
-        print("⚠ SKIPPED: No MERGE proposal (need seed tuning for deterministic similarity)")
-        print("  Core detection logic verified manually - test structure is correct")
-        print("\n✓ TEST 17 SKIPPED (structure validated)\n")
-        return
-
-    assert len(merge_proposals) > 0, "Expected MERGE proposal (high sim + low util)"
+    assert len(merge_proposals) > 0, "Expected MERGE proposal (identical centroids + low util)"
 
     merge = merge_proposals[0]
     print(f"✓ MERGE candidate found: experts ({merge.expert_id}, {merge.evidence.get('expert_b_id')})")
@@ -122,14 +156,19 @@ def test_merge_proposal_positive():
     print(f"  Utilization A: {merge.evidence.get('utilization_a', 0):.4f}")
     print(f"  Utilization B: {merge.evidence.get('utilization_b', 0):.4f}")
 
-    # Verify similarity exceeds threshold (0.3 for test)
-    assert merge.evidence.get('similarity_score', 0) > 0.3, "Expected similarity > threshold"
+    # Verify: experts 0 and 1 (or 1 and 0)
+    expert_pair = {merge.expert_id, merge.evidence.get('expert_b_id')}
+    assert expert_pair == {0, 1}, f"Expected experts {{0, 1}}, got {expert_pair}"
 
-    # Verify utilization is low
+    # Verify: similarity = 1.0 (identical vectors)
+    sim = merge.evidence.get('similarity_score', 0)
+    assert sim > 0.99, f"Expected similarity ~1.0 for identical vectors, got {sim}"
+
+    # Verify: utilization below threshold
     util_a = merge.evidence.get('utilization_a', 1.0)
     util_b = merge.evidence.get('utilization_b', 1.0)
-    assert util_a < 0.1, f"Expected low utilization A, got {util_a}"
-    assert util_b < 0.1, f"Expected low utilization B, got {util_b}"
+    assert util_a < 0.1, f"Expected utilization A < 0.1, got {util_a}"
+    assert util_b < 0.1, f"Expected utilization B < 0.1, got {util_b}"
 
     print("\n✓ TEST 17 PASSED: MERGE proposal triggered correctly\n")
 
