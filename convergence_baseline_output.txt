@@ -1,0 +1,81 @@
+======================================================================
+BASELINE MEASUREMENT: Natural Behavior Distributions
+======================================================================
+
+Measuring 5000 steps to derive thresholds from percentiles
+
+  [FixedWidthRouter] Extended router from 4 → 8 logits
+  [ChronoMoE Layer 0] 4 active → 8 max experts (stress bands: 1.00/2.00)
+Phase 1: Measuring Natural Distributions
+----------------------------------------------------------------------
+  Step    0: Scar strength → 0.0
+  Step 1000: Scar strength → 1.0
+  Step 2000: Scar strength → 2.5
+  Step 3000: Scar strength → 5.0
+
+Phase 2: Distribution Statistics
+----------------------------------------------------------------------
+Agreement lengths: n=615
+  Mean: 1.2
+  Median: 1.0
+  90th percentile: 2.0
+
+Silence periods: n=111
+  Mean: 44.0
+  Median: 24.0
+  90th percentile: 116.0
+
+Diversity by regime:
+  exploration : n= 20, mean=0.0258, 10th percentile=0.0233
+  transition  : n= 10, mean=0.0200, 10th percentile=0.0192
+  saturation  : n= 20, mean=0.0068, 10th percentile=0.0064
+
+Baseline saved: convergence_baseline.json
+
+======================================================================
+CONVERGENCE DETECTION: Instrumentation (No Policy)
+======================================================================
+
+Derived Thresholds (90th percentile):
+----------------------------------------------------------------------
+  W_min (agreement window):    2
+  S_min (downgrade silence):   116
+  D_exploration (diversity):   0.0233
+  D_transition (diversity):    0.0192
+  D_saturation (diversity):    0.0064
+  K_persistence (intervals):   5
+
+Running Detection (5000 steps)
+----------------------------------------------------------------------
+
+======================================================================
+CONVERGENCE STATISTICS
+======================================================================
+
+Convergence events: 0
+Divergence events:  0
+
+Convergence by regime:
+  exploration : 0
+  transition  : 0
+  saturation  : 0
+
+Scar strength at convergence:
+  Mean: 0.00
+  Std:  0.00
+  Range: [0.00, 0.00]
+
+
+Results saved: convergence_detection_results.json
+
+======================================================================
+SUMMARY
+======================================================================
+
+✓ Baseline distributions measured from natural behavior
+✓ Thresholds derived from 90th percentile (not intuition)
+✓ Convergence detection instrumented (regime-aware, persistence-required)
+✓ Statistics logged (regime distribution, time-to-convergence)
+
+Ready for Phase 3: Attack surface exhaustion detection
+(DO NOT attach policy yet - Phase 4)

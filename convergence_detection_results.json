@@ -1,0 +1,32 @@
+{
+  "thresholds": {
+    "W_min": 2,
+    "S_min": 116,
+    "D_exploration": 0.023312101910828026,
+    "D_transition": 0.019197452229299364,
+    "D_saturation": 0.006369426751592357,
+    "K_persistence": 5,
+    "impact_threshold": 0.7
+  },
+  "statistics": {
+    "num_convergence_events": 0,
+    "num_divergence_events": 0,
+    "convergence_by_regime": {
+      "exploration": 0,
+      "transition": 0,
+      "saturation": 0
+    },
+    "scar_strength_at_convergence": {
+      "mean": 0.0,
+      "std": 0.0,
+      "min": 0.0,
+      "max": 0.0
+    },
+    "divergence_durations": {
+      "mean": 0.0,
+      "median": 0.0
+    }
+  },
+  "convergence_events": [],
+  "divergence_events": []
+}

@@ -66,6 +66,15 @@ from chronomoe_integration.routing_geometry import (
     compute_effective_rank,
     extract_motifs,
 )
+from chronomoe_integration.convergence import (
+    ConvergenceDetector,
+    ConvergenceThresholds,
+    ConvergenceState,
+    ConvergenceEvent,
+    DivergenceEvent,
+    DeformationRegime,
+    derive_thresholds_from_baseline,
+)
 
 __all__ = [
     "ChronoMoE",
@@ -113,4 +122,12 @@ __all__ = [
     "measure_adaptation_speed",
     "compute_effective_rank",
     "extract_motifs",
+    # Convergence Detection (Phase 2)
+    "ConvergenceDetector",
+    "ConvergenceThresholds",
+    "ConvergenceState",
+    "ConvergenceEvent",
+    "DivergenceEvent",
+    "DeformationRegime",
+    "derive_thresholds_from_baseline",
 ]
