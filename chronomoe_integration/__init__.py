@@ -38,6 +38,28 @@ from chronomoe_integration.free_energy import (
     FreeEnergyState,
     FreeEnergyComponents,
 )
+from chronomoe_integration.delta_bundle import (
+    DeltaBundleMerge,
+    create_delta_bundle,
+    save_delta_bundle_weights,
+    save_delta_bundle_metadata,
+    load_delta_bundle_weights,
+    load_delta_bundle_metadata,
+)
+from chronomoe_integration.rollback import (
+    rollback_merge,
+    verify_rollback,
+)
+from chronomoe_integration.probe_battery import (
+    ProbeBatteryResult,
+    run_probe_battery,
+    check_protected_deltas,
+    print_probe_battery_result,
+)
+from chronomoe_integration.merge_execution import (
+    execute_merge,
+    find_merge_candidate,
+)
 
 __all__ = [
     "ChronoMoE",
@@ -65,4 +87,19 @@ __all__ = [
     # Milestone C: Free Energy
     "FreeEnergyState",
     "FreeEnergyComponents",
+    # Phase 2: MERGE Execution
+    "DeltaBundleMerge",
+    "create_delta_bundle",
+    "save_delta_bundle_weights",
+    "save_delta_bundle_metadata",
+    "load_delta_bundle_weights",
+    "load_delta_bundle_metadata",
+    "rollback_merge",
+    "verify_rollback",
+    "ProbeBatteryResult",
+    "run_probe_battery",
+    "check_protected_deltas",
+    "print_probe_battery_result",
+    "execute_merge",
+    "find_merge_candidate",
 ]
