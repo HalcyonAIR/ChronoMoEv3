@@ -270,18 +270,46 @@ class ExhaustionThresholds:
 
     Like convergence thresholds, these should be derived from baseline,
     not intuition.
-    """
-    # Method diversity (minimum variance of pairwise distances)
-    diversity_min: float = 0.1
 
-    # Clustering (maximum fraction in single cluster)
-    max_cluster_fraction: float = 0.7
+    IMPORTANT: These should be regime-specific, not global percentiles.
+    """
+    # Method diversity (minimum variance of pairwise distances) - per regime
+    diversity_min_exploration: float = 0.1
+    diversity_min_transition: float = 0.08
+    diversity_min_saturation: float = 0.05
+
+    # Clustering (maximum fraction in single cluster) - per regime
+    max_cluster_fraction_exploration: float = 0.5
+    max_cluster_fraction_transition: float = 0.6
+    max_cluster_fraction_saturation: float = 0.7
+
+    # Activity gate (minimum mean activation to avoid "system asleep" clustering)
+    min_activation_magnitude: float = 0.1
 
     # Persistence (intervals exhaustion must hold)
     K_persistence: int = 5
 
     # Minimum receipts for reliable detection
     min_receipts: int = 20
+
+
+def get_regime_thresholds(regime: str, thresholds: ExhaustionThresholds) -> Tuple[float, float]:
+    """
+    Get regime-specific diversity and clustering thresholds.
+
+    Args:
+        regime: Deformation regime (exploration/transition/saturation)
+        thresholds: ExhaustionThresholds with per-regime values
+
+    Returns:
+        (diversity_min, max_cluster_fraction) for this regime
+    """
+    if regime == "exploration":
+        return thresholds.diversity_min_exploration, thresholds.max_cluster_fraction_exploration
+    elif regime == "transition":
+        return thresholds.diversity_min_transition, thresholds.max_cluster_fraction_transition
+    else:  # saturation
+        return thresholds.diversity_min_saturation, thresholds.max_cluster_fraction_saturation
 
 
 class ExhaustionDetector:
@@ -308,7 +336,7 @@ class ExhaustionDetector:
         Initialize exhaustion detector.
 
         Args:
-            thresholds: Exhaustion detection thresholds
+            thresholds: Exhaustion detection thresholds (regime-specific)
             window_size: Number of recent receipts to consider
         """
         self.thresholds = thresholds
@@ -370,11 +398,19 @@ class ExhaustionDetector:
         else:
             largest_cluster_fraction = 0.0
 
-        # Check exhaustion conditions (both must hold)
-        diversity_collapsed = diversity <= self.thresholds.diversity_min
-        clustering_high = largest_cluster_fraction >= self.thresholds.max_cluster_fraction
+        # Activity gate: check mean activation magnitude (avoid "system asleep" clustering)
+        recent_activations = [r.activation_magnitude for r in self.receipts[-20:]]  # Last 20 receipts
+        mean_activation = float(np.mean(recent_activations)) if recent_activations else 0.0
+        activity_sufficient = mean_activation >= self.thresholds.min_activation_magnitude
 
-        conditions_met = diversity_collapsed and clustering_high
+        # Get regime-specific thresholds
+        diversity_min, max_cluster_fraction = get_regime_thresholds(receipt.regime, self.thresholds)
+
+        # Check exhaustion conditions (all three must hold)
+        diversity_collapsed = diversity <= diversity_min
+        clustering_high = largest_cluster_fraction >= max_cluster_fraction
+
+        conditions_met = diversity_collapsed and clustering_high and activity_sufficient
 
         # Update persistence
         if conditions_met:
@@ -477,27 +513,61 @@ def derive_exhaustion_thresholds_from_baseline(
 
     DO NOT use intuition. Use percentiles from natural behavior.
 
+    IMPORTANT: Compute thresholds PER REGIME to avoid mixing distributions.
+
     Args:
         baseline_data: Dict with baseline distributions:
-            - method_diversity_samples: List[float] (diversity over time)
-            - cluster_fractions: List[float] (largest cluster fractions)
+            - method_diversity_by_regime: Dict[regime, List[float]]
+            - cluster_fractions_by_regime: Dict[regime, List[float]]
+            - activation_magnitudes: List[float]
         percentile: Percentile to use for threshold (default 10th = low end)
 
     Returns:
-        ExhaustionThresholds derived from data
+        ExhaustionThresholds derived from data (regime-specific)
     """
-    diversity_samples = baseline_data.get("method_diversity_samples", [0.1])
-    cluster_fractions = baseline_data.get("cluster_fractions", [0.7])
+    diversity_by_regime = baseline_data.get("method_diversity_by_regime", {})
+    cluster_by_regime = baseline_data.get("cluster_fractions_by_regime", {})
+    activations = baseline_data.get("activation_magnitudes", [1.0])
 
-    # diversity_min: 10th percentile of natural diversity (low end)
-    diversity_min = float(np.percentile(diversity_samples, percentile))
+    # diversity_min: 10th percentile per regime (low end of natural diversity)
+    diversity_min_exploration = float(np.percentile(
+        diversity_by_regime.get("exploration", [0.1]),
+        percentile
+    ))
+    diversity_min_transition = float(np.percentile(
+        diversity_by_regime.get("transition", [0.08]),
+        percentile
+    ))
+    diversity_min_saturation = float(np.percentile(
+        diversity_by_regime.get("saturation", [0.05]),
+        percentile
+    ))
 
-    # max_cluster_fraction: 90th percentile of natural clustering (high end)
-    max_cluster_fraction = float(np.percentile(cluster_fractions, 100 - percentile))
+    # max_cluster_fraction: 90th percentile per regime (high end of natural clustering)
+    max_cluster_exploration = float(np.percentile(
+        cluster_by_regime.get("exploration", [0.5]),
+        100 - percentile
+    ))
+    max_cluster_transition = float(np.percentile(
+        cluster_by_regime.get("transition", [0.6]),
+        100 - percentile
+    ))
+    max_cluster_saturation = float(np.percentile(
+        cluster_by_regime.get("saturation", [0.7]),
+        100 - percentile
+    ))
+
+    # min_activation_magnitude: 10th percentile (low end of natural activity)
+    min_activation = float(np.percentile(activations, percentile))
 
     return ExhaustionThresholds(
-        diversity_min=diversity_min,
-        max_cluster_fraction=max_cluster_fraction,
+        diversity_min_exploration=diversity_min_exploration,
+        diversity_min_transition=diversity_min_transition,
+        diversity_min_saturation=diversity_min_saturation,
+        max_cluster_fraction_exploration=max_cluster_exploration,
+        max_cluster_fraction_transition=max_cluster_transition,
+        max_cluster_fraction_saturation=max_cluster_saturation,
+        min_activation_magnitude=min_activation,
         K_persistence=5,  # Fixed: require 5 intervals
         min_receipts=20,  # Fixed: need 20 receipts minimum
     )

@@ -1,130 +1,129 @@
 {
-  "num_exhaustion_events": 14,
-  "num_convergence_events": 0,
-  "lead_times": [],
+  "num_exhaustion_events": 11,
+  "num_convergence_events": 3,
+  "lead_times": [
+    83,
+    104,
+    102
+  ],
   "lead_time_stats": {
-    "mean": 0.0,
-    "median": 0.0,
-    "min": 0,
-    "max": 0
+    "mean": 96.33333333333333,
+    "median": 102.0,
+    "min": 83,
+    "max": 104
   },
   "predictive_power": {
-    "precision": 0.0,
-    "recall": 0.0
+    "precision": 0.2727272727272727,
+    "recall": 1.0
   },
   "exhaustion_events": [
-    {
-      "step": 1977,
-      "regime": "exploration",
-      "scar_strength": 1.9823964792958593,
-      "method_diversity": 0.08489341375284039,
-      "num_clusters": 39,
-      "largest_cluster_fraction": 0.15
-    },
-    {
-      "step": 2005,
-      "regime": "transition",
-      "scar_strength": 2.010402080416083,
-      "method_diversity": 0.08100862486725424,
-      "num_clusters": 38,
-      "largest_cluster_fraction": 0.17
-    },
     {
       "step": 2023,
       "regime": "transition",
       "scar_strength": 2.028405681136227,
-      "method_diversity": 0.09134196153965693,
-      "num_clusters": 37,
+      "method_diversity": 0.0860075998193167,
+      "num_clusters": 40,
+      "largest_cluster_fraction": 0.15
+    },
+    {
+      "step": 2042,
+      "regime": "transition",
+      "scar_strength": 2.0474094818963793,
+      "method_diversity": 0.08849239940586201,
+      "num_clusters": 40,
       "largest_cluster_fraction": 0.18
     },
     {
-      "step": 3385,
+      "step": 3670,
       "regime": "transition",
-      "scar_strength": 3.3906781356271254,
-      "method_diversity": 0.08856797079398528,
-      "num_clusters": 24,
+      "scar_strength": 3.675735147029406,
+      "method_diversity": 0.0869053793497095,
+      "num_clusters": 31,
       "largest_cluster_fraction": 0.23
     },
     {
-      "step": 3410,
+      "step": 3676,
       "regime": "transition",
-      "scar_strength": 3.4156831366273255,
-      "method_diversity": 0.07729245417809948,
-      "num_clusters": 23,
-      "largest_cluster_fraction": 0.18
-    },
-    {
-      "step": 3547,
-      "regime": "transition",
-      "scar_strength": 3.5527105421084215,
-      "method_diversity": 0.09146681812305772,
-      "num_clusters": 29,
-      "largest_cluster_fraction": 0.19
-    },
-    {
-      "step": 3575,
-      "regime": "transition",
-      "scar_strength": 3.5807161432286456,
-      "method_diversity": 0.08884492929575016,
-      "num_clusters": 29,
-      "largest_cluster_fraction": 0.23
-    },
-    {
-      "step": 3614,
-      "regime": "transition",
-      "scar_strength": 3.6197239447889578,
-      "method_diversity": 0.08268386402914885,
-      "num_clusters": 28,
-      "largest_cluster_fraction": 0.19
-    },
-    {
-      "step": 3629,
-      "regime": "transition",
-      "scar_strength": 3.634726945389078,
-      "method_diversity": 0.08537851252205572,
-      "num_clusters": 27,
-      "largest_cluster_fraction": 0.25
-    },
-    {
-      "step": 3933,
-      "regime": "transition",
-      "scar_strength": 3.9387877575515104,
-      "method_diversity": 0.09197436465637204,
-      "num_clusters": 25,
-      "largest_cluster_fraction": 0.23
-    },
-    {
-      "step": 3950,
-      "regime": "transition",
-      "scar_strength": 3.9557911582316465,
-      "method_diversity": 0.09202099480063326,
-      "num_clusters": 27,
-      "largest_cluster_fraction": 0.28
-    },
-    {
-      "step": 3961,
-      "regime": "transition",
-      "scar_strength": 3.9667933586717345,
-      "method_diversity": 0.08674507907727907,
-      "num_clusters": 26,
+      "scar_strength": 3.681736347269454,
+      "method_diversity": 0.08730140679052305,
+      "num_clusters": 31,
       "largest_cluster_fraction": 0.21
     },
     {
-      "step": 3984,
+      "step": 3702,
       "regime": "transition",
-      "scar_strength": 3.989797959591918,
-      "method_diversity": 0.08430910462164987,
-      "num_clusters": 27,
-      "largest_cluster_fraction": 0.17
+      "scar_strength": 3.707741548309662,
+      "method_diversity": 0.08226041616077695,
+      "num_clusters": 29,
+      "largest_cluster_fraction": 0.22
     },
     {
-      "step": 4009,
+      "step": 3725,
+      "regime": "transition",
+      "scar_strength": 3.730746149229846,
+      "method_diversity": 0.07760901950031757,
+      "num_clusters": 29,
+      "largest_cluster_fraction": 0.23
+    },
+    {
+      "step": 4090,
       "regime": "saturation",
-      "scar_strength": 4.014802960592118,
-      "method_diversity": 0.07414245977137793,
-      "num_clusters": 27,
-      "largest_cluster_fraction": 0.25
+      "scar_strength": 4.095819163832767,
+      "method_diversity": 0.08407750296984041,
+      "num_clusters": 10,
+      "largest_cluster_fraction": 0.3
+    },
+    {
+      "step": 4501,
+      "regime": "saturation",
+      "scar_strength": 4.506901380276055,
+      "method_diversity": 0.07675217722525617,
+      "num_clusters": 9,
+      "largest_cluster_fraction": 0.45
+    },
+    {
+      "step": 4651,
+      "regime": "saturation",
+      "scar_strength": 4.656931386277256,
+      "method_diversity": 0.07623591574622109,
+      "num_clusters": 12,
+      "largest_cluster_fraction": 0.55
+    },
+    {
+      "step": 4697,
+      "regime": "saturation",
+      "scar_strength": 4.702940588117624,
+      "method_diversity": 0.08059661459932138,
+      "num_clusters": 12,
+      "largest_cluster_fraction": 0.49
+    },
+    {
+      "step": 4872,
+      "regime": "saturation",
+      "scar_strength": 4.877975595119024,
+      "method_diversity": 0.08941967676892218,
+      "num_clusters": 8,
+      "largest_cluster_fraction": 0.57
     }
   ],
-  "convergence_events": []
+  "convergence_events": [
+    {
+      "step": 4780,
+      "regime": "saturation",
+      "scar_strength": 4.783956791358271,
+      "steps_before_convergence": 83
+    },
+    {
+      "step": 4801,
+      "regime": "saturation",
+      "scar_strength": 4.804960992198439,
+      "steps_before_convergence": 104
+    },
+    {
+      "step": 4974,
+      "regime": "saturation",
+      "scar_strength": 4.977995599119824,
+      "steps_before_convergence": 102
+    }
+  ]
 }

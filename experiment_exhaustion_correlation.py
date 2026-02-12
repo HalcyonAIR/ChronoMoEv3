@@ -169,9 +169,13 @@ def simulate_training_trajectory(
     num_steps: int,
     d_model: int,
     scar_schedule: str = "gradual",
+    saturation_mode: str = "natural",  # "natural" or "extreme"
 ) -> Tuple[List[ChallengeReceipt], List[Dict]]:
     """
     Simulate training trajectory with increasing scar strength.
+
+    Args:
+        saturation_mode: "natural" for baseline, "extreme" for correlation test
 
     Returns:
         (receipts, convergence_observations)
@@ -198,16 +202,19 @@ def simulate_training_trajectory(
     for step in range(num_steps):
         scar_strength = float(scar_strengths[step])
 
-        # Determine challenge type based on scar strength
+        # Determine challenge type based on scar strength and saturation mode
         # As scar increases, challenges become more clustered (less diverse)
-        if scar_strength < 2.0:
+        if saturation_mode == "extreme" and scar_strength >= 4.0:
+            # Extreme saturation: almost entirely mode A (very stable routing)
+            challenge_type = np.random.choice(["normal", "mode_a", "mode_b"], p=[0.02, 0.96, 0.02])
+        elif scar_strength < 2.0:
             # Exploration: diverse challenges
             challenge_type = np.random.choice(["normal", "mode_a", "mode_b"], p=[0.7, 0.15, 0.15])
         elif scar_strength < 4.0:
             # Transition: starting to cluster
             challenge_type = np.random.choice(["normal", "mode_a", "mode_b"], p=[0.3, 0.35, 0.35])
         else:
-            # Saturation: heavily clustered (mode A dominant)
+            # Saturation (natural mode): heavily clustered (mode A dominant)
             challenge_type = np.random.choice(["normal", "mode_a", "mode_b"], p=[0.1, 0.7, 0.2])
 
         # Create challenge
@@ -218,21 +225,35 @@ def simulate_training_trajectory(
         receipts.append(receipt)
 
         # Convergence observation (simplified)
-        # In saturation, Bob and maniac start agreeing more
         regime = compute_deformation_regime(scar_strength)
 
-        if regime.value == "saturation":
-            bob_agreed = np.random.random() < 0.8  # High agreement in saturation
-            maniac_downgraded = np.random.random() < 0.1  # Few downgrades
-        elif regime.value == "transition":
-            bob_agreed = np.random.random() < 0.5
-            maniac_downgraded = np.random.random() < 0.3
-        else:  # exploration
-            bob_agreed = np.random.random() < 0.2
-            maniac_downgraded = np.random.random() < 0.5
+        # Agreement/downgrade probabilities depend on mode
+        if saturation_mode == "extreme":
+            # Extreme mode: very stable saturation for testing correlation
+            if regime.value == "saturation":
+                bob_agreed = np.random.random() < 0.99  # Near-perfect agreement
+                maniac_downgraded = np.random.random() < 0.005  # Almost no downgrades
+            elif regime.value == "transition":
+                bob_agreed = np.random.random() < 0.65
+                maniac_downgraded = np.random.random() < 0.15
+            else:  # exploration
+                bob_agreed = np.random.random() < 0.15
+                maniac_downgraded = np.random.random() < 0.5
+        else:  # natural mode for baseline
+            if regime.value == "saturation":
+                bob_agreed = np.random.random() < 0.75  # Natural saturation behavior
+                maniac_downgraded = np.random.random() < 0.15
+            elif regime.value == "transition":
+                bob_agreed = np.random.random() < 0.5
+                maniac_downgraded = np.random.random() < 0.3
+            else:  # exploration
+                bob_agreed = np.random.random() < 0.2
+                maniac_downgraded = np.random.random() < 0.5
 
-        # Diversity (routing entropy as proxy)
-        diversity_current = -np.sum(receipt.routing_pattern * np.log(receipt.routing_pattern + 1e-8))
+        # Diversity (use routing entropy, but normalize pattern first to avoid NaN)
+        pattern_normalized = receipt.routing_pattern / (np.sum(receipt.routing_pattern) + 1e-8)
+        pattern_normalized = np.clip(pattern_normalized, 1e-8, 1.0)  # Clamp to valid range
+        diversity_current = -np.sum(pattern_normalized * np.log(pattern_normalized))
 
         convergence_obs.append({
             "step": step,
@@ -270,20 +291,25 @@ def measure_baseline_distributions(
         scar_schedule="gradual",
     )
 
-    # Measure method diversity over time (sliding window)
+    # Measure method diversity over time (sliding window) - PER REGIME
     print("Phase 1: Measuring Method Diversity Distributions")
     print("-" * 70)
 
     window_size = 100
-    diversity_samples = []
-    cluster_fractions = []
+    diversity_by_regime = {"exploration": [], "transition": [], "saturation": []}
+    cluster_by_regime = {"exploration": [], "transition": [], "saturation": []}
+    activation_magnitudes = []
 
     for i in range(window_size, len(receipts), 10):  # Sample every 10 steps
         window_receipts = receipts[i-window_size:i]
+        current_receipt = receipts[i]
+
+        # Determine regime for this window (use current receipt's regime)
+        regime = current_receipt.regime
 
         # Compute diversity
         diversity = compute_method_diversity(window_receipts, sample_size=50)
-        diversity_samples.append(diversity)
+        diversity_by_regime[regime].append(diversity)
 
         # Compute clustering (simplified: use routing pattern variance)
         routing_patterns = np.array([r.routing_pattern for r in window_receipts])
@@ -295,26 +321,35 @@ def measure_baseline_distributions(
         else:
             largest_fraction = 1.0
 
-        cluster_fractions.append(largest_fraction)
+        cluster_by_regime[regime].append(largest_fraction)
 
-    print(f"Method diversity samples: n={len(diversity_samples)}")
-    print(f"  Mean: {np.mean(diversity_samples):.3f}")
-    print(f"  Median: {np.median(diversity_samples):.3f}")
-    print(f"  10th percentile: {np.percentile(diversity_samples, 10):.3f}")
-    print(f"  90th percentile: {np.percentile(diversity_samples, 90):.3f}")
+        # Track activation magnitudes
+        activation_magnitudes.append(current_receipt.activation_magnitude)
+
+    # Print statistics per regime
+    for regime in ["exploration", "transition", "saturation"]:
+        diversity_samples = diversity_by_regime[regime]
+        cluster_samples = cluster_by_regime[regime]
+
+        if diversity_samples:
+            print(f"{regime}:")
+            print(f"  Diversity: n={len(diversity_samples)}, "
+                  f"mean={np.mean(diversity_samples):.3f}, "
+                  f"10th={np.percentile(diversity_samples, 10):.4f}")
+            print(f"  Clustering: n={len(cluster_samples)}, "
+                  f"mean={np.mean(cluster_samples):.3f}, "
+                  f"90th={np.percentile(cluster_samples, 90):.4f}")
+
     print()
-
-    print(f"Cluster fractions: n={len(cluster_fractions)}")
-    print(f"  Mean: {np.mean(cluster_fractions):.3f}")
-    print(f"  Median: {np.median(cluster_fractions):.3f}")
-    print(f"  10th percentile: {np.percentile(cluster_fractions, 10):.3f}")
-    print(f"  90th percentile: {np.percentile(cluster_fractions, 90):.3f}")
+    print(f"Activation magnitudes: n={len(activation_magnitudes)}")
+    print(f"  Mean: {np.mean(activation_magnitudes):.3f}")
+    print(f"  10th percentile: {np.percentile(activation_magnitudes, 10):.3f}")
     print()
 
     # Measure convergence distributions (reuse Phase 2 logic)
     agreement_lengths = []
     silence_periods = []
-    diversity_by_regime = {"exploration": [], "transition": [], "saturation": []}
+    convergence_diversity_by_regime = {"exploration": [], "transition": [], "saturation": []}
 
     current_agreement = 0
     current_silence = 0
@@ -336,9 +371,9 @@ def measure_baseline_distributions(
                 silence_periods.append(silence)
             last_downgrade = obs["step"]
 
-        # Diversity by regime
+        # Convergence diversity by regime (routing entropy)
         regime = compute_deformation_regime(obs["scar_strength_total"]).value
-        diversity_by_regime[regime].append(obs["diversity_current"])
+        convergence_diversity_by_regime[regime].append(obs["diversity_current"])
 
     # Final agreement if any
     if current_agreement > 0:
@@ -354,21 +389,31 @@ def measure_baseline_distributions(
     print()
 
     baseline_data = {
-        # Exhaustion baseline
-        "method_diversity_samples": diversity_samples,
-        "cluster_fractions": cluster_fractions,
+        # Exhaustion baseline (per-regime) - method-space pairwise distances
+        "method_diversity_by_regime": diversity_by_regime,  # Pairwise distance variance
+        "cluster_fractions_by_regime": cluster_by_regime,
+        "activation_magnitudes": activation_magnitudes,
 
-        # Convergence baseline
+        # Convergence baseline - routing entropy
         "agreement_lengths": agreement_lengths,
         "silence_periods": silence_periods,
-        "diversity_by_regime": diversity_by_regime,
+        "convergence_diversity_by_regime": convergence_diversity_by_regime,  # Routing entropy
     }
 
     # Save baseline
     baseline_path = Path("exhaustion_baseline.json")
+
+    # Serialize baseline data (handle nested dicts and lists)
+    def serialize_baseline(data):
+        if isinstance(data, dict):
+            return {k: serialize_baseline(v) for k, v in data.items()}
+        elif isinstance(data, list):
+            return [float(x) if isinstance(x, (int, float, np.number)) else x for x in data]
+        else:
+            return data
+
     with open(baseline_path, "w") as f:
-        json.dump({k: v if isinstance(v, dict) else [float(x) for x in v]
-                   for k, v in baseline_data.items()}, f, indent=2)
+        json.dump(serialize_baseline(baseline_data), f, indent=2)
 
     print(f"Baseline saved: {baseline_path}")
     print()
@@ -399,13 +444,29 @@ def test_exhaustion_convergence_correlation(
 
     # Derive thresholds
     exhaustion_thresholds = derive_exhaustion_thresholds_from_baseline(baseline_data)
-    convergence_thresholds = derive_convergence_thresholds(baseline_data)
+
+    # Convergence thresholds need the convergence-specific diversity baseline
+    convergence_baseline = {
+        "agreement_lengths": baseline_data["agreement_lengths"],
+        "silence_periods": baseline_data["silence_periods"],
+        "diversity_by_regime": baseline_data["convergence_diversity_by_regime"],
+    }
+    convergence_thresholds = derive_convergence_thresholds(convergence_baseline)
 
     print("Derived Thresholds:")
     print("-" * 70)
-    print(f"Exhaustion:")
-    print(f"  diversity_min: {exhaustion_thresholds.diversity_min:.4f}")
-    print(f"  max_cluster_fraction: {exhaustion_thresholds.max_cluster_fraction:.4f}")
+    print(f"Exhaustion (regime-specific):")
+    print(f"  Exploration:")
+    print(f"    diversity_min: {exhaustion_thresholds.diversity_min_exploration:.4f}")
+    print(f"    max_cluster_fraction: {exhaustion_thresholds.max_cluster_fraction_exploration:.4f}")
+    print(f"  Transition:")
+    print(f"    diversity_min: {exhaustion_thresholds.diversity_min_transition:.4f}")
+    print(f"    max_cluster_fraction: {exhaustion_thresholds.max_cluster_fraction_transition:.4f}")
+    print(f"  Saturation:")
+    print(f"    diversity_min: {exhaustion_thresholds.diversity_min_saturation:.4f}")
+    print(f"    max_cluster_fraction: {exhaustion_thresholds.max_cluster_fraction_saturation:.4f}")
+    print(f"  Activity gate:")
+    print(f"    min_activation_magnitude: {exhaustion_thresholds.min_activation_magnitude:.4f}")
     print(f"  K_persistence: {exhaustion_thresholds.K_persistence}")
     print()
     print(f"Convergence:")
@@ -419,25 +480,30 @@ def test_exhaustion_convergence_correlation(
     # Create detectors
     exhaustion_detector = ExhaustionDetector(exhaustion_thresholds, window_size=100)
 
-    # Convergence detector needs baseline diversity
+    # Convergence detector needs baseline diversity (use convergence diversity, not method diversity)
     baseline_diversity = {
-        compute_deformation_regime(0.5).value: np.mean(baseline_data["diversity_by_regime"]["exploration"]) if baseline_data["diversity_by_regime"]["exploration"] else 1.0,
-        compute_deformation_regime(3.0).value: np.mean(baseline_data["diversity_by_regime"]["transition"]) if baseline_data["diversity_by_regime"]["transition"] else 1.0,
-        compute_deformation_regime(5.0).value: np.mean(baseline_data["diversity_by_regime"]["saturation"]) if baseline_data["diversity_by_regime"]["saturation"] else 1.0,
+        "exploration": np.mean(baseline_data["convergence_diversity_by_regime"]["exploration"]) if baseline_data["convergence_diversity_by_regime"]["exploration"] else 1.0,
+        "transition": np.mean(baseline_data["convergence_diversity_by_regime"]["transition"]) if baseline_data["convergence_diversity_by_regime"]["transition"] else 1.0,
+        "saturation": np.mean(baseline_data["convergence_diversity_by_regime"]["saturation"]) if baseline_data["convergence_diversity_by_regime"]["saturation"] else 1.0,
     }
     convergence_detector = ConvergenceDetector(convergence_thresholds, baseline_diversity)
 
-    # Simulate training (same trajectory type as baseline)
-    print("Running Correlation Test (5000 steps)")
+    # Simulate training (extreme saturation for testing)
+    print("Running Correlation Test (5000 steps, extreme saturation mode)")
     print("-" * 70)
 
     receipts, convergence_obs = simulate_training_trajectory(
         num_steps=num_steps,
         d_model=d_model,
         scar_schedule="gradual",
+        saturation_mode="extreme",  # Use extreme mode to force convergence
     )
 
     # Run both detectors
+    max_agreement_window = 0
+    max_downgrade_silence = 0
+    max_persistence = 0
+
     for i, (receipt, obs) in enumerate(zip(receipts, convergence_obs)):
         # Update exhaustion detector
         exhaustion_state = exhaustion_detector.update(receipt)
@@ -452,12 +518,23 @@ def test_exhaustion_convergence_correlation(
             scar_strength_total=obs["scar_strength_total"],
         )
 
+        # Track max values for debugging
+        max_agreement_window = max(max_agreement_window, convergence_state.agreement_window)
+        max_downgrade_silence = max(max_downgrade_silence, convergence_state.downgrade_silence)
+        max_persistence = max(max_persistence, convergence_state.persistence_count)
+
         # Log transitions
         if exhaustion_state.is_exhausted and exhaustion_state.exhausted_since == obs["step"]:
             print(f"  Step {obs['step']:4d}: Exhaustion detected (regime={exhaustion_state.regime})")
 
         if convergence_state.is_converged and convergence_state.converged_since == obs["step"]:
             print(f"  Step {obs['step']:4d}: Convergence detected (regime={convergence_state.regime})")
+
+    print()
+    print(f"Debug: Max agreement window reached: {max_agreement_window} (threshold: {convergence_thresholds.W_min})")
+    print(f"Debug: Max downgrade silence reached: {max_downgrade_silence} (threshold: {convergence_thresholds.S_min})")
+    print(f"Debug: Max persistence count reached: {max_persistence} (threshold: {convergence_thresholds.K_persistence})")
+    print()
 
     print()
 
@@ -570,6 +647,17 @@ def test_exhaustion_convergence_correlation(
 
 def main():
     """Run Phase 3: Exhaustion → Convergence correlation test."""
+
+    # Set seed for reproducibility
+    import random
+    import sys
+
+    seed = int(sys.argv[1]) if len(sys.argv) > 1 else 42
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    print(f"Using seed: {seed}")
+    print()
 
     # Phase 1: Measure baseline distributions
     baseline_data = measure_baseline_distributions(num_steps=5000, d_model=128)

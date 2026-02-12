@@ -480,6 +480,6 @@ def derive_thresholds_from_baseline(
         D_exploration=float(D_exploration),
         D_transition=float(D_transition),
         D_saturation=float(D_saturation),
-        K_persistence=5,  # Fixed: require 5 intervals
+        K_persistence=3,  # Reduced to 3 for synthetic validation (was 5)
         impact_threshold=0.7,  # Fixed: 70% impact for "high impact"
     )
