@@ -1,0 +1,130 @@
+{
+  "K=5": {
+    "base_rate": {
+      "K": 5,
+      "num_episodes": 1,
+      "pct_time_converged": 0.12,
+      "mean_duration": 6.0,
+      "std_duration": 0.0,
+      "persistence_distribution": {
+        "1": 97,
+        "2": 19,
+        "3": 3,
+        "4": 1,
+        "5": 1
+      },
+      "max_persistence": 5
+    },
+    "lead_time_by_regime": {
+      "exploration": {
+        "n": 0,
+        "mean": 0.0,
+        "std": 0.0,
+        "min": 0,
+        "max": 0
+      },
+      "transition": {
+        "n": 0,
+        "mean": 0.0,
+        "std": 0.0,
+        "min": 0,
+        "max": 0
+      },
+      "saturation": {
+        "n": 1,
+        "mean": 452.0,
+        "std": 0.0,
+        "min": 452,
+        "max": 452
+      }
+    },
+    "proximity": {
+      "n": 1,
+      "diversity": {
+        "mean": 0.9264803528785706,
+        "std": 0.0
+      },
+      "scar_strength": {
+        "mean": 4.93498699739948,
+        "std": 0.0
+      },
+      "regime_distribution": {
+        "exploration": 0,
+        "transition": 0,
+        "saturation": 1
+      }
+    },
+    "performance_proxy": {
+      "n": 1,
+      "volatility_before": 0.1648846099939364,
+      "volatility_after": 0.1499120904869016,
+      "volatility_ratio": 0.9091939538348339
+    },
+    "num_exhaustion_events": 14,
+    "num_convergence_events": 1
+  },
+  "K=3": {
+    "base_rate": {
+      "K": 3,
+      "num_episodes": 3,
+      "pct_time_converged": 0.27999999999999997,
+      "mean_duration": 4.666666666666667,
+      "std_duration": 0.9428090415820634,
+      "persistence_distribution": {
+        "1": 97,
+        "2": 19,
+        "3": 3,
+        "4": 1,
+        "5": 1
+      },
+      "max_persistence": 5
+    },
+    "lead_time_by_regime": {
+      "exploration": {
+        "n": 0,
+        "mean": 0.0,
+        "std": 0.0,
+        "min": 0,
+        "max": 0
+      },
+      "transition": {
+        "n": 0,
+        "mean": 0.0,
+        "std": 0.0,
+        "min": 0,
+        "max": 0
+      },
+      "saturation": {
+        "n": 3,
+        "mean": 266.0,
+        "std": 173.7373496593829,
+        "min": 35,
+        "max": 454
+      }
+    },
+    "proximity": {
+      "n": 3,
+      "diversity": {
+        "mean": 0.9268884062767029,
+        "std": 0.013893275434560159
+      },
+      "scar_strength": {
+        "mean": 4.744948989797959,
+        "std": 0.17377210408019886
+      },
+      "regime_distribution": {
+        "exploration": 0,
+        "transition": 0,
+        "saturation": 3
+      }
+    },
+    "performance_proxy": {
+      "n": 3,
+      "volatility_before": 0.16029563791149945,
+      "volatility_after": 0.1447457603019406,
+      "volatility_ratio": 0.9029925092650116
+    },
+    "num_exhaustion_events": 10,
+    "num_convergence_events": 3
+  }
+}
