@@ -1,0 +1,281 @@
+{
+  "scar_strengths": [
+    0.0,
+    0.5,
+    1.0,
+    2.0,
+    3.0,
+    4.0,
+    5.0,
+    7.5,
+    10.0
+  ],
+  "shift_types": [
+    "none",
+    "mild",
+    "moderate",
+    "severe"
+  ],
+  "grid": {
+    "none": {
+      "0.0": {
+        "motif_diversity": 0.0029044585987261146,
+        "effective_rank": 0.0,
+        "router_entropy": 0.8099070188999176,
+        "contraction": 0.0,
+        "contraction_pct": 0.0
+      },
+      "0.5": {
+        "motif_diversity": 0.0028280254777070064,
+        "effective_rank": 0.0,
+        "router_entropy": 0.7914039748907089,
+        "contraction": 7.643312101910825e-05,
+        "contraction_pct": 2.63157894736842
+      },
+      "1.0": {
+        "motif_diversity": 0.002445859872611465,
+        "effective_rank": 0.0,
+        "router_entropy": 0.7689847512245178,
+        "contraction": 0.0004585987261146495,
+        "contraction_pct": 15.78947368421052
+      },
+      "2.0": {
+        "motif_diversity": 0.0021528662420382165,
+        "effective_rank": 0.0,
+        "router_entropy": 0.6950069174766541,
+        "contraction": 0.0007515923566878981,
+        "contraction_pct": 25.877192982456144
+      },
+      "3.0": {
+        "motif_diversity": 0.0011847133757961782,
+        "effective_rank": 0.0,
+        "router_entropy": 0.6017251152992249,
+        "contraction": 0.0017197452229299364,
+        "contraction_pct": 59.21052631578948
+      },
+      "4.0": {
+        "motif_diversity": 0.0005095541401273885,
+        "effective_rank": 0.0,
+        "router_entropy": 0.5121344898343086,
+        "contraction": 0.002394904458598726,
+        "contraction_pct": 82.45614035087719
+      },
+      "5.0": {
+        "motif_diversity": 0.00030573248407643315,
+        "effective_rank": 0.0,
+        "router_entropy": 0.45018980765342714,
+        "contraction": 0.0025987261146496817,
+        "contraction_pct": 89.47368421052632
+      },
+      "7.5": {
+        "motif_diversity": 0.00012738853503184712,
+        "effective_rank": 0.0,
+        "router_entropy": 0.3958249939084053,
+        "contraction": 0.0027770700636942677,
+        "contraction_pct": 95.6140350877193
+      },
+      "10.0": {
+        "motif_diversity": 0.00012738853503184712,
+        "effective_rank": 0.0,
+        "router_entropy": 0.39034316313266754,
+        "contraction": 0.0027770700636942677,
+        "contraction_pct": 95.6140350877193
+      }
+    },
+    "mild": {
+      "0.0": {
+        "motif_diversity": 0.0029044585987261146,
+        "effective_rank": 0.0,
+        "router_entropy": 0.814691307425499,
+        "contraction": 0.0,
+        "contraction_pct": 0.0
+      },
+      "0.5": {
+        "motif_diversity": 0.002878980891719745,
+        "effective_rank": 0.0,
+        "router_entropy": 0.7912309092283248,
+        "contraction": 2.547770700636956e-05,
+        "contraction_pct": 0.877192982456145
+      },
+      "1.0": {
+        "motif_diversity": 0.0024713375796178343,
+        "effective_rank": 0.0,
+        "router_entropy": 0.7665899826288223,
+        "contraction": 0.00043312101910828035,
+        "contraction_pct": 14.912280701754387
+      },
+      "2.0": {
+        "motif_diversity": 0.0024585987261146495,
+        "effective_rank": 0.0,
+        "router_entropy": 0.6951896550655365,
+        "contraction": 0.00044585987261146513,
+        "contraction_pct": 15.350877192982463
+      },
+      "3.0": {
+        "motif_diversity": 0.001464968152866242,
+        "effective_rank": 0.0,
+        "router_entropy": 0.5988365575671196,
+        "contraction": 0.0014394904458598725,
+        "contraction_pct": 49.56140350877193
+      },
+      "4.0": {
+        "motif_diversity": 0.0005859872611464968,
+        "effective_rank": 0.0,
+        "router_entropy": 0.5104635966420173,
+        "contraction": 0.002318471337579618,
+        "contraction_pct": 79.82456140350878
+      },
+      "5.0": {
+        "motif_diversity": 0.0003184713375796178,
+        "effective_rank": 0.0,
+        "router_entropy": 0.45274756973981856,
+        "contraction": 0.002585987261146497,
+        "contraction_pct": 89.03508771929825
+      },
+      "7.5": {
+        "motif_diversity": 0.00012738853503184712,
+        "effective_rank": 0.0,
+        "router_entropy": 0.3981443864107132,
+        "contraction": 0.0027770700636942677,
+        "contraction_pct": 95.6140350877193
+      },
+      "10.0": {
+        "motif_diversity": 0.00012738853503184712,
+        "effective_rank": 0.0,
+        "router_entropy": 0.39233386784791946,
+        "contraction": 0.0027770700636942677,
+        "contraction_pct": 95.6140350877193
+      }
+    },
+    "moderate": {
+      "0.0": {
+        "motif_diversity": 0.00289171974522293,
+        "effective_rank": 0.0,
+        "router_entropy": 0.8338945988416672,
+        "contraction": 1.273885350318478e-05,
+        "contraction_pct": 0.4385964912280725
+      },
+      "0.5": {
+        "motif_diversity": 0.0028280254777070064,
+        "effective_rank": 0.0,
+        "router_entropy": 0.8234797310829163,
+        "contraction": 7.643312101910825e-05,
+        "contraction_pct": 2.63157894736842
+      },
+      "1.0": {
+        "motif_diversity": 0.002445859872611465,
+        "effective_rank": 0.0,
+        "router_entropy": 0.8025472564697266,
+        "contraction": 0.0004585987261146495,
+        "contraction_pct": 15.78947368421052
+      },
+      "2.0": {
+        "motif_diversity": 0.0022292993630573248,
+        "effective_rank": 0.0,
+        "router_entropy": 0.7354847577810287,
+        "contraction": 0.0006751592356687899,
+        "contraction_pct": 23.245614035087723
+      },
+      "3.0": {
+        "motif_diversity": 0.0011210191082802548,
+        "effective_rank": 0.0,
+        "router_entropy": 0.6380827424526214,
+        "contraction": 0.0017834394904458599,
+        "contraction_pct": 61.40350877192983
+      },
+      "4.0": {
+        "motif_diversity": 0.0004585987261146497,
+        "effective_rank": 0.0,
+        "router_entropy": 0.5476222352981568,
+        "contraction": 0.0024458598726114647,
+        "contraction_pct": 84.21052631578947
+      },
+      "5.0": {
+        "motif_diversity": 0.0002802547770700637,
+        "effective_rank": 0.0,
+        "router_entropy": 0.4814467599391937,
+        "contraction": 0.002624203821656051,
+        "contraction_pct": 90.35087719298245
+      },
+      "7.5": {
+        "motif_diversity": 0.00012738853503184712,
+        "effective_rank": 0.0,
+        "router_entropy": 0.4208798178434372,
+        "contraction": 0.0027770700636942677,
+        "contraction_pct": 95.6140350877193
+      },
+      "10.0": {
+        "motif_diversity": 0.00012738853503184712,
+        "effective_rank": 0.0,
+        "router_entropy": 0.413150374352932,
+        "contraction": 0.0027770700636942677,
+        "contraction_pct": 95.6140350877193
+      }
+    },
+    "severe": {
+      "0.0": {
+        "motif_diversity": 0.0022420382165605096,
+        "effective_rank": 0.0,
+        "router_entropy": 0.8666082235574722,
+        "contraction": 0.0006624203821656051,
+        "contraction_pct": 22.807017543859647
+      },
+      "0.5": {
+        "motif_diversity": 0.0020636942675159235,
+        "effective_rank": 0.0,
+        "router_entropy": 0.8329343998432159,
+        "contraction": 0.0008407643312101911,
+        "contraction_pct": 28.947368421052634
+      },
+      "1.0": {
+        "motif_diversity": 0.0017197452229299364,
+        "effective_rank": 0.0,
+        "router_entropy": 0.7946818122863769,
+        "contraction": 0.0011847133757961782,
+        "contraction_pct": 40.78947368421053
+      },
+      "2.0": {
+        "motif_diversity": 0.0013503184713375795,
+        "effective_rank": 0.0,
+        "router_entropy": 0.6870365798473358,
+        "contraction": 0.0015541401273885351,
+        "contraction_pct": 53.50877192982456
+      },
+      "3.0": {
+        "motif_diversity": 0.0006878980891719745,
+        "effective_rank": 0.0,
+        "router_entropy": 0.5779931587576866,
+        "contraction": 0.00221656050955414,
+        "contraction_pct": 76.3157894736842
+      },
+      "4.0": {
+        "motif_diversity": 0.00043312101910828024,
+        "effective_rank": 0.0,
+        "router_entropy": 0.4897649704813957,
+        "contraction": 0.0024713375796178343,
+        "contraction_pct": 85.08771929824562
+      },
+      "5.0": {
+        "motif_diversity": 0.000178343949044586,
+        "effective_rank": 0.0,
+        "router_entropy": 0.4300461735129356,
+        "contraction": 0.0027261146496815286,
+        "contraction_pct": 93.85964912280701
+      },
+      "7.5": {
+        "motif_diversity": 0.00012738853503184712,
+        "effective_rank": 0.0,
+        "router_entropy": 0.38244115036725995,
+        "contraction": 0.0027770700636942677,
+        "contraction_pct": 95.6140350877193
+      },
+      "10.0": {
+        "motif_diversity": 0.00012738853503184712,
+        "effective_rank": 0.0,
+        "router_entropy": 0.3782528131604195,
+        "contraction": 0.0027770700636942677,
+        "contraction_pct": 95.6140350877193
+      }
+    }
+  }
+}

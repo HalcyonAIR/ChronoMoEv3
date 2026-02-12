@@ -1,0 +1,101 @@
+/Users/jeff/projects/swiss-ai-MoE/experiment_monotonicity.py:132: DeprecationWarning: __array_wrap__ must accept context and return_scalar arguments (positionally) in the future. (Deprecated NumPy 2.0)
+  noisy = (batch.float() * (1 + noise)).long()
+======================================================================
+PHASE 1: MONOTONICITY VALIDATION
+======================================================================
+
+Hypothesis: Scar strength produces graded, monotonic deformation
+Grid: Scar strength × Shift magnitude
+
+Training baseline model (1000 steps)...
+----------------------------------------------------------------------
+  [FixedWidthRouter] Extended router from 4 → 8 logits
+  [ChronoMoE Layer 0] 4 active → 8 max experts (stress bands: 1.00/2.00)
+    Step    0: loss=4.6233
+    Step  200: loss=4.1263
+    Step  400: loss=3.7162
+    Step  600: loss=2.5593
+    Step  800: loss=2.2136
+
+Measuring baseline geometry...
+----------------------------------------------------------------------
+  Baseline motif diversity: 0.002904
+  Baseline router entropy:  0.8087
+
+Scarring experts: [0, 1]
+
+Shift Type: NONE
+----------------------------------------------------------------------
+  Scar strength:  0.0 → Contraction:    0.0% (diversity: 0.002904)
+  Scar strength:  0.5 → Contraction:    2.6% (diversity: 0.002828)
+  Scar strength:  1.0 → Contraction:   15.8% (diversity: 0.002446)
+  Scar strength:  2.0 → Contraction:   25.9% (diversity: 0.002153)
+  Scar strength:  3.0 → Contraction:   59.2% (diversity: 0.001185)
+  Scar strength:  4.0 → Contraction:   82.5% (diversity: 0.000510)
+  Scar strength:  5.0 → Contraction:   89.5% (diversity: 0.000306)
+  Scar strength:  7.5 → Contraction:   95.6% (diversity: 0.000127)
+  Scar strength: 10.0 → Contraction:   95.6% (diversity: 0.000127)
+
+Shift Type: MILD
+----------------------------------------------------------------------
+  Scar strength:  0.0 → Contraction:    0.0% (diversity: 0.002904)
+  Scar strength:  0.5 → Contraction:    0.9% (diversity: 0.002879)
+  Scar strength:  1.0 → Contraction:   14.9% (diversity: 0.002471)
+  Scar strength:  2.0 → Contraction:   15.4% (diversity: 0.002459)
+  Scar strength:  3.0 → Contraction:   49.6% (diversity: 0.001465)
+  Scar strength:  4.0 → Contraction:   79.8% (diversity: 0.000586)
+  Scar strength:  5.0 → Contraction:   89.0% (diversity: 0.000318)
+  Scar strength:  7.5 → Contraction:   95.6% (diversity: 0.000127)
+  Scar strength: 10.0 → Contraction:   95.6% (diversity: 0.000127)
+
+Shift Type: MODERATE
+----------------------------------------------------------------------
+  Scar strength:  0.0 → Contraction:    0.4% (diversity: 0.002892)
+  Scar strength:  0.5 → Contraction:    2.6% (diversity: 0.002828)
+  Scar strength:  1.0 → Contraction:   15.8% (diversity: 0.002446)
+  Scar strength:  2.0 → Contraction:   23.2% (diversity: 0.002229)
+  Scar strength:  3.0 → Contraction:   61.4% (diversity: 0.001121)
+  Scar strength:  4.0 → Contraction:   84.2% (diversity: 0.000459)
+  Scar strength:  5.0 → Contraction:   90.4% (diversity: 0.000280)
+  Scar strength:  7.5 → Contraction:   95.6% (diversity: 0.000127)
+  Scar strength: 10.0 → Contraction:   95.6% (diversity: 0.000127)
+
+Shift Type: SEVERE
+----------------------------------------------------------------------
+  Scar strength:  0.0 → Contraction:   22.8% (diversity: 0.002242)
+  Scar strength:  0.5 → Contraction:   28.9% (diversity: 0.002064)
+  Scar strength:  1.0 → Contraction:   40.8% (diversity: 0.001720)
+  Scar strength:  2.0 → Contraction:   53.5% (diversity: 0.001350)
+  Scar strength:  3.0 → Contraction:   76.3% (diversity: 0.000688)
+  Scar strength:  4.0 → Contraction:   85.1% (diversity: 0.000433)
+  Scar strength:  5.0 → Contraction:   93.9% (diversity: 0.000178)
+  Scar strength:  7.5 → Contraction:   95.6% (diversity: 0.000127)
+  Scar strength: 10.0 → Contraction:   95.6% (diversity: 0.000127)
+
+======================================================================
+MONOTONICITY ANALYSIS
+======================================================================
+
+Shift: none
+  Monotonic: ✓
+  Max jump:  33.3%
+  Contractions: ['0.0', '2.6', '15.8', '25.9', '59.2', '82.5', '89.5', '95.6', '95.6']
+
+Shift: mild
+  Monotonic: ✓
+  Max jump:  34.2%
+  Contractions: ['0.0', '0.9', '14.9', '15.4', '49.6', '79.8', '89.0', '95.6', '95.6']
+
+Shift: moderate
+  Monotonic: ✓
+  Max jump:  38.2%
+  Contractions: ['0.4', '2.6', '15.8', '23.2', '61.4', '84.2', '90.4', '95.6', '95.6']
+
+Shift: severe
+  Monotonic: ✓
+  Max jump:  22.8%
+  Contractions: ['22.8', '28.9', '40.8', '53.5', '76.3', '85.1', '93.9', '95.6', '95.6']
+
+Results saved: monotonicity_results.json
+
+✓ MONOTONICITY VALIDATED: Scar strength produces graded deformation
