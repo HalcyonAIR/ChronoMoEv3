@@ -204,6 +204,13 @@ class ChronoController:
         # Maps expert_id -> step when expert or its parent was split
         self.split_lineage_history: Dict[int, int] = {}
 
+        # Expert penalties for suppression trials (Milestone F Phase 1.5)
+        # Before MERGE execution, suppress one expert to test redundancy
+        # If system adapts (quality maintained), redundancy is real
+        # If quality drops or router thrashes, experts were not redundant
+        self.expert_penalties: Dict[int, float] = {}  # expert_id -> penalty magnitude
+        self.expert_cooldowns: Dict[int, int] = {}    # expert_id -> step when cooldown ends
+
         # Track edits count
         self.edits_count: int = 0
 
@@ -345,6 +352,121 @@ class ChronoController:
 
         self.edits_count += 1
 
+    def get_routing_adjustments(self, current_step: int) -> tuple[set[int], dict[int, float]]:
+        """
+        Get routing adjustments for suppression trials.
+
+        Returns two separate channels:
+        - hard_block_ids: Set of expert IDs that must be masked out entirely (cooldown)
+        - soft_penalties: Dict of expert_id -> penalty to subtract from logits (decay phase)
+
+        This separation prevents accidentally hard-blocking an expert when you meant
+        to apply a soft penalty, and makes the audit log clearer.
+
+        Layer applies:
+        1. Hard mask: logits[hard_block_ids] = -inf (before softmax)
+        2. Soft penalty: logits[expert_id] -= penalty (before softmax)
+        """
+        hard_block_ids = set()
+        soft_penalties = {}
+
+        for expert_id in list(self.expert_penalties.keys()):
+            # Check cooldown (hard block phase)
+            if expert_id in self.expert_cooldowns:
+                cooldown_end = self.expert_cooldowns[expert_id]
+                if current_step < cooldown_end:
+                    # Hard cooldown: expert is unavailable
+                    hard_block_ids.add(expert_id)
+                    continue
+                else:
+                    # Cooldown expired, remove it
+                    del self.expert_cooldowns[expert_id]
+
+            # Apply decaying penalty (soft block phase)
+            penalty = self.expert_penalties[expert_id]
+            if penalty > 0.01:  # Threshold for cleanup
+                soft_penalties[expert_id] = penalty
+            else:
+                # Penalty decayed to negligible, remove
+                del self.expert_penalties[expert_id]
+
+        return hard_block_ids, soft_penalties
+
+    def update_penalties(self) -> None:
+        """
+        Decay penalties each step.
+
+        Called by layer after forward pass.
+        """
+        decay_rate = self.config["suppression"]["decay_rate"]
+
+        for expert_id in list(self.expert_penalties.keys()):
+            # Skip decay during cooldown
+            if expert_id in self.expert_cooldowns:
+                current_step = len(self.observation_history)
+                if current_step < self.expert_cooldowns[expert_id]:
+                    continue  # No decay during hard cooldown
+
+            # Apply decay
+            self.expert_penalties[expert_id] *= (1.0 - decay_rate)
+
+            # Cleanup negligible penalties
+            if self.expert_penalties[expert_id] < 0.01:
+                del self.expert_penalties[expert_id]
+
+    def compute_adaptive_penalty(self, logit_std: float) -> float:
+        """
+        Compute scale-aware penalty magnitude.
+
+        Penalty should be large enough to reliably flip top-k routing decisions.
+        Use k * logit_std with a minimum floor to handle edge cases.
+
+        Args:
+            logit_std: Standard deviation of router logits for current batch/window
+
+        Returns:
+            Penalty magnitude (subtracted from logits)
+        """
+        k = self.config["suppression"].get("penalty_scale_factor", 3.0)
+        floor = self.config["suppression"].get("penalty_floor", 5.0)
+
+        # Scale to logit distribution, with floor for stability
+        penalty = max(k * logit_std, floor)
+
+        return penalty
+
+    def suppress_expert(
+        self,
+        expert_id: int,
+        duration_steps: int = 0,
+        penalty_override: Optional[float] = None,
+    ) -> None:
+        """
+        Suppress expert with penalty (for redundancy trial).
+
+        Args:
+            expert_id: Expert to suppress
+            duration_steps: Cooldown duration (0 = penalty only, no hard cooldown)
+            penalty_override: Override penalty magnitude (for tests or manual control)
+                             If None, uses config penalty_magnitude (fixed)
+                             For adaptive penalties, caller should compute via
+                             compute_adaptive_penalty() and pass as override
+        """
+        current_step = len(self.observation_history)
+
+        # Use override if provided, else fall back to config
+        if penalty_override is not None:
+            penalty_magnitude = penalty_override
+        else:
+            penalty_magnitude = self.config["suppression"]["penalty_magnitude"]
+
+        # Set penalty
+        self.expert_penalties[expert_id] = penalty_magnitude
+
+        # Set cooldown if duration specified
+        if duration_steps > 0:
+            self.expert_cooldowns[expert_id] = current_step + duration_steps
+
     def get_diagnostics(self) -> Dict[str, Any]:
         """
         Export current state for logging/debugging.
@@ -396,10 +518,12 @@ class ChronoController:
             else:
                 merge_diagnostics = {"candidate_found": False}
 
+        current_step = len(self.observation_history)
+
         return {
             "layer_id": self.layer_id,
             "max_experts": self.max_experts,
-            "observations_count": len(self.observation_history),
+            "observations_count": current_step,
             "edits_count": len(self.edit_log),
             # Milestone A: Coherence diagnostics
             "coherence": {
@@ -419,6 +543,20 @@ class ChronoController:
             ),
             # Milestone F: Merge diagnostics (Phase 1: diagnostic-only)
             "merge": merge_diagnostics,
+            # Milestone F Phase 1.5: Suppression trials (two-channel)
+            "suppression": {
+                "hard_blocks": list(self.expert_cooldowns.keys()),
+                "soft_penalties": {
+                    expert_id: round(penalty, 4)
+                    for expert_id, penalty in self.expert_penalties.items()
+                    if expert_id not in self.expert_cooldowns  # Only show soft penalties not in cooldown
+                },
+                "cooldowns": {
+                    expert_id: cooldown_end - current_step
+                    for expert_id, cooldown_end in self.expert_cooldowns.items()
+                    if current_step < cooldown_end
+                },
+            },
         }
 
     def _try_propose_spawn(self) -> Optional[EditProposal]:
@@ -1019,6 +1157,16 @@ class ChronoController:
                 "similarity_threshold": 0.8,  # Cosine similarity > 0.8 = merge candidate
                 "utilization_threshold": 0.1,  # Both experts < 10% utilization
                 "min_observations": 100,  # Minimum observations before considering
+            },
+
+            # Suppression trials (Milestone F Phase 1.5)
+            # Before MERGE, suppress one expert to test redundancy
+            "suppression": {
+                "penalty_magnitude": 10.0,  # Fixed penalty (for tests or manual override)
+                "penalty_scale_factor": 3.0,  # Adaptive: penalty = k * logit_std
+                "penalty_floor": 5.0,  # Minimum penalty (when logits are very flat)
+                "cooldown_steps": 100,  # Steps to suppress expert (0 = use penalty only)
+                "decay_rate": 0.1,  # Penalty decay per step (0 = no decay until cooldown ends)
             },
 
             # Free energy (Milestone C)

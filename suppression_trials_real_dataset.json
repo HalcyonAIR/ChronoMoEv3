@@ -1,0 +1,89 @@
+{
+  "validation": "suppression_trials_real_dataset",
+  "config": {
+    "n_embd": 128,
+    "num_experts": 4,
+    "max_experts": 8
+  },
+  "summary": {
+    "total_trials": 4,
+    "pass_count": 1,
+    "veto_count": 3
+  },
+  "trials": [
+    {
+      "suppressed_expert": 0,
+      "baseline_loss": 5.1218,
+      "trial_loss_avg": 5.106,
+      "trial_loss_max": 5.662,
+      "loss_delta_avg": -0.0159,
+      "loss_delta_max": 0.5402,
+      "baseline_bands": [
+        "COMFORT",
+        "PANIC"
+      ],
+      "trial_bands": [
+        "PANIC"
+      ],
+      "veto_signals": [
+        "loss_spike (delta=0.5402 >= 0.05)"
+      ],
+      "verdict": "VETO"
+    },
+    {
+      "suppressed_expert": 1,
+      "baseline_loss": 5.1147,
+      "trial_loss_avg": 5.0854,
+      "trial_loss_max": 5.7518,
+      "loss_delta_avg": -0.0293,
+      "loss_delta_max": 0.6371,
+      "baseline_bands": [
+        "COMFORT",
+        "PANIC"
+      ],
+      "trial_bands": [
+        "PANIC"
+      ],
+      "veto_signals": [
+        "loss_spike (delta=0.6371 >= 0.05)"
+      ],
+      "verdict": "VETO"
+    },
+    {
+      "suppressed_expert": 2,
+      "baseline_loss": 5.1056,
+      "trial_loss_avg": 5.0906,
+      "trial_loss_max": 5.6893,
+      "loss_delta_avg": -0.015,
+      "loss_delta_max": 0.5837,
+      "baseline_bands": [
+        "COMFORT",
+        "PANIC"
+      ],
+      "trial_bands": [
+        "PANIC"
+      ],
+      "veto_signals": [
+        "loss_spike (delta=0.5837 >= 0.1)"
+      ],
+      "verdict": "VETO"
+    },
+    {
+      "suppressed_expert": 3,
+      "baseline_loss": 5.0181,
+      "trial_loss_avg": 5.0815,
+      "trial_loss_max": 5.7898,
+      "loss_delta_avg": 0.0634,
+      "loss_delta_max": 0.7717,
+      "baseline_bands": [
+        "COMFORT",
+        "PANIC"
+      ],
+      "trial_bands": [
+        "PANIC"
+      ],
+      "veto_signals": [],
+      "verdict": "PASS"
+    }
+  ]
+}

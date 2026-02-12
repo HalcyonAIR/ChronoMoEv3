@@ -137,6 +137,38 @@ class ChronoMoE(nn.Module):
         inactive_mask = ~active_mask
         router_logits[:, inactive_mask] = float('-inf')
 
+        # 3.5. Apply suppression adjustments (Milestone F Phase 1.5)
+        # CRITICAL: Applied AFTER active_mask (can't revive inactive experts)
+        # CRITICAL: Applied BEFORE softmax (affects probabilities correctly)
+        if hasattr(self, 'controller') and self.controller is not None:
+            hard_blocks, soft_penalties = self.controller.get_routing_adjustments(self.current_step)
+
+            # Apply hard blocks (mask to -inf)
+            for expert_id in hard_blocks:
+                # Assert: can only block active experts
+                assert active_mask[expert_id], \
+                    f"Suppression cannot block inactive expert {expert_id}"
+                router_logits[:, expert_id] = float('-inf')
+
+            # Apply soft penalties (subtract from logits)
+            for expert_id, penalty in soft_penalties.items():
+                # Assert: can only penalize active experts
+                assert active_mask[expert_id], \
+                    f"Suppression cannot penalize inactive expert {expert_id}"
+                assert penalty >= 0, \
+                    f"Penalty must be non-negative (subtracted), got {penalty}"
+                router_logits[:, expert_id] -= penalty
+
+            # Log adjustments when non-empty (audit trail)
+            if hard_blocks or soft_penalties:
+                if not hasattr(self, 'suppression_log'):
+                    self.suppression_log = []
+                self.suppression_log.append({
+                    "step": self.current_step,
+                    "hard_blocks": list(hard_blocks),
+                    "soft_penalties": dict(soft_penalties),
+                })
+
         # 4. Softmax + top-k (standard swiss-ai logic)
         if self.softmax_order == "softmax_topk":
             all_probs = F.softmax(router_logits, dim=1, dtype=torch.float32)

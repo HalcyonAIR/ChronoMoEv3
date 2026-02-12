@@ -1,0 +1,6148 @@
+{
+  "demo": "suppression_trial",
+  "config": {
+    "n_embd": 128,
+    "num_experts": 4,
+    "max_experts": 8,
+    "suppressed_expert": 1,
+    "cooldown_duration": 100
+  },
+  "summary": {
+    "baseline_loss": 5.1273,
+    "trial_loss": 5.1012,
+    "recovery_loss": 5.1338,
+    "trial_result": "PASS"
+  },
+  "timeline": [
+    {
+      "step": 0,
+      "loss": 5.2312,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 1,
+      "loss": 5.0627,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 2,
+      "loss": 5.0697,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 3,
+      "loss": 4.8562,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 4,
+      "loss": 4.9176,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 5,
+      "loss": 5.0775,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 6,
+      "loss": 4.7696,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 7,
+      "loss": 5.1017,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 8,
+      "loss": 4.9893,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 9,
+      "loss": 4.8518,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 10,
+      "loss": 5.2572,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 11,
+      "loss": 5.2295,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 12,
+      "loss": 5.4277,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 13,
+      "loss": 5.4125,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 14,
+      "loss": 5.1441,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 15,
+      "loss": 5.0318,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 16,
+      "loss": 5.2334,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 17,
+      "loss": 4.7604,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 18,
+      "loss": 5.4085,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 19,
+      "loss": 4.9306,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 20,
+      "loss": 5.0939,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 21,
+      "loss": 5.2761,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 22,
+      "loss": 5.0196,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 23,
+      "loss": 5.525,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 24,
+      "loss": 4.8443,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 25,
+      "loss": 5.2146,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 26,
+      "loss": 5.2165,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 27,
+      "loss": 5.0368,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 28,
+      "loss": 4.8393,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 29,
+      "loss": 5.1477,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 30,
+      "loss": 4.7256,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 31,
+      "loss": 4.9663,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 32,
+      "loss": 5.27,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 33,
+      "loss": 5.151,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 34,
+      "loss": 5.6793,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 35,
+      "loss": 5.1224,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 36,
+      "loss": 4.8577,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 37,
+      "loss": 5.3542,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 38,
+      "loss": 5.2635,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 39,
+      "loss": 5.0824,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 40,
+      "loss": 4.6585,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 41,
+      "loss": 5.4557,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 42,
+      "loss": 5.1473,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 43,
+      "loss": 5.3094,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 44,
+      "loss": 5.276,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 45,
+      "loss": 5.2543,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 46,
+      "loss": 5.1237,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 47,
+      "loss": 5.0914,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 48,
+      "loss": 4.9628,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 49,
+      "loss": 5.2907,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 50,
+      "loss": 5.1776,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 51,
+      "loss": 5.1844,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 52,
+      "loss": 5.0579,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 53,
+      "loss": 5.0853,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 54,
+      "loss": 5.2262,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 55,
+      "loss": 5.1677,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 56,
+      "loss": 5.0975,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 57,
+      "loss": 5.3248,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 58,
+      "loss": 5.2308,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 59,
+      "loss": 5.2728,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 60,
+      "loss": 5.3691,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 61,
+      "loss": 4.8782,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 62,
+      "loss": 5.3336,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 63,
+      "loss": 5.0605,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 64,
+      "loss": 5.2624,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 65,
+      "loss": 5.3123,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 66,
+      "loss": 4.8,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 67,
+      "loss": 5.2645,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 68,
+      "loss": 5.3001,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 69,
+      "loss": 5.2435,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 70,
+      "loss": 5.2242,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 71,
+      "loss": 4.8291,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 72,
+      "loss": 4.9612,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 73,
+      "loss": 5.3542,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 74,
+      "loss": 5.0027,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 75,
+      "loss": 4.8539,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 76,
+      "loss": 5.3861,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 77,
+      "loss": 5.17,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 78,
+      "loss": 5.0683,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 79,
+      "loss": 5.0029,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 80,
+      "loss": 5.0885,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 81,
+      "loss": 5.0212,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 82,
+      "loss": 5.5223,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 83,
+      "loss": 4.8703,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 84,
+      "loss": 5.1942,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 85,
+      "loss": 5.1006,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 86,
+      "loss": 5.0872,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 87,
+      "loss": 5.1267,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 88,
+      "loss": 5.5345,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 89,
+      "loss": 5.1565,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 90,
+      "loss": 4.8498,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 91,
+      "loss": 5.25,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 92,
+      "loss": 5.5743,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 93,
+      "loss": 4.9543,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 94,
+      "loss": 5.2066,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 95,
+      "loss": 4.8586,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 96,
+      "loss": 5.0509,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 97,
+      "loss": 4.9596,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 98,
+      "loss": 5.4334,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 99,
+      "loss": 5.39,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 100,
+      "loss": 5.3067,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 101,
+      "loss": 4.943,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 102,
+      "loss": 5.382,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 103,
+      "loss": 5.0421,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 104,
+      "loss": 4.9183,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 105,
+      "loss": 4.7924,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 106,
+      "loss": 5.2271,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 107,
+      "loss": 5.031,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 108,
+      "loss": 5.2108,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 109,
+      "loss": 4.8799,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 110,
+      "loss": 5.463,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 111,
+      "loss": 5.3668,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 112,
+      "loss": 4.6954,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 113,
+      "loss": 5.295,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 114,
+      "loss": 5.0979,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 115,
+      "loss": 5.5213,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 116,
+      "loss": 4.9055,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 117,
+      "loss": 4.8284,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 118,
+      "loss": 5.0923,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 119,
+      "loss": 5.5876,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 120,
+      "loss": 4.9516,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 121,
+      "loss": 5.2819,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 122,
+      "loss": 5.0341,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 123,
+      "loss": 5.43,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 124,
+      "loss": 5.4702,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 125,
+      "loss": 4.9015,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 126,
+      "loss": 5.1331,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 127,
+      "loss": 5.1148,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 128,
+      "loss": 5.1041,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 129,
+      "loss": 5.2529,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 130,
+      "loss": 4.3265,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 131,
+      "loss": 5.0483,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 132,
+      "loss": 4.5974,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 133,
+      "loss": 5.4255,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 134,
+      "loss": 5.3086,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 135,
+      "loss": 4.8881,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 136,
+      "loss": 5.1907,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 137,
+      "loss": 5.1049,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 138,
+      "loss": 5.513,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 139,
+      "loss": 5.2853,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 140,
+      "loss": 4.8971,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 141,
+      "loss": 5.0702,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 142,
+      "loss": 4.9576,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 143,
+      "loss": 5.1692,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 144,
+      "loss": 5.5925,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 145,
+      "loss": 5.0326,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 146,
+      "loss": 4.7109,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 147,
+      "loss": 5.264,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 148,
+      "loss": 5.5006,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 149,
+      "loss": 5.2255,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 150,
+      "loss": 5.1238,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 151,
+      "loss": 5.167,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 152,
+      "loss": 5.3856,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 153,
+      "loss": 5.2521,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 154,
+      "loss": 5.3964,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 155,
+      "loss": 5.1325,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 156,
+      "loss": 4.5439,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 157,
+      "loss": 5.0376,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 158,
+      "loss": 5.1108,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 159,
+      "loss": 4.7539,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 160,
+      "loss": 5.402,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 161,
+      "loss": 5.0697,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 162,
+      "loss": 5.1027,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 163,
+      "loss": 5.2547,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 164,
+      "loss": 4.9029,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 165,
+      "loss": 5.2044,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 166,
+      "loss": 5.4457,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 167,
+      "loss": 5.1125,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 168,
+      "loss": 5.3412,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 169,
+      "loss": 5.019,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 170,
+      "loss": 5.0934,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 171,
+      "loss": 5.0992,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 172,
+      "loss": 5.1306,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 173,
+      "loss": 5.2974,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 174,
+      "loss": 4.8553,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 175,
+      "loss": 5.158,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 176,
+      "loss": 5.3297,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 177,
+      "loss": 4.9295,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 178,
+      "loss": 5.2236,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 179,
+      "loss": 5.3251,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 180,
+      "loss": 5.1575,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 181,
+      "loss": 4.8152,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 182,
+      "loss": 5.1065,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 183,
+      "loss": 4.7653,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 184,
+      "loss": 5.1969,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 185,
+      "loss": 4.7837,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 186,
+      "loss": 4.9461,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 187,
+      "loss": 5.1686,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 188,
+      "loss": 5.1789,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 189,
+      "loss": 5.2543,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 190,
+      "loss": 4.8956,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 191,
+      "loss": 5.0828,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 192,
+      "loss": 5.5,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 193,
+      "loss": 5.3396,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 194,
+      "loss": 4.8684,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 195,
+      "loss": 5.3153,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 196,
+      "loss": 5.2551,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 197,
+      "loss": 5.1728,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 198,
+      "loss": 5.2807,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 199,
+      "loss": 5.0275,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 200,
+      "loss": 5.4619,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 201,
+      "loss": 4.9899,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 202,
+      "loss": 5.0828,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 203,
+      "loss": 5.3205,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 204,
+      "loss": 4.8142,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 205,
+      "loss": 4.9606,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 206,
+      "loss": 5.1951,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 207,
+      "loss": 5.0462,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 208,
+      "loss": 5.1031,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 209,
+      "loss": 5.1168,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 210,
+      "loss": 5.0531,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 211,
+      "loss": 5.2919,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 212,
+      "loss": 5.481,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 213,
+      "loss": 4.8829,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 214,
+      "loss": 5.0794,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 215,
+      "loss": 5.4711,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 216,
+      "loss": 4.8217,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 217,
+      "loss": 5.234,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 218,
+      "loss": 5.5356,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 219,
+      "loss": 5.2879,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 220,
+      "loss": 5.0474,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 221,
+      "loss": 4.9614,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 222,
+      "loss": 5.1413,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 223,
+      "loss": 4.9845,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 224,
+      "loss": 5.3703,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 225,
+      "loss": 5.3597,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 226,
+      "loss": 5.0522,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 227,
+      "loss": 5.1417,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 228,
+      "loss": 4.9537,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 229,
+      "loss": 5.1998,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 230,
+      "loss": 5.5238,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 231,
+      "loss": 5.6526,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 232,
+      "loss": 4.9542,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 233,
+      "loss": 5.3427,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 234,
+      "loss": 5.26,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 235,
+      "loss": 4.9782,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 236,
+      "loss": 4.867,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 237,
+      "loss": 5.296,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 238,
+      "loss": 4.7837,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 239,
+      "loss": 4.9999,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 240,
+      "loss": 4.6266,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 241,
+      "loss": 5.4945,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 242,
+      "loss": 5.0632,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 243,
+      "loss": 5.2558,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 244,
+      "loss": 5.3944,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 245,
+      "loss": 4.9568,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 246,
+      "loss": 5.0348,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 247,
+      "loss": 5.2938,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 248,
+      "loss": 5.4702,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 249,
+      "loss": 5.2668,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 250,
+      "loss": 5.0238,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 251,
+      "loss": 5.1282,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 252,
+      "loss": 4.8904,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 253,
+      "loss": 5.5424,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 254,
+      "loss": 5.3924,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 255,
+      "loss": 5.288,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 256,
+      "loss": 4.9875,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 257,
+      "loss": 4.9748,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 258,
+      "loss": 5.0884,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 259,
+      "loss": 5.6442,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 260,
+      "loss": 5.2198,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 261,
+      "loss": 4.9331,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 262,
+      "loss": 4.9354,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 263,
+      "loss": 5.3079,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 264,
+      "loss": 5.0959,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 265,
+      "loss": 5.0767,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 266,
+      "loss": 5.2826,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 267,
+      "loss": 5.0431,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 268,
+      "loss": 5.0172,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 269,
+      "loss": 5.1113,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 270,
+      "loss": 5.2512,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 271,
+      "loss": 4.9504,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 272,
+      "loss": 4.9984,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 273,
+      "loss": 4.9614,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 274,
+      "loss": 4.6936,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 275,
+      "loss": 5.1785,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 276,
+      "loss": 5.1111,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 277,
+      "loss": 5.1632,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 278,
+      "loss": 5.121,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 279,
+      "loss": 4.9204,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 280,
+      "loss": 5.088,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 281,
+      "loss": 5.0869,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 282,
+      "loss": 5.129,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 283,
+      "loss": 5.6304,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 284,
+      "loss": 5.2542,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 285,
+      "loss": 4.9645,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 286,
+      "loss": 5.1119,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 287,
+      "loss": 5.474,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 288,
+      "loss": 5.5683,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 289,
+      "loss": 4.743,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 290,
+      "loss": 5.1346,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 291,
+      "loss": 4.7032,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 292,
+      "loss": 5.1034,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 293,
+      "loss": 5.4156,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 294,
+      "loss": 5.2625,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 295,
+      "loss": 5.1016,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 296,
+      "loss": 5.255,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 297,
+      "loss": 5.078,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 298,
+      "loss": 4.8405,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 299,
+      "loss": 5.0865,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "merge_candidates": 0,
+      "suppression_active": false
+    },
+    {
+      "step": 300,
+      "loss": 4.9272,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 9.0
+      },
+      "expert_utilization": [
+        13,
+        0,
+        15,
+        12,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 301,
+      "loss": 5.5692,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 8.1
+      },
+      "expert_utilization": [
+        13,
+        0,
+        14,
+        13,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 302,
+      "loss": 5.3233,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 7.29
+      },
+      "expert_utilization": [
+        9,
+        0,
+        16,
+        15,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 303,
+      "loss": 5.3631,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 6.561
+      },
+      "expert_utilization": [
+        12,
+        0,
+        14,
+        14,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 304,
+      "loss": 5.1944,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 5.9049
+      },
+      "expert_utilization": [
+        11,
+        0,
+        16,
+        13,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 305,
+      "loss": 5.169,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 5.3144
+      },
+      "expert_utilization": [
+        12,
+        0,
+        14,
+        14,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 306,
+      "loss": 5.4921,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 4.783
+      },
+      "expert_utilization": [
+        12,
+        0,
+        12,
+        16,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 307,
+      "loss": 5.2191,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 4.3047
+      },
+      "expert_utilization": [
+        15,
+        0,
+        15,
+        10,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 308,
+      "loss": 4.8942,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 3.8742
+      },
+      "expert_utilization": [
+        14,
+        0,
+        13,
+        13,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 309,
+      "loss": 5.0683,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 3.4868
+      },
+      "expert_utilization": [
+        10,
+        0,
+        15,
+        15,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 310,
+      "loss": 4.9557,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 3.1381
+      },
+      "expert_utilization": [
+        12,
+        0,
+        13,
+        15,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 311,
+      "loss": 4.9294,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 2.8243
+      },
+      "expert_utilization": [
+        10,
+        0,
+        15,
+        15,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 312,
+      "loss": 5.1404,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 2.5419
+      },
+      "expert_utilization": [
+        9,
+        0,
+        17,
+        14,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 313,
+      "loss": 4.8487,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 2.2877
+      },
+      "expert_utilization": [
+        11,
+        0,
+        15,
+        14,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 314,
+      "loss": 5.0018,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 2.0589
+      },
+      "expert_utilization": [
+        11,
+        0,
+        15,
+        14,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 315,
+      "loss": 5.2835,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 1.853
+      },
+      "expert_utilization": [
+        14,
+        0,
+        14,
+        12,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 316,
+      "loss": 5.3339,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 1.6677
+      },
+      "expert_utilization": [
+        11,
+        0,
+        15,
+        14,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 317,
+      "loss": 5.1976,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 1.5009
+      },
+      "expert_utilization": [
+        15,
+        0,
+        14,
+        11,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 318,
+      "loss": 5.0709,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 1.3509
+      },
+      "expert_utilization": [
+        11,
+        1,
+        14,
+        14,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 319,
+      "loss": 4.9846,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 1.2158
+      },
+      "expert_utilization": [
+        13,
+        0,
+        14,
+        13,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 320,
+      "loss": 4.7958,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 1.0942
+      },
+      "expert_utilization": [
+        14,
+        0,
+        14,
+        12,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 321,
+      "loss": 5.0056,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 0.9848
+      },
+      "expert_utilization": [
+        12,
+        1,
+        13,
+        14,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 322,
+      "loss": 4.853,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 0.8863
+      },
+      "expert_utilization": [
+        12,
+        1,
+        13,
+        14,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 323,
+      "loss": 5.1321,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 0.7977
+      },
+      "expert_utilization": [
+        10,
+        2,
+        15,
+        13,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 324,
+      "loss": 5.3607,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 0.7179
+      },
+      "expert_utilization": [
+        13,
+        2,
+        14,
+        11,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 325,
+      "loss": 4.9516,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 0.6461
+      },
+      "expert_utilization": [
+        12,
+        3,
+        13,
+        12,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 326,
+      "loss": 5.778,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 0.5815
+      },
+      "expert_utilization": [
+        13,
+        3,
+        13,
+        11,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 327,
+      "loss": 4.7435,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 0.5233
+      },
+      "expert_utilization": [
+        11,
+        4,
+        14,
+        11,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 328,
+      "loss": 4.6353,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 0.471
+      },
+      "expert_utilization": [
+        8,
+        4,
+        15,
+        13,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 329,
+      "loss": 4.9586,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 0.4239
+      },
+      "expert_utilization": [
+        14,
+        3,
+        13,
+        10,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 330,
+      "loss": 4.8809,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 0.3815
+      },
+      "expert_utilization": [
+        13,
+        5,
+        12,
+        10,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 331,
+      "loss": 4.8661,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 0.3434
+      },
+      "expert_utilization": [
+        13,
+        6,
+        13,
+        8,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 332,
+      "loss": 4.9611,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 0.309
+      },
+      "expert_utilization": [
+        12,
+        4,
+        14,
+        10,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 333,
+      "loss": 5.0928,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 0.2781
+      },
+      "expert_utilization": [
+        12,
+        3,
+        14,
+        11,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 334,
+      "loss": 5.2551,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 0.2503
+      },
+      "expert_utilization": [
+        10,
+        7,
+        11,
+        12,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 335,
+      "loss": 5.1488,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 0.2253
+      },
+      "expert_utilization": [
+        10,
+        6,
+        11,
+        13,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 336,
+      "loss": 5.1914,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 0.2028
+      },
+      "expert_utilization": [
+        9,
+        5,
+        15,
+        11,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 337,
+      "loss": 5.2536,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 0.1825
+      },
+      "expert_utilization": [
+        13,
+        6,
+        13,
+        8,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 338,
+      "loss": 4.675,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 0.1642
+      },
+      "expert_utilization": [
+        10,
+        8,
+        10,
+        12,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 339,
+      "loss": 5.0906,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 0.1478
+      },
+      "expert_utilization": [
+        9,
+        8,
+        9,
+        14,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 340,
+      "loss": 5.117,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 0.133
+      },
+      "expert_utilization": [
+        9,
+        9,
+        9,
+        13,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 341,
+      "loss": 5.3358,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 0.1197
+      },
+      "expert_utilization": [
+        8,
+        5,
+        14,
+        13,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 342,
+      "loss": 4.8251,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 0.1078
+      },
+      "expert_utilization": [
+        8,
+        7,
+        15,
+        10,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 343,
+      "loss": 5.2609,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 0.097
+      },
+      "expert_utilization": [
+        9,
+        6,
+        13,
+        12,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 344,
+      "loss": 5.0733,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 0.0873
+      },
+      "expert_utilization": [
+        8,
+        6,
+        13,
+        13,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 345,
+      "loss": 4.9677,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 0.0786
+      },
+      "expert_utilization": [
+        9,
+        6,
+        14,
+        11,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 346,
+      "loss": 4.6094,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 0.0707
+      },
+      "expert_utilization": [
+        8,
+        6,
+        14,
+        12,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 347,
+      "loss": 5.1568,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 0.0636
+      },
+      "expert_utilization": [
+        8,
+        7,
+        15,
+        10,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 348,
+      "loss": 4.9786,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 0.0573
+      },
+      "expert_utilization": [
+        11,
+        10,
+        9,
+        10,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 349,
+      "loss": 5.2531,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 0.0515
+      },
+      "expert_utilization": [
+        10,
+        10,
+        10,
+        10,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 350,
+      "loss": 5.0803,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 0.0464
+      },
+      "expert_utilization": [
+        9,
+        9,
+        12,
+        10,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 351,
+      "loss": 5.0664,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 0.0417
+      },
+      "expert_utilization": [
+        8,
+        8,
+        12,
+        12,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 352,
+      "loss": 5.4296,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 0.0376
+      },
+      "expert_utilization": [
+        9,
+        10,
+        11,
+        10,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 353,
+      "loss": 5.0774,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 0.0338
+      },
+      "expert_utilization": [
+        9,
+        7,
+        13,
+        11,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 354,
+      "loss": 4.9245,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 0.0304
+      },
+      "expert_utilization": [
+        10,
+        9,
+        10,
+        11,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 355,
+      "loss": 5.2206,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 0.0274
+      },
+      "expert_utilization": [
+        9,
+        13,
+        9,
+        9,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 356,
+      "loss": 5.4214,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 0.0247
+      },
+      "expert_utilization": [
+        12,
+        8,
+        13,
+        7,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 357,
+      "loss": 5.5107,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 0.0222
+      },
+      "expert_utilization": [
+        8,
+        13,
+        11,
+        8,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 358,
+      "loss": 5.133,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 0.02
+      },
+      "expert_utilization": [
+        10,
+        9,
+        13,
+        8,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 359,
+      "loss": 5.464,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 0.018
+      },
+      "expert_utilization": [
+        8,
+        6,
+        13,
+        13,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 360,
+      "loss": 5.0387,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 0.0162
+      },
+      "expert_utilization": [
+        10,
+        8,
+        12,
+        10,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 361,
+      "loss": 4.8759,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 0.0146
+      },
+      "expert_utilization": [
+        9,
+        12,
+        10,
+        9,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 362,
+      "loss": 4.9939,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 0.0131
+      },
+      "expert_utilization": [
+        7,
+        10,
+        13,
+        10,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 363,
+      "loss": 5.0296,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 0.0118
+      },
+      "expert_utilization": [
+        7,
+        13,
+        12,
+        8,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 364,
+      "loss": 4.8491,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {
+        "1": 0.0106
+      },
+      "expert_utilization": [
+        10,
+        8,
+        13,
+        9,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 365,
+      "loss": 5.353,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        10,
+        8,
+        13,
+        9,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 366,
+      "loss": 4.8546,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        9,
+        9,
+        13,
+        9,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 367,
+      "loss": 5.2817,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        7,
+        10,
+        13,
+        10,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 368,
+      "loss": 5.0637,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        9,
+        9,
+        12,
+        10,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 369,
+      "loss": 5.1011,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        7,
+        10,
+        12,
+        11,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 370,
+      "loss": 5.254,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        8,
+        11,
+        11,
+        10,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 371,
+      "loss": 4.95,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        8,
+        10,
+        12,
+        10,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 372,
+      "loss": 5.139,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        8,
+        13,
+        9,
+        10,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 373,
+      "loss": 4.8838,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        8,
+        13,
+        10,
+        9,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 374,
+      "loss": 5.0512,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        7,
+        14,
+        11,
+        8,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 375,
+      "loss": 5.1297,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        10,
+        11,
+        12,
+        7,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 376,
+      "loss": 5.393,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        10,
+        8,
+        13,
+        9,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 377,
+      "loss": 5.1281,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        10,
+        8,
+        13,
+        9,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 378,
+      "loss": 5.2218,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        7,
+        11,
+        12,
+        10,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 379,
+      "loss": 4.9447,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        7,
+        14,
+        11,
+        8,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 380,
+      "loss": 5.3138,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        7,
+        13,
+        12,
+        8,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 381,
+      "loss": 4.9981,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        10,
+        8,
+        13,
+        9,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 382,
+      "loss": 5.1092,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        10,
+        8,
+        12,
+        10,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 383,
+      "loss": 5.3166,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        6,
+        14,
+        11,
+        9,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 384,
+      "loss": 4.6994,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        9,
+        12,
+        9,
+        10,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 385,
+      "loss": 5.2717,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        10,
+        8,
+        12,
+        10,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 386,
+      "loss": 4.9065,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        8,
+        10,
+        13,
+        9,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 387,
+      "loss": 5.2729,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        7,
+        14,
+        10,
+        9,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 388,
+      "loss": 4.9408,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        10,
+        12,
+        12,
+        6,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 389,
+      "loss": 4.8261,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        6,
+        14,
+        11,
+        9,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 390,
+      "loss": 4.7295,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        11,
+        8,
+        13,
+        8,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 391,
+      "loss": 5.1671,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        11,
+        9,
+        12,
+        8,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 392,
+      "loss": 5.1079,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        11,
+        9,
+        12,
+        8,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 393,
+      "loss": 5.0923,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        7,
+        11,
+        11,
+        11,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 394,
+      "loss": 5.4192,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        9,
+        10,
+        10,
+        11,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 395,
+      "loss": 5.481,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        8,
+        8,
+        12,
+        12,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 396,
+      "loss": 5.2816,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        11,
+        9,
+        12,
+        8,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 397,
+      "loss": 5.1707,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        9,
+        12,
+        9,
+        10,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 398,
+      "loss": 4.7702,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        7,
+        10,
+        14,
+        9,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 399,
+      "loss": 5.2108,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        8,
+        10,
+        13,
+        9,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 400,
+      "loss": 5.3367,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        8,
+        7,
+        14,
+        11,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 401,
+      "loss": 5.0968,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        8,
+        7,
+        13,
+        12,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 402,
+      "loss": 5.1473,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        9,
+        7,
+        13,
+        11,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 403,
+      "loss": 4.8421,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        8,
+        8,
+        12,
+        12,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 404,
+      "loss": 5.2205,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        11,
+        8,
+        13,
+        8,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 405,
+      "loss": 5.1133,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        9,
+        9,
+        11,
+        11,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 406,
+      "loss": 4.9226,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        8,
+        12,
+        13,
+        7,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 407,
+      "loss": 5.0149,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        7,
+        10,
+        13,
+        10,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 408,
+      "loss": 4.9373,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        7,
+        10,
+        14,
+        9,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 409,
+      "loss": 5.1294,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        6,
+        11,
+        13,
+        10,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 410,
+      "loss": 5.2333,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        6,
+        10,
+        14,
+        10,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 411,
+      "loss": 5.2315,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        8,
+        7,
+        13,
+        12,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 412,
+      "loss": 5.2549,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        8,
+        10,
+        12,
+        10,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 413,
+      "loss": 4.9849,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        10,
+        11,
+        9,
+        10,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 414,
+      "loss": 5.1968,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        9,
+        9,
+        11,
+        11,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 415,
+      "loss": 4.7582,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        10,
+        8,
+        12,
+        10,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 416,
+      "loss": 5.0944,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        10,
+        11,
+        12,
+        7,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 417,
+      "loss": 4.9712,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        9,
+        13,
+        8,
+        10,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 418,
+      "loss": 5.2115,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        7,
+        11,
+        12,
+        10,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 419,
+      "loss": 4.7551,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        8,
+        8,
+        13,
+        11,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 420,
+      "loss": 5.492,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        6,
+        10,
+        14,
+        10,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 421,
+      "loss": 5.0604,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        7,
+        9,
+        14,
+        10,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 422,
+      "loss": 5.2144,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        10,
+        8,
+        14,
+        8,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 423,
+      "loss": 5.1063,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        8,
+        13,
+        13,
+        6,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 424,
+      "loss": 5.3622,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        8,
+        14,
+        9,
+        9,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 425,
+      "loss": 4.8996,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        10,
+        9,
+        13,
+        8,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 426,
+      "loss": 5.0018,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        8,
+        8,
+        12,
+        12,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 427,
+      "loss": 5.229,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        6,
+        10,
+        14,
+        10,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 428,
+      "loss": 5.3901,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        8,
+        11,
+        12,
+        9,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 429,
+      "loss": 4.8045,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        8,
+        11,
+        11,
+        10,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 430,
+      "loss": 5.1122,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        10,
+        8,
+        12,
+        10,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 431,
+      "loss": 5.2722,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        11,
+        8,
+        13,
+        8,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 432,
+      "loss": 5.0272,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        7,
+        7,
+        13,
+        13,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 433,
+      "loss": 5.5387,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        10,
+        11,
+        12,
+        7,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 434,
+      "loss": 5.2846,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        7,
+        7,
+        13,
+        13,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 435,
+      "loss": 5.0061,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        10,
+        9,
+        13,
+        8,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 436,
+      "loss": 4.8825,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        7,
+        7,
+        13,
+        13,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 437,
+      "loss": 5.3372,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        8,
+        8,
+        13,
+        11,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 438,
+      "loss": 5.1479,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        7,
+        7,
+        13,
+        13,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 439,
+      "loss": 4.7888,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        7,
+        10,
+        14,
+        9,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 440,
+      "loss": 5.1599,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        10,
+        8,
+        13,
+        9,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 441,
+      "loss": 4.9049,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        8,
+        8,
+        13,
+        11,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 442,
+      "loss": 5.3173,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        9,
+        9,
+        12,
+        10,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 443,
+      "loss": 5.0408,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        10,
+        11,
+        9,
+        10,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 444,
+      "loss": 5.1455,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        7,
+        10,
+        13,
+        10,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 445,
+      "loss": 5.2117,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        8,
+        7,
+        13,
+        12,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 446,
+      "loss": 5.2017,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        10,
+        8,
+        13,
+        9,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 447,
+      "loss": 5.2318,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        6,
+        14,
+        11,
+        9,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 448,
+      "loss": 5.4048,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        7,
+        7,
+        13,
+        13,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 449,
+      "loss": 5.2299,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        8,
+        11,
+        12,
+        9,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 450,
+      "loss": 5.3549,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        11,
+        9,
+        13,
+        7,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 451,
+      "loss": 5.3575,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        7,
+        14,
+        10,
+        9,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 452,
+      "loss": 5.1227,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        9,
+        12,
+        9,
+        10,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 453,
+      "loss": 4.8909,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        7,
+        14,
+        10,
+        9,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 454,
+      "loss": 5.2199,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        11,
+        9,
+        12,
+        8,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 455,
+      "loss": 5.1378,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        10,
+        8,
+        13,
+        9,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 456,
+      "loss": 5.1776,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        9,
+        7,
+        13,
+        11,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 457,
+      "loss": 5.3178,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        8,
+        7,
+        13,
+        12,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 458,
+      "loss": 5.0378,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        9,
+        9,
+        11,
+        11,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 459,
+      "loss": 5.309,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        7,
+        14,
+        10,
+        9,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 460,
+      "loss": 5.158,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        7,
+        13,
+        12,
+        8,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 461,
+      "loss": 5.2002,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        7,
+        7,
+        14,
+        12,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 462,
+      "loss": 4.5475,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        10,
+        8,
+        13,
+        9,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 463,
+      "loss": 5.3581,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        8,
+        8,
+        13,
+        11,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 464,
+      "loss": 4.71,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        11,
+        8,
+        13,
+        8,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 465,
+      "loss": 5.0247,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        7,
+        7,
+        13,
+        13,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 466,
+      "loss": 5.2085,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        7,
+        9,
+        14,
+        10,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 467,
+      "loss": 4.9413,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        7,
+        10,
+        14,
+        9,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 468,
+      "loss": 5.1873,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        10,
+        9,
+        13,
+        8,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 469,
+      "loss": 5.5174,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        8,
+        7,
+        13,
+        12,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 470,
+      "loss": 5.0969,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        7,
+        11,
+        12,
+        10,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 471,
+      "loss": 5.2589,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        7,
+        13,
+        13,
+        7,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 472,
+      "loss": 5.2015,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        11,
+        8,
+        13,
+        8,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 473,
+      "loss": 5.0901,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        9,
+        10,
+        10,
+        11,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 474,
+      "loss": 5.1563,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        9,
+        12,
+        13,
+        6,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 475,
+      "loss": 4.9407,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        9,
+        9,
+        11,
+        11,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 476,
+      "loss": 4.8949,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        9,
+        7,
+        13,
+        11,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 477,
+      "loss": 5.0505,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        8,
+        7,
+        14,
+        11,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 478,
+      "loss": 5.0097,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        8,
+        7,
+        13,
+        12,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 479,
+      "loss": 5.3346,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        9,
+        12,
+        9,
+        10,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 480,
+      "loss": 5.0758,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        8,
+        13,
+        10,
+        9,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 481,
+      "loss": 5.0913,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        8,
+        8,
+        12,
+        12,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 482,
+      "loss": 5.2774,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        8,
+        7,
+        13,
+        12,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 483,
+      "loss": 5.2247,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        7,
+        10,
+        14,
+        9,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 484,
+      "loss": 5.2287,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        9,
+        10,
+        10,
+        11,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 485,
+      "loss": 5.5451,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        9,
+        6,
+        14,
+        11,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 486,
+      "loss": 5.1385,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        9,
+        9,
+        11,
+        11,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 487,
+      "loss": 5.0949,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        8,
+        13,
+        13,
+        6,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 488,
+      "loss": 4.6504,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        8,
+        10,
+        12,
+        10,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 489,
+      "loss": 5.0146,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        9,
+        6,
+        14,
+        11,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 490,
+      "loss": 4.9962,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        8,
+        13,
+        10,
+        9,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 491,
+      "loss": 5.115,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        7,
+        7,
+        13,
+        13,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 492,
+      "loss": 4.8692,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        7,
+        11,
+        12,
+        10,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 493,
+      "loss": 5.3926,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        9,
+        12,
+        13,
+        6,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 494,
+      "loss": 5.2866,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        6,
+        11,
+        13,
+        10,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 495,
+      "loss": 5.3421,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        7,
+        11,
+        12,
+        10,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 496,
+      "loss": 5.0536,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        7,
+        10,
+        12,
+        11,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 497,
+      "loss": 5.5185,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        10,
+        12,
+        12,
+        6,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 498,
+      "loss": 4.9588,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        11,
+        9,
+        13,
+        7,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": 499,
+      "loss": 5.433,
+      "stress_band": "COMFORT",
+      "calm_credit": 0,
+      "hard_blocks": [],
+      "soft_penalties": {},
+      "expert_utilization": [
+        8,
+        14,
+        9,
+        9,
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  ]
+}
