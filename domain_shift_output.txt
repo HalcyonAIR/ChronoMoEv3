@@ -1,0 +1,81 @@
+======================================================================
+DOMAIN SHIFT EXPERIMENT: Arithmetic → Geometric
+======================================================================
+
+Hypothesis: Scars contract reachable manifold
+Falsifiable: Motif diversity must drop by ≥5% with scars
+
+  [FixedWidthRouter] Extended router from 4 → 8 logits
+  [ChronoMoE Layer 0] 4 active → 8 max experts (stress bands: 1.00/2.00)
+Phase 1: Baseline Reachability (Arithmetic, No Scars)
+----------------------------------------------------------------------
+  Motif diversity:  0.0028
+  Effective rank:   0.00
+  Router entropy:   1.2590
+  Unique motifs:    220
+  T_90 recovery:    0 steps
+
+Phase 2: Training with Scar Accumulation (Arithmetic)
+----------------------------------------------------------------------
+Training 5000 steps on old dataset (arithmetic)...
+  Step     0: loss=4.6243
+  Step   500: loss=2.8612
+  Step  1000: loss=1.8695
+  Step  1500: loss=1.5149
+  Step  2000: loss=1.3825
+  Step  2500: loss=1.4825
+  Step  3000: loss=1.6562
+  Step  3500: loss=1.5944
+  Step  4000: loss=1.6140
+  Step  4500: loss=1.4815
+
+  Simulated scars on experts: [0, 1]
+  Average loss: 1.5306
+
+Phase 3: Domain Shift with Scars Active (Geometric)
+----------------------------------------------------------------------
+
+Applying scars (penalties) to 2 experts...
+  Penalty magnitude: 5.0
+  Scarred experts: [0, 1]
+  Motif diversity:  0.0002
+  Effective rank:   0.00
+  Router entropy:   0.3771
+  Unique motifs:    14
+  T_90 recovery:    0 steps
+
+  Reachability contraction: 0.0026 (93.6%)
+  ✓ Significant contraction detected
+
+Phase 4: Epoch Review (Remove Obsolete Scars)
+----------------------------------------------------------------------
+
+Removing scars from 2 experts...
+  Scars removed: [0, 1]
+
+Phase 5: Post-Review Reachability (Geometric)
+----------------------------------------------------------------------
+  Motif diversity:  0.0022
+  Effective rank:   0.00
+  Router entropy:   0.6035
+  Unique motifs:    170
+  T_90 recovery:    1 steps
+
+  Reachability expansion: 0.0020 (1114.3%)
+  ✓ Significant expansion detected
+
+======================================================================
+VERDICT
+======================================================================
+
+✓ HYPOTHESIS CONFIRMED:
+  - Scars contract reachable geometry (≥5% motif diversity drop)
+  - Epoch review expands reachability (≥5% motif diversity recovery)
+  - Architecture validated, not just bookkeeping
+
+  This is measurable geometric deformation.
+
+======================================================================
+Results saved: domain_shift_results.json
+
+✓ Experiment passed: Geometric deformation validated

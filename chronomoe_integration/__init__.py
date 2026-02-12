@@ -60,6 +60,12 @@ from chronomoe_integration.merge_execution import (
     execute_merge,
     find_merge_candidate,
 )
+from chronomoe_integration.routing_geometry import (
+    measure_routing_geometry,
+    measure_adaptation_speed,
+    compute_effective_rank,
+    extract_motifs,
+)
 
 __all__ = [
     "ChronoMoE",
@@ -102,4 +108,9 @@ __all__ = [
     "print_probe_battery_result",
     "execute_merge",
     "find_merge_candidate",
+    # Routing Geometry (Manifold Measurement)
+    "measure_routing_geometry",
+    "measure_adaptation_speed",
+    "compute_effective_rank",
+    "extract_motifs",
 ]

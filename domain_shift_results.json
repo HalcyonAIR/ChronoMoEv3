@@ -1,0 +1,28 @@
+{
+  "baseline": {
+    "motif_diversity": 0.002802547770700637,
+    "effective_rank": 0.0,
+    "router_entropy": 1.259022801399231,
+    "num_unique_motifs": 220,
+    "num_steps": 500
+  },
+  "scarred_new": {
+    "motif_diversity": 0.000178343949044586,
+    "effective_rank": 0.0,
+    "router_entropy": 0.3771428028643131,
+    "num_unique_motifs": 14,
+    "num_steps": 500
+  },
+  "contraction": 0.002624203821656051,
+  "contraction_pct": 93.63636363636363,
+  "recovered": {
+    "motif_diversity": 0.0021656050955414013,
+    "effective_rank": 0.0,
+    "router_entropy": 0.6034945087432861,
+    "num_unique_motifs": 170,
+    "num_steps": 500
+  },
+  "expansion": 0.0019872611464968153,
+  "expansion_pct": 1114.2857142857142,
+  "hypothesis_confirmed": true
+}
