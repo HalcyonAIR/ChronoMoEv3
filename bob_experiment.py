@@ -679,18 +679,20 @@ def check_eligibility(
     """
     Eligibility gate: does this backend have class-conditional routing structure?
 
-    Measures per-context-class expert dominance after training. If the most-used
-    expert per class doesn't meaningfully exceed the uniform baseline (1/num_experts),
-    then class-level motif caching is learning noise, not structure.
+    Four signals measured:
+      1. Dominance: per-class top-1 expert frequency vs uniform baseline
+      2. Inter-class KL divergence: do different classes route differently?
+      3. Pair concentration: per-class variance of top-k pair frequency
+      4. Temporal stability: does class-conditioned routing stay stable across windows?
 
-    Returns dict with per-class metrics and overall eligibility verdict.
+    Eligibility answers: "Is there reusable structure at the granularity Bob is caching?"
+    Not just: "Is one expert dominant?"
     """
     torch.manual_seed(seed)
     model = TinyMoEModel(config)
     optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)
     ladder = DifficultyLadder(config)
 
-    # Train
     total = config.warmup_steps + config.active_steps
     for step in range(total):
         task_class, inputs, targets = ladder.get_batch(step)
@@ -700,40 +702,78 @@ def check_eligibility(
         loss.backward()
         optimizer.step()
 
-    # Measure routing over last 200 steps
+    # --- Collect routing data ---
+    # Need enough steps for each class to appear 2+ times for temporal stability.
+    # With class_block_size=50 and 4 classes, one rotation = 200 steps.
+    # Use 400 steps = 2 full rotations, with 25-step windows.
     model.eval()
-    uniform = 1.0 / config.moe_num_experts  # expected fraction under no specialization
-    per_class = defaultdict(lambda: {
+    num_experts = config.moe_num_experts
+    top_k = config.moe_num_experts_per_tok
+    uniform = 1.0 / num_experts
+
+    measure_steps = min(400, total - config.warmup_steps)
+    window_size = 25
+    num_windows = measure_steps // window_size
+
+    # Per-class, per-window routing data
+    per_class_windows = defaultdict(lambda: [
+        {"expert_counts": defaultdict(int), "pair_counts": defaultdict(int),
+         "total_selections": 0, "top1_weights": []}
+        for _ in range(num_windows)
+    ])
+    # Per-class aggregate
+    per_class_agg = defaultdict(lambda: {
         "expert_counts": defaultdict(int),
         "top1_weights": [],
         "total_selections": 0,
     })
 
-    for step in range(total - 200, total):
+    start_step = total - measure_steps
+    for step in range(start_step, total):
         task_class, inputs, targets = ladder.get_batch(step)
+        window_idx = min((step - start_step) // window_size, num_windows - 1)
+
         with torch.no_grad():
             x = model.embedding(inputs)
             router_logits = model.moe.router(x.view(-1, x.shape[-1]))
             probs = F.softmax(router_logits, dim=-1)
-            top_vals, top_ids = probs.topk(config.moe_num_experts_per_tok, dim=-1)
+            top_vals, top_ids = probs.topk(top_k, dim=-1)
 
-            for row in top_ids:
+            w = per_class_windows[task_class][window_idx]
+            agg = per_class_agg[task_class]
+
+            for i, row in enumerate(top_ids):
+                pair = tuple(sorted(int(e) for e in row.tolist()))
+                w["pair_counts"][pair] += 1
                 for eid in row.tolist():
-                    per_class[task_class]["expert_counts"][eid] += 1
-                    per_class[task_class]["total_selections"] += 1
-            per_class[task_class]["top1_weights"].extend(top_vals[:, 0].tolist())
+                    eid = int(eid)
+                    w["expert_counts"][eid] += 1
+                    w["total_selections"] += 1
+                    agg["expert_counts"][eid] += 1
+                    agg["total_selections"] += 1
 
-    # Compute metrics
+            agg["top1_weights"].extend(top_vals[:, 0].tolist())
+            w["top1_weights"].extend(top_vals[:, 0].tolist())
+
+    # --- Signal 1: Dominance ---
     class_metrics = {}
     dominances = []
-    for cc in sorted(per_class.keys()):
-        counts = per_class[cc]["expert_counts"]
-        total_sel = per_class[cc]["total_selections"]
-        top1_w = per_class[cc]["top1_weights"]
+    class_distributions = {}  # for KL computation
+
+    for cc in sorted(per_class_agg.keys()):
+        counts = per_class_agg[cc]["expert_counts"]
+        total_sel = per_class_agg[cc]["total_selections"]
+        top1_w = per_class_agg[cc]["top1_weights"]
 
         sorted_experts = sorted(counts.items(), key=lambda x: x[1], reverse=True)
         top_fraction = sorted_experts[0][1] / total_sel if total_sel > 0 else 0
         avg_top1_w = sum(top1_w) / len(top1_w) if top1_w else 0
+
+        # Normalized distribution (for KL)
+        dist = [0.0] * num_experts
+        for eid, cnt in counts.items():
+            dist[eid] = cnt / total_sel if total_sel > 0 else uniform
+        class_distributions[cc] = dist
 
         class_metrics[cc] = {
             "top_expert": sorted_experts[0][0],
@@ -746,15 +786,122 @@ def check_eligibility(
         dominances.append(top_fraction)
 
     mean_dominance = sum(dominances) / len(dominances) if dominances else 0
-    eligible = mean_dominance > (uniform + epsilon)
+
+    # --- Signal 2: Inter-class KL divergence ---
+    # Average pairwise KL(class_i || class_j)
+    # High KL = classes route very differently = good for motif caching
+    kl_divs = []
+    class_ids = sorted(class_distributions.keys())
+    for i, c1 in enumerate(class_ids):
+        for c2 in class_ids[i + 1:]:
+            p = class_distributions[c1]
+            q = class_distributions[c2]
+            # Symmetrized KL with smoothing
+            kl = 0.0
+            for k in range(num_experts):
+                pk = max(p[k], 1e-10)
+                qk = max(q[k], 1e-10)
+                kl += 0.5 * (pk * math.log(pk / qk) + qk * math.log(qk / pk))
+            kl_divs.append(kl)
+
+    mean_kl = sum(kl_divs) / len(kl_divs) if kl_divs else 0.0
+
+    # --- Signal 3: Pair concentration ---
+    # Per-class: what fraction of tokens use the most common top-k pair?
+    # High concentration = routing is stable within each class
+    pair_concentrations = []
+    for cc in sorted(per_class_windows.keys()):
+        for w in per_class_windows[cc]:
+            if not w["pair_counts"]:
+                continue
+            total_pairs = sum(w["pair_counts"].values())
+            top_pair_count = max(w["pair_counts"].values())
+            pair_concentrations.append(top_pair_count / total_pairs)
+
+    mean_pair_concentration = (
+        sum(pair_concentrations) / len(pair_concentrations)
+        if pair_concentrations else 0
+    )
+    # Expected pair concentration under uniform: 1 / C(n, k)
+    from math import comb
+    num_possible_pairs = comb(num_experts, top_k)
+    uniform_pair_concentration = 1.0 / num_possible_pairs
+
+    # --- Signal 4: Temporal stability ---
+    # Per-class: how much does the expert distribution change between
+    # separate appearances of the same class? (handles class rotation)
+    # Collect per-class step-level routing, then split into chunks.
+    temporal_stabilities = []
+    for cc in sorted(per_class_windows.keys()):
+        # Gather all window data that has observations for this class
+        class_window_dists = []
+        for w in per_class_windows[cc]:
+            if w["total_selections"] < 10:  # need enough tokens for a meaningful dist
+                continue
+            dist = [0.0] * num_experts
+            for eid, cnt in w["expert_counts"].items():
+                dist[eid] = cnt / w["total_selections"]
+            class_window_dists.append(dist)
+
+        if len(class_window_dists) < 2:
+            continue
+
+        # Compute mean distribution across this class's windows
+        mean_dist = [
+            sum(d[e] for d in class_window_dists) / len(class_window_dists)
+            for e in range(num_experts)
+        ]
+        # Average L1 distance from mean (lower = more stable)
+        l1_distances = []
+        for d in class_window_dists:
+            l1 = sum(abs(d[e] - mean_dist[e]) for e in range(num_experts))
+            l1_distances.append(l1)
+
+        avg_l1 = sum(l1_distances) / len(l1_distances)
+        # Stability = 1 - normalized L1 (max L1 for distributions = 2.0)
+        temporal_stabilities.append(1.0 - avg_l1 / 2.0)
+
+    mean_temporal_stability = (
+        sum(temporal_stabilities) / len(temporal_stabilities)
+        if temporal_stabilities else 0
+    )
+
+    # --- Eligibility verdict ---
+    # Primary: dominance must exceed uniform
+    dominance_pass = mean_dominance > (uniform + epsilon)
+    # Secondary: inter-class KL must show differentiation
+    kl_pass = mean_kl > 0.01  # even small KL means different distributions
+    # Tertiary: pair concentration above uniform
+    pair_pass = mean_pair_concentration > uniform_pair_concentration * 1.5
+
+    # Eligible if primary passes, OR if secondary + tertiary both pass
+    # (catches cases where dominance is moderate but routing is class-conditional)
+    eligible = dominance_pass or (kl_pass and pair_pass)
 
     return {
         "eligible": eligible,
+        # Signal 1: Dominance
         "mean_dominance": round(mean_dominance, 4),
         "uniform_baseline": round(uniform, 4),
-        "threshold": round(uniform + epsilon, 4),
-        "margin": round(mean_dominance - uniform, 4),
-        "num_experts": config.moe_num_experts,
+        "dominance_threshold": round(uniform + epsilon, 4),
+        "dominance_margin": round(mean_dominance - uniform, 4),
+        "dominance_pass": dominance_pass,
+        # Signal 2: Inter-class KL
+        "mean_interclass_kl": round(mean_kl, 6),
+        "kl_threshold": 0.01,
+        "kl_pass": kl_pass,
+        # Signal 3: Pair concentration
+        "mean_pair_concentration": round(mean_pair_concentration, 4),
+        "uniform_pair_concentration": round(uniform_pair_concentration, 4),
+        "pair_concentration_margin": round(
+            mean_pair_concentration - uniform_pair_concentration, 4
+        ),
+        "pair_pass": pair_pass,
+        # Signal 4: Temporal stability
+        "mean_temporal_stability": round(mean_temporal_stability, 4),
+        # Meta
+        "num_experts": num_experts,
+        "top_k": top_k,
         "training_steps": total,
         "per_class": class_metrics,
     }
@@ -767,12 +914,42 @@ def print_eligibility(result: Dict, label: str) -> None:
     print(f"ELIGIBILITY CHECK: {label}")
     print(f"{'='*70}")
     print(f"  Verdict: {verdict}")
-    print(f"  Mean dominance:   {result['mean_dominance']:.4f}")
-    print(f"  Uniform baseline: {result['uniform_baseline']:.4f} (1/{result['num_experts']})")
-    print(f"  Threshold:        {result['threshold']:.4f} (uniform + epsilon)")
-    print(f"  Margin:           {result['margin']:+.4f}")
-    print(f"  Training steps:   {result['training_steps']}")
+    print(f"  Training: {result['training_steps']} steps, "
+          f"{result['num_experts']}E top-{result['top_k']}")
 
+    # Signal 1: Dominance
+    dp = "PASS" if result["dominance_pass"] else "FAIL"
+    print(f"\n  Signal 1 — Dominance [{dp}]")
+    print(f"    Mean dominance:   {result['mean_dominance']:.4f}")
+    print(f"    Uniform baseline: {result['uniform_baseline']:.4f}")
+    print(f"    Threshold:        {result['dominance_threshold']:.4f}")
+    print(f"    Margin:           {result['dominance_margin']:+.4f}")
+
+    # Signal 2: Inter-class KL
+    kp = "PASS" if result["kl_pass"] else "FAIL"
+    print(f"\n  Signal 2 — Inter-class KL divergence [{kp}]")
+    print(f"    Mean pairwise KL: {result['mean_interclass_kl']:.6f}")
+    print(f"    Threshold:        {result['kl_threshold']:.6f}")
+    if result["mean_interclass_kl"] < 0.001:
+        print(f"    (Classes route identically)")
+    elif result["mean_interclass_kl"] < 0.01:
+        print(f"    (Negligible differentiation)")
+    else:
+        print(f"    (Meaningful class-conditional routing)")
+
+    # Signal 3: Pair concentration
+    pp = "PASS" if result["pair_pass"] else "FAIL"
+    print(f"\n  Signal 3 — Top-k pair concentration [{pp}]")
+    print(f"    Mean concentration: {result['mean_pair_concentration']:.4f}")
+    print(f"    Uniform baseline:   {result['uniform_pair_concentration']:.4f}")
+    print(f"    Margin:             {result['pair_concentration_margin']:+.4f}")
+
+    # Signal 4: Temporal stability
+    print(f"\n  Signal 4 — Temporal stability")
+    print(f"    Mean stability: {result['mean_temporal_stability']:.4f}")
+    print(f"    (1.0 = perfectly stable, 0.0 = maximally variable)")
+
+    # Per-class breakdown
     print(f"\n  Per-class routing:")
     for cc, m in result["per_class"].items():
         dist_str = " ".join(
@@ -782,9 +959,8 @@ def print_eligibility(result: Dict, label: str) -> None:
               f"| dom={m['dominance']:.1%} top1_w={m['avg_top1_weight']:.3f}")
 
     if not result["eligible"]:
-        print(f"\n  CONCLUSION: Routing is class-agnostic (dominance ≈ uniform).")
-        print(f"  Class-level motif caching will learn noise, not structure.")
-        print(f"  Savings require a backend with class-conditional expert specialization.")
+        print(f"\n  CONCLUSION: No reusable class-conditional routing structure.")
+        print(f"  Motif caching at this granularity will learn noise, not structure.")
 
 
 if __name__ == "__main__":
