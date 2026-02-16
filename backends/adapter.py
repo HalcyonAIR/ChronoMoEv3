@@ -25,7 +25,9 @@ class LayerSnapshot:
     router_scores: torch.Tensor        # Pre-top-k scores [B*T, num_experts]
     selected_experts: torch.Tensor     # Expert indices chosen [B*T, top_k]
     routing_weights: torch.Tensor      # Weights for selected experts [B*T, top_k]
-    expert_usage: torch.Tensor         # Per-expert usage vector [num_experts]
+    expert_usage: torch.Tensor         # Selection frequency [num_experts], sums to 1.0
+                                       # Semantics: fraction of total selections per expert
+                                       # Comparable to uniform baseline = 1/num_experts
 
 
 @dataclass
