@@ -200,6 +200,18 @@ class BobSubstrate:
 
         # --- 6. Execute ---
         if gate_result.passed and top_motif is not None:
+            # Compute bias strength: strong when stable, weak when unstable
+            base_bias = 5.0
+            instability_scale = 1.0 - (medium_activation or 0.0)  # 1.0=stable, 0.0=chaotic
+            promotion_scale = 1.0
+            if self.promotion_gate is not None:
+                promotion_scale = self.promotion_gate.eligibility_score(context_class)
+            bias = base_bias * instability_scale * max(0.3, promotion_scale)
+
+            # Apply bias to all layers in the motif
+            for lm in top_motif.motif_spec.layers.values():
+                lm.bias_strength = bias
+
             result = self.adapter.forward_with_motif(
                 inputs, top_motif.motif_spec, targets
             )

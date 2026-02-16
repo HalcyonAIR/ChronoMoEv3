@@ -32,9 +32,16 @@ class LayerSnapshot:
 
 @dataclass
 class LayerMotif:
-    """Which experts to fire at a single layer."""
+    """Which experts to prefer at a single layer.
+
+    bias_strength controls how aggressively routing is nudged toward
+    preferred experts. 0.0 = no effect (natural routing), higher values
+    push harder toward expert_ids. Replaces the old "force" approach
+    which hard-locked experts and destroyed quality on high-top-k models.
+    """
     expert_ids: Tuple[int, ...]
     weights: Tuple[float, ...]
+    bias_strength: float = 5.0
 
 
 @dataclass

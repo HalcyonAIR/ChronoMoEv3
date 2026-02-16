@@ -193,22 +193,38 @@ class HFMoEAdapter:
 
             def make_hook(lid, lm, tk, ne):
                 def hook(module, input, output):
-                    # --- Override gate output for motif layers ---
+                    # --- Bias gate output for motif layers ---
                     if lm is not None:
                         if isinstance(output, tuple):
                             orig_logits = output[0]
                         else:
                             orig_logits = output
 
-                        forced = torch.full_like(orig_logits, -1e4)
-                        for i, eid in enumerate(lm.expert_ids):
-                            w = lm.weights[i] if i < len(lm.weights) else 1.0 / len(lm.expert_ids)
-                            forced[:, eid] = math.log(max(w, 1e-8)) + 50.0
+                        # Router bias: nudge toward preferred experts,
+                        # not hard-lock. Preserves per-token routing variation.
+                        biased = orig_logits.clone()
+                        bias = lm.bias_strength
+
+                        # Per-token confidence: entropy of natural routing.
+                        # Low entropy = router is confident → stronger bias.
+                        # High entropy = uncertain → preserve natural routing.
+                        with torch.no_grad():
+                            probs_natural = F.softmax(orig_logits.float(), dim=-1)
+                            log_probs = torch.log(probs_natural + 1e-8)
+                            entropy = -(probs_natural * log_probs).sum(dim=-1)  # [B*T]
+                            max_entropy = math.log(ne)
+                            # confidence: 1.0 = peaked distribution, 0.0 = uniform
+                            confidence = (1.0 - entropy / max_entropy).clamp(0.0, 1.0)
+
+                        # Apply scaled bias to preferred experts
+                        token_bias = bias * confidence.unsqueeze(-1)  # [B*T, 1]
+                        for eid in lm.expert_ids:
+                            biased[:, eid] = biased[:, eid] + token_bias.squeeze(-1)
 
                         if isinstance(output, tuple):
-                            output = (forced,) + output[1:]
+                            output = (biased,) + output[1:]
                         else:
-                            output = forced
+                            output = biased
 
                     # --- Capture routing from (possibly modified) output ---
                     if isinstance(output, tuple):
@@ -325,10 +341,10 @@ class HFMoEAdapter:
         motif: MotifSpec,
         targets: Optional[torch.Tensor] = None,
     ) -> ForwardResult:
-        """Force specific expert routing at motif layers.
+        """Bias expert routing toward motif preferences at specified layers.
 
-        Overrides gate outputs via hooks so the MoE block selects exactly
-        the motif experts. Non-motif layers route normally.
+        Adds logit bias to preferred experts (scaled by per-token confidence).
+        Preserves per-token routing variation. Non-motif layers route normally.
         """
         self._install_combined_hooks(motif=motif)
 
@@ -346,7 +362,9 @@ class HFMoEAdapter:
 
         num_tokens = inputs.shape[0] * inputs.shape[1] if inputs.dim() == 2 else inputs.shape[0]
 
-        # Compute invocations: motif layers use motif expert count, others use top_k
+        # With bias (not forcing), actual top_k experts still run.
+        # Cost savings come from routing concentration (measured by
+        # how many unique experts are actually used across tokens).
         total_invocations = 0
         for layer_id in self._moe_layers:
             if layer_id in motif.layers:
