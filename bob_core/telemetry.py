@@ -39,8 +39,18 @@ class DecisionTrace:
     # Motif info
     motif_id: Optional[int] = None
 
+    # Governor fields (all Optional, backward compatible)
+    governor_decision: Optional[str] = None
+    governor_reasons: Optional[List[str]] = None
+    forced_exploration: bool = False
+    medium_activation: Optional[float] = None
+    scar_debt: Optional[float] = None
+    cost_cheap_fraction: Optional[float] = None
+    commitment_id: Optional[int] = None
+    identity_weight: Optional[float] = None
+
     def to_dict(self) -> Dict:
-        return {
+        d = {
             "step": self.step,
             "context_class": self.context_class,
             "governance_state": self.governance_state,
@@ -58,3 +68,21 @@ class DecisionTrace:
             "survival_passed": self.survival_passed,
             "motif_id": self.motif_id,
         }
+        # Governor fields: include when set
+        if self.governor_decision is not None:
+            d["governor_decision"] = self.governor_decision
+        if self.governor_reasons is not None:
+            d["governor_reasons"] = self.governor_reasons
+        if self.forced_exploration:
+            d["forced_exploration"] = True
+        if self.medium_activation is not None:
+            d["medium_activation"] = round(self.medium_activation, 4)
+        if self.scar_debt is not None:
+            d["scar_debt"] = round(self.scar_debt, 4)
+        if self.cost_cheap_fraction is not None:
+            d["cost_cheap_fraction"] = round(self.cost_cheap_fraction, 4)
+        if self.commitment_id is not None:
+            d["commitment_id"] = self.commitment_id
+        if self.identity_weight is not None:
+            d["identity_weight"] = round(self.identity_weight, 4)
+        return d

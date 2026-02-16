@@ -5,6 +5,9 @@ observe() -> decide() -> update() -> log()
 
 Bob reads adapter snapshots, evaluates the compound gate,
 decides cheap or expensive path, and updates the motif store.
+
+Phase 1: optional BobCore + Governor + MediumClock wiring.
+If bob_core/governor are None -> existing behavior preserved.
 """
 
 from typing import Dict, List, Optional, Tuple
@@ -48,6 +51,10 @@ class BobSubstrate:
         gate_thresholds: Thresholds for the compound gate
         warmup_steps: Steps before cheap path is offered
         governance_state: Fixed governance state (simplified for v1 experiment)
+        bob_core: Optional BobCore for ledger-based lifecycle
+        governor: Optional BobGovernor for commit authorization
+        medium_clock: Optional MediumClock for instability detection
+        promotion_gate: Optional PromotionGate for stability tracking
         motif_store_kwargs: Additional kwargs for MotifStore
     """
 
@@ -57,6 +64,10 @@ class BobSubstrate:
         gate_thresholds: Optional[GateThresholds] = None,
         warmup_steps: int = 500,
         governance_state: str = "EQUILIBRIUM",
+        bob_core=None,
+        governor=None,
+        medium_clock=None,
+        promotion_gate=None,
         **motif_store_kwargs,
     ):
         self.adapter = adapter
@@ -64,6 +75,17 @@ class BobSubstrate:
         self.store = MotifStore(**motif_store_kwargs)
         self.warmup_steps = warmup_steps
         self.governance_state = governance_state
+
+        # Phase 1 optional components
+        self.bob_core = bob_core
+        self.governor = governor
+        self.medium_clock = medium_clock
+        self.promotion_gate = promotion_gate
+
+        # Track previous step state for medium clock
+        self._prev_expert_ids: Optional[Tuple[int, ...]] = None
+        self._prev_loss: Optional[float] = None
+        self._first_commit_step: Optional[int] = None
 
         self.traces: List[DecisionTrace] = []
 
@@ -77,19 +99,61 @@ class BobSubstrate:
         """
         Run one decision through Bob.
 
-        1. Compute gate signals
-        2. If gate passes and past warmup: cheap path
-        3. Otherwise: expensive path
-        4. Update motif store
-        5. Log trace
+        With governor/bob_core enabled:
+        0. medium_clock.tick() - update instability EMAs
+        1. Check forced exploration (from prior governor BLOCK)
+        2. Query MotifStore - routing_stability, top_motif, survival
+        3. Assemble GateSignals (stability from MotifStore, debt from BobCore if available)
+        4. CompoundGate.evaluate() (unchanged)
+        5. If gate passes AND governor exists:
+           -> governor.evaluate_commit() - ALLOW/BLOCK/ESCALATE
+           -> If BLOCK: expensive path, set forced exploration next
+        6. Execute (cheap or expensive path)
+        7. Build RoutingVector from snapshots (if bob_core exists)
+        8. Determine success via bob_core.determine_success()
+        9. bob_core.process_outcome() - commitment + scar + cost
+        10. store.update() - patterns (unchanged, will slim later)
+        11. promotion_gate.record() - track stability
+        12. identity weight via identity boundary
+        13. Log DecisionTrace (with governor verdict fields)
 
-        Returns the decision trace (the atomic artifact).
+        Without governor/bob_core: existing behavior preserved.
         """
-        # --- Decide ---
+        was_blocked = False
+        forced_exploration = False
+        governor_decision = None
+        governor_reasons = None
+        medium_activation = None
+        scar_debt = None
+        cost_cheap_fraction = None
+        commitment_id = None
+        identity_weight = None
+
+        # --- 0. Medium clock tick ---
+        if self.medium_clock is not None:
+            self.medium_clock.tick(
+                prev_expert_ids=self._prev_expert_ids,
+                curr_expert_ids=(),  # Updated after execution
+                prev_loss=self._prev_loss,
+                curr_loss=0.0,  # Updated after execution
+                was_blocked=False,  # Updated after governor
+                path="full",  # Updated after decision
+            )
+            medium_activation = self.medium_clock.activation
+
+        # --- 1. Check forced exploration ---
+        if self.governor is not None:
+            forced_exploration = self.governor.consume_forced_exploration()
+
+        # --- 2-3. Gate signals ---
         signals = self.store.get_gate_signals(context_class, step)
 
-        # During warmup, force expensive path
-        if step < self.warmup_steps:
+        # If bob_core exists, use scar-based debt instead of motif store debt
+        if self.bob_core is not None:
+            scar_debt = self.bob_core.scars.total_debt(step)
+
+        # --- 4. Gate evaluation ---
+        if step < self.warmup_steps or forced_exploration:
             gate_result = GateResult(
                 passed=False,
                 signals=signals,
@@ -102,11 +166,39 @@ class BobSubstrate:
         else:
             gate_result = self.gate.evaluate(signals, self.governance_state)
 
-        # --- Execute ---
+        # --- 5. Governor evaluation (if gate passed) ---
         top_motif = self.store.get_top_motif(context_class, step)
 
+        if gate_result.passed and self.governor is not None and top_motif is not None:
+            first_layer = next(iter(top_motif.motif_spec.layers.values()))
+            candidate_ids = first_layer.expert_ids
+
+            from bob_core.governor import GovernorDecision
+            verdict = self.governor.evaluate_commit(
+                context_class=context_class,
+                expert_ids=candidate_ids,
+                gate_result=gate_result,
+                step=step,
+            )
+            governor_decision = verdict.decision.value
+            governor_reasons = verdict.reasons
+            cost_cheap_fraction = verdict.cost_signal.cheap_fraction
+
+            if verdict.decision != GovernorDecision.ALLOW:
+                # Governor blocked: force expensive path
+                gate_result = GateResult(
+                    passed=False,
+                    signals=signals,
+                    thresholds_used=self.gate.thresholds,
+                    governance_state=self.governance_state,
+                    stability_passed=gate_result.stability_passed,
+                    debt_passed=False,
+                    survival_passed=gate_result.survival_passed,
+                )
+                was_blocked = True
+
+        # --- 6. Execute ---
         if gate_result.passed and top_motif is not None:
-            # Cheap path: force the cached expert set
             result = self.adapter.forward_with_motif(
                 inputs, top_motif.motif_spec, targets
             )
@@ -115,22 +207,53 @@ class BobSubstrate:
             first_layer = next(iter(top_motif.motif_spec.layers.values()))
             expert_ids = first_layer.expert_ids
         else:
-            # Expensive path: full routing
             result = self.adapter.forward(inputs, targets)
             path = "full"
             motif_id = None
-            expert_ids = ()  # Will be set by _extract_motif below
+            expert_ids = ()
 
         loss_val = result.loss.item() if result.loss is not None else float("inf")
 
-        # --- Update ---
-        # Build motif from actual routing pattern (token-level aggregation)
+        # --- 7. Extract motif + routing vector ---
         actual_motif_spec, extracted_ids = self._extract_motif(
             result, self.adapter.num_experts
         )
         if not expert_ids:
             expert_ids = extracted_ids
 
+        # Build routing vectors from snapshots (if bob_core exists)
+        routing_vector = None
+        if self.bob_core is not None and result.snapshots:
+            from bob_core.ledgers import RoutingVector
+            routing_vector = RoutingVector.from_snapshot(result.snapshots[0])
+
+        # --- 8-9. BobCore outcome processing ---
+        commitment = None
+        if self.bob_core is not None:
+            governance_coords = self.bob_core.get_governance_coords(
+                context_class=context_class,
+                step=step,
+                medium=medium_activation or 0.0,
+            )
+            commitment = self.bob_core.process_outcome(
+                context_class=context_class,
+                step=step,
+                loss=loss_val,
+                was_cheap=(path == "cheap"),
+                expert_ids=expert_ids,
+                routing_vector=routing_vector,
+                governance_coords=governance_coords,
+                expert_invocations=result.expert_invocations,
+                was_exploration=forced_exploration,
+                was_blocked=was_blocked,
+                motif_id=motif_id,
+            )
+            if commitment is not None:
+                commitment_id = commitment.commitment_id
+                if self._first_commit_step is None:
+                    self._first_commit_step = step
+
+        # --- 10. Update motif store (unchanged) ---
         self.store.update(
             context_class=context_class,
             expert_ids=expert_ids,
@@ -140,7 +263,39 @@ class BobSubstrate:
             was_cheap=(path == "cheap"),
         )
 
-        # --- Log ---
+        # --- 11. Promotion gate ---
+        if self.promotion_gate is not None:
+            self.promotion_gate.record(context_class, expert_ids, loss_val, step)
+
+        # --- 12. Identity weight ---
+        if self.bob_core is not None:
+            from bob_core.identity import is_identity_event
+            baseline = self.bob_core.commitments.baseline_loss(context_class)
+            identity_weight = is_identity_event(
+                path=path,
+                step=step,
+                first_commit_step=self._first_commit_step,
+                loss=loss_val,
+                baseline=baseline if baseline != float("inf") else loss_val,
+            )
+
+        # Re-tick medium clock with actual values
+        if self.medium_clock is not None:
+            self.medium_clock.tick(
+                prev_expert_ids=self._prev_expert_ids,
+                curr_expert_ids=expert_ids,
+                prev_loss=self._prev_loss,
+                curr_loss=loss_val,
+                was_blocked=was_blocked,
+                path=path,
+            )
+            medium_activation = self.medium_clock.activation
+
+        # Update prev state for next step
+        self._prev_expert_ids = expert_ids
+        self._prev_loss = loss_val
+
+        # --- 13. Log ---
         trace = DecisionTrace(
             step=step,
             context_class=context_class,
@@ -158,6 +313,14 @@ class BobSubstrate:
             debt_passed=gate_result.debt_passed,
             survival_passed=gate_result.survival_passed,
             motif_id=motif_id,
+            governor_decision=governor_decision,
+            governor_reasons=governor_reasons,
+            forced_exploration=forced_exploration,
+            medium_activation=medium_activation,
+            scar_debt=scar_debt,
+            cost_cheap_fraction=cost_cheap_fraction,
+            commitment_id=commitment_id,
+            identity_weight=identity_weight,
         )
         self.traces.append(trace)
         return trace
