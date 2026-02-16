@@ -41,6 +41,7 @@ class MotifRecord:
     context_class: int
     motif_spec: MotifSpec
     created_step: int
+    routing_key: Tuple[int, ...] = ()  # Coarse key for stability/matching
     events: List[SurvivalEvent] = field(default_factory=list)
 
     def record_event(self, step: int, success: bool) -> None:
@@ -242,7 +243,7 @@ class MotifStore:
         """
         self._ensure_class(context_class)
         history = self._routing_history[context_class]
-        if len(history) < 10:
+        if len(history) < 5:
             return 0.0
 
         # Count how often each pattern appears
@@ -302,12 +303,15 @@ class MotifStore:
         loss: float,
         step: int,
         was_cheap: bool,
+        routing_key: Optional[Tuple[int, ...]] = None,
     ) -> None:
         """Update motif library after a decision."""
         self._ensure_class(context_class)
 
-        # Record routing for stability
-        self.record_routing(context_class, expert_ids)
+        # Use routing_key for stability tracking (coarser than full expert_ids)
+        if routing_key is None:
+            routing_key = expert_ids
+        self.record_routing(context_class, routing_key)
 
         # Update running average loss
         self._loss_sums[context_class] += loss
@@ -342,12 +346,14 @@ class MotifStore:
         else:
             self._debt[context_class] *= self.debt_decay
 
-        # Find existing motif or create new one
-        existing_idx = self._find_motif(context_class, expert_ids)
+        # Find existing motif or create new one (match on routing_key)
+        existing_idx = self._find_motif(context_class, routing_key)
 
         if existing_idx is not None:
-            # Update existing motif
-            self._motifs[context_class][existing_idx].record_event(step, success)
+            # Update existing motif (also update motif_spec to latest)
+            existing = self._motifs[context_class][existing_idx]
+            existing.record_event(step, success)
+            existing.motif_spec = motif_spec  # keep motif fresh
         elif not was_cheap:
             # Only create new motifs from expensive path decisions
             motifs = self._motifs[context_class]
@@ -357,6 +363,7 @@ class MotifStore:
                     context_class=context_class,
                     motif_spec=motif_spec,
                     created_step=step,
+                    routing_key=routing_key,
                 )
                 new_motif.record_event(step, success)
                 motifs.append(new_motif)
@@ -377,19 +384,18 @@ class MotifStore:
                         context_class=context_class,
                         motif_spec=motif_spec,
                         created_step=step,
+                        routing_key=routing_key,
                     )
                     new_motif.record_event(step, success)
                     motifs[worst_idx] = new_motif
                     self._next_motif_id += 1
 
     def _find_motif(
-        self, context_class: int, expert_ids: Tuple[int, ...]
+        self, context_class: int, routing_key: Tuple[int, ...]
     ) -> Optional[int]:
-        """Find motif index by expert_ids pattern, or None."""
+        """Find motif index by routing_key, or None."""
         for i, m in enumerate(self._motifs[context_class]):
-            # Match on first layer's expert_ids (primary pattern)
-            first_layer = next(iter(m.motif_spec.layers.values()))
-            if first_layer.expert_ids == expert_ids:
+            if m.routing_key == routing_key:
                 return i
         return None
 

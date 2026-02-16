@@ -10,6 +10,7 @@ Phase 1: optional BobCore + Governor + MediumClock wiring.
 If bob_core/governor are None -> existing behavior preserved.
 """
 
+import math
 from typing import Dict, List, Optional, Tuple
 
 from backends.adapter import (
@@ -215,7 +216,7 @@ class BobSubstrate:
         loss_val = result.loss.item() if result.loss is not None else float("inf")
 
         # --- 7. Extract motif + routing vector ---
-        actual_motif_spec, extracted_ids = self._extract_motif(
+        actual_motif_spec, extracted_ids, routing_key = self._extract_motif(
             result, self.adapter.num_experts
         )
         if not expert_ids:
@@ -253,7 +254,7 @@ class BobSubstrate:
                 if self._first_commit_step is None:
                     self._first_commit_step = step
 
-        # --- 10. Update motif store (unchanged) ---
+        # --- 10. Update motif store ---
         self.store.update(
             context_class=context_class,
             expert_ids=expert_ids,
@@ -261,6 +262,7 @@ class BobSubstrate:
             loss=loss_val,
             step=step,
             was_cheap=(path == "cheap"),
+            routing_key=routing_key,
         )
 
         # --- 11. Promotion gate ---
@@ -329,37 +331,38 @@ class BobSubstrate:
         self,
         result: ForwardResult,
         num_experts: int,
-    ) -> Tuple[MotifSpec, Tuple[int, ...]]:
+    ) -> Tuple[MotifSpec, Tuple[int, ...], Tuple[int, ...]]:
         """
         Build a MotifSpec from actual token-level routing.
 
         Aggregates per-token expert selections across the batch to find
         experts that handle a disproportionate share of tokens. The motif
-        includes only experts whose selection frequency exceeds the uniform
-        baseline by a meaningful margin.
+        includes only experts whose token-level selection frequency exceeds
+        the uniform baseline by a meaningful margin.
 
-        If no expert is disproportionately dominant (routing is class-agnostic),
-        falls back to the most common top-k pair. The cheap path cost then
-        equals full routing cost — correctly reflecting that no savings are
-        possible without routing specialization.
-
-        Returns (motif_spec, representative_expert_ids).
+        Returns (motif_spec, full_representative_ids, routing_key).
+        - full_representative_ids: all dominant experts from first layer (for scars)
+        - routing_key: top-2 dominant experts from first layer (for stability)
         """
         layers = {}
         representative_ids = ()
+        routing_key = ()
+        top_k = getattr(self.adapter, 'top_k', 2)
 
-        # Dominance threshold: expert must handle more than uniform + margin
-        uniform_fraction = 1.0 / num_experts
-        dominance_margin = 0.15  # 15% above uniform to qualify as "dominant"
-        dominance_threshold = uniform_fraction + dominance_margin
+        # Dominance threshold: token frequency (fraction of tokens where expert
+        # appears in top-k). Must be 2x the uniform expectation.
+        # For 8E top-2: uniform = 0.25, threshold = 0.50
+        # For 64E top-8: uniform = 0.125, threshold = 0.25
+        uniform_token_freq = min(1.0, top_k / num_experts)
+        dominance_multiplier = 2.0
+        dominance_threshold = uniform_token_freq * dominance_multiplier
 
         for snap in result.snapshots:
             selected = snap.selected_experts  # [B*T, top_k]
             routing_w = snap.routing_weights  # [B*T, top_k]
             num_tokens = selected.shape[0]
-            total_selections = num_tokens * selected.shape[1]
 
-            # Count per-expert: selection frequency and aggregate routing weight
+            # Count per-expert: how many tokens selected this expert
             expert_counts: Dict[int, int] = {}
             expert_weight_sums: Dict[int, float] = {}
             for i in range(num_tokens):
@@ -374,19 +377,29 @@ class BobSubstrate:
             if not expert_counts:
                 continue
 
-            # Find experts above dominance threshold
+            # Find experts above dominance threshold (token frequency)
             dominant = [
                 eid for eid, cnt in expert_counts.items()
-                if cnt / total_selections > dominance_threshold
+                if cnt / num_tokens > dominance_threshold
             ]
 
             if dominant:
-                # Specialization exists: use only dominant experts
+                # Specialization exists: use dominant experts
                 dominant.sort(key=lambda e: expert_counts[e], reverse=True)
+                # Ensure minimum experts for quality (at least top_k - 2)
+                min_experts = max(2, top_k - 2)
+                if len(dominant) < min_experts:
+                    all_sorted = sorted(
+                        expert_counts.items(), key=lambda x: x[1], reverse=True
+                    )
+                    for eid, cnt in all_sorted:
+                        if eid not in dominant:
+                            dominant.append(eid)
+                        if len(dominant) >= min_experts:
+                            break
                 expert_ids = tuple(dominant)
             else:
-                # No specialization: use the most common top-k pair
-                # This preserves quality but doesn't reduce cost
+                # No specialization: use the most common top-k set
                 pair_counts: Dict[Tuple[int, ...], int] = {}
                 for i in range(num_tokens):
                     pair = tuple(sorted(
@@ -414,8 +427,11 @@ class BobSubstrate:
 
             if not representative_ids:
                 representative_ids = expert_ids
+                # Routing key: top-2 dominant, sorted for stable comparison
+                key_experts = dominant[:2] if dominant else list(expert_ids[:2])
+                routing_key = tuple(sorted(key_experts))
 
-        return MotifSpec(layers=layers), representative_ids
+        return MotifSpec(layers=layers), representative_ids, routing_key
 
     def get_traces_window(self, last_n: int) -> List[DecisionTrace]:
         """Get the last N traces."""
