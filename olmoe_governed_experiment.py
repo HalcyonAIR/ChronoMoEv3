@@ -288,6 +288,8 @@ class OLMoEExperimentConfig:
     class_block_size: int = 10  # cycle categories every N steps
     # Bob params (same as toy Phase 1)
     success_multiplier: float = 1.2
+    # Prompt limiting: use only first N prompts per category (0 = all)
+    max_prompts_per_category: int = 0
 
 
 # ─── Text Corpus ─────────────────────────────────────────────────────
@@ -306,12 +308,16 @@ class TextCorpus:
         self.total_steps = config.warmup_steps + config.active_steps
         self.tokenizer = tokenizer
 
-        # Tokenize all prompts
+        # Tokenize prompts (with optional limit per category)
+        limit = config.max_prompts_per_category
         self._tokenized: Dict[int, List[torch.Tensor]] = {}
         for cat_name in CATEGORY_NAMES:
             cat_id = CATEGORY_TO_ID[cat_name]
+            prompts = PROMPTS[cat_name]
+            if limit > 0:
+                prompts = prompts[:limit]
             tokens = []
-            for prompt in PROMPTS[cat_name]:
+            for prompt in prompts:
                 ids = tokenizer(
                     prompt,
                     return_tensors="pt",
@@ -474,14 +480,67 @@ def load_model_and_tokenizer(config: OLMoEExperimentConfig):
     return model, tokenizer, device
 
 
+def _make_run_header(
+    config: OLMoEExperimentConfig, adapter, device, seed: int,
+    enable_governor: bool, label: str,
+) -> Dict:
+    """Header written as first line of JSONL. Captures everything future-you needs."""
+    return {
+        "type": "header",
+        "model_id": config.model_name,
+        "num_experts": adapter.num_experts,
+        "top_k": adapter.top_k,
+        "num_moe_layers": adapter.num_layers,
+        "device": str(device),
+        "dtype": str(next(adapter.model.parameters()).dtype),
+        "seed": seed,
+        "label": label,
+        "governor_enabled": enable_governor,
+        "warmup_steps": config.warmup_steps,
+        "active_steps": config.active_steps,
+        "max_prompts_per_category": config.max_prompts_per_category,
+        "max_seq_len": config.max_seq_len,
+        "success_multiplier": config.success_multiplier,
+        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S"),
+    }
+
+
+def _resume_from_jsonl(jsonl_path: str) -> Tuple[int, List[Dict]]:
+    """Read existing JSONL, return (resume_step, traces).
+
+    resume_step is the next step to run (last completed + 1).
+    """
+    traces = []
+    if not os.path.exists(jsonl_path):
+        return 0, traces
+    with open(jsonl_path) as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            record = json.loads(line)
+            if record.get("type") == "header":
+                continue
+            traces.append(record)
+    if not traces:
+        return 0, traces
+    last_step = traces[-1]["step"]
+    return last_step + 1, traces
+
+
 def run_olmoe_governed(
     model, tokenizer, adapter, device,
     config: OLMoEExperimentConfig,
     seed: int = 42,
     enable_governor: bool = True,
     label: str = "governed",
+    jsonl_path: Optional[str] = None,
 ) -> Dict:
-    """Run Bob with or without governor on OLMoE, same seed."""
+    """Run Bob with or without governor on OLMoE, same seed.
+
+    If jsonl_path is set, writes one JSON line per step for crash-safe resume.
+    On restart, reads the JSONL, skips completed steps, and continues.
+    """
 
     corpus = TextCorpus(tokenizer, config, seed=seed)
 
@@ -521,9 +580,35 @@ def run_olmoe_governed(
     )
 
     total_steps = corpus.total_steps
-    t_start = time.time()
 
-    for step in range(total_steps):
+    # Resume support: check for existing JSONL
+    resume_step = 0
+    existing_traces = []
+    if jsonl_path:
+        resume_step, existing_traces = _resume_from_jsonl(jsonl_path)
+        if resume_step > 0:
+            print(f"    Resuming from step {resume_step} "
+                  f"({len(existing_traces)} traces loaded)", flush=True)
+            # Replay corpus counters to match where we left off
+            for s in range(resume_step):
+                corpus.get_batch(s)  # advances internal counters
+        else:
+            # Write header as first line
+            header = _make_run_header(
+                config, adapter, device, seed, enable_governor, label,
+            )
+            with open(jsonl_path, "w") as f:
+                f.write(json.dumps(header) + "\n")
+
+    # Open JSONL in append mode for incremental writes
+    jsonl_file = None
+    if jsonl_path:
+        jsonl_file = open(jsonl_path, "a")
+
+    t_start = time.time()
+    progress_interval = max(1, total_steps // 20)  # ~5% increments
+
+    for step in range(resume_step, total_steps):
         task_class, input_ids, labels = corpus.get_batch(step)
 
         # Move to device if needed
@@ -531,17 +616,36 @@ def run_olmoe_governed(
             input_ids = input_ids.to(device)
             labels = labels.to(device)
 
+        step_t0 = time.time()
         trace = bob.step(input_ids, labels, task_class, step)
+        step_dt = time.time() - step_t0
 
-        if step > 0 and step % 50 == 0:
+        # Write trace to JSONL immediately
+        trace_dict = trace.to_dict()
+        trace_dict["wall_seconds"] = round(step_dt, 2)
+        trace_dict["category"] = CATEGORY_NAMES[task_class]
+        if jsonl_file:
+            jsonl_file.write(json.dumps(trace_dict) + "\n")
+            jsonl_file.flush()
+
+        steps_done = step - resume_step + 1
+        if steps_done == 1 or step % progress_interval == 0 or step == total_steps - 1:
             elapsed = time.time() - t_start
-            rate = step / elapsed
-            remaining = (total_steps - step) / rate
-            print(f"    step {step}/{total_steps} "
-                  f"({rate:.1f} steps/s, ~{remaining/60:.1f}m remaining)",
+            rate = steps_done / elapsed if elapsed > 0 else 0
+            remaining_steps = total_steps - step - 1
+            eta_min = remaining_steps / rate / 60 if rate > 0 else 0
+            print(f"    step {step}/{total_steps}  "
+                  f"{step_dt:.1f}s/step  "
+                  f"~{eta_min:.1f}m left  "
+                  f"path={trace.path}  loss={trace.loss:.4f}",
                   flush=True)
 
-    raw_traces = [t.to_dict() for t in bob.traces]
+    if jsonl_file:
+        jsonl_file.close()
+
+    # Combine existing traces + new traces
+    new_traces = [t.to_dict() for t in bob.traces]
+    raw_traces = existing_traces + new_traces
 
     # Compute metrics (same logic as toy)
     active_traces = [
@@ -552,10 +656,11 @@ def run_olmoe_governed(
     cheap_count = sum(1 for t in active_traces if t["path"] == "cheap")
     total_active = len(active_traces)
 
-    # Proposed/blocked/authorized commit counts
+    # Proposed/blocked/authorized commit counts + authorized quality
     proposed_commits = 0
     blocked_commits = 0
     authorized_commits = 0
+    authorized_losses = []
 
     commits_blocked = 0
     if enable_governor:
@@ -566,12 +671,24 @@ def run_olmoe_governed(
                 proposed_commits += 1
                 if gd == "allow":
                     authorized_commits += 1
+                    authorized_losses.append(t["loss"])
                 else:
                     blocked_commits += 1
 
+    authorized_commit_quality = None
+    if authorized_losses:
+        authorized_commit_quality = {
+            "count": len(authorized_losses),
+            "avg_loss": round(sum(authorized_losses) / len(authorized_losses), 4),
+            "min_loss": round(min(authorized_losses), 4),
+            "max_loss": round(max(authorized_losses), 4),
+        }
+
+    # CTV only meaningful with sufficient sample
     ctv = compute_commit_then_violate(
         raw_traces, success_multiplier=config.success_multiplier, K=5,
     )
+    ctv["sufficient_sample"] = authorized_commits >= 20
 
     # Multi-layer routing region tracking
     all_regions_visited: Dict[int, set] = defaultdict(set)  # layer_id -> set of regions
@@ -641,6 +758,7 @@ def run_olmoe_governed(
         "proposed_commits": proposed_commits,
         "authorized_commits": authorized_commits,
         "blocked_commits": blocked_commits,
+        "authorized_commit_quality": authorized_commit_quality,
         "commit_then_violate": ctv,
         "escalation_by_class": escalation_by_class,
         # Region tracking
@@ -676,15 +794,19 @@ def diff_report(baseline: Dict, governed: Dict) -> Dict:
     g_ctv = governed["commit_then_violate"]["commit_then_violate_rate"]
     report["baseline_ctv_rate"] = b_ctv
     report["governed_ctv_rate"] = g_ctv
-    report["ctv_improved"] = g_ctv < b_ctv
     report["ctv_delta"] = round(g_ctv - b_ctv, 4)
 
     g_authorized = governed["authorized_commits"]
     report["governed_ctv_sufficient_sample"] = g_authorized >= 20
-    if g_authorized < 20:
+    if g_authorized >= 20:
+        report["ctv_improved"] = g_ctv < b_ctv
+    else:
+        report["ctv_improved"] = None  # insufficient sample
         report["governed_ctv_note"] = (
             f"insufficient sample: {g_authorized} authorized commits (need >= 20)"
         )
+
+    report["authorized_commit_quality"] = governed.get("authorized_commit_quality")
 
     report["proposed_commits"] = governed["proposed_commits"]
     report["authorized_commits"] = governed["authorized_commits"]
@@ -851,19 +973,39 @@ if __name__ == "__main__":
                         help="Warmup steps")
     parser.add_argument("--active", type=int, default=250,
                         help="Active steps")
+    parser.add_argument("--prompts", type=int, default=0,
+                        help="Max prompts per category (0=all, 4=smoke)")
+    parser.add_argument("--smoke", action="store_true",
+                        help="Smoke test: warmup=10, active=30, prompts=4")
+    parser.add_argument("--resume", action="store_true",
+                        help="Resume from existing JSONL checkpoint files")
     args = parser.parse_args()
+
+    # Smoke test overrides
+    if args.smoke:
+        args.warmup = 10
+        args.active = 30
+        args.prompts = 4
 
     config = OLMoEExperimentConfig(
         model_name=args.model,
         device=args.device,
         warmup_steps=args.warmup,
         active_steps=args.active,
+        max_prompts_per_category=args.prompts,
     )
 
+    mode_label = "SMOKE TEST" if args.smoke else "GOVERNED EXPERIMENT"
+    prompts_per_cat = args.prompts if args.prompts > 0 else len(PROMPTS[CATEGORY_NAMES[0]])
+    total_prompts = prompts_per_cat * NUM_CATEGORIES
+
     print("=" * 70)
-    print("OLMOE BOB PHASE 1: GOVERNED EXPERIMENT")
+    print(f"OLMOE BOB PHASE 2: {mode_label}")
     print(f"  Model: {config.model_name}")
     print(f"  Steps: warmup={config.warmup_steps}, active={config.active_steps}")
+    print(f"  Prompts: {prompts_per_cat}/category x {NUM_CATEGORIES} = {total_prompts}")
+    if args.resume:
+        print(f"  Resume: enabled (will continue from JSONL checkpoint)")
     print("=" * 70)
 
     model, tokenizer, device = load_model_and_tokenizer(config)
@@ -871,8 +1013,7 @@ if __name__ == "__main__":
     info = adapter.info()
     print(f"  MoE: {info['num_experts']}E top-{info['top_k']}, "
           f"{info['num_moe_layers']} layers")
-    print(f"  Prompt corpus: {sum(len(v) for v in PROMPTS.values())} prompts "
-          f"across {NUM_CATEGORIES} categories")
+    print(f"  Device: {device}, dtype: {next(model.parameters()).dtype}")
 
     if args.seeds > 1:
         summary = run_multi_seed(
@@ -888,27 +1029,40 @@ if __name__ == "__main__":
 
     else:
         seed = args.seed
+        tag = "smoke" if args.smoke else "run"
+
+        # JSONL paths for resumable per-step logging
+        base_jsonl = f"olmoe_{tag}_baseline_s{seed}.jsonl"
+        gov_jsonl = f"olmoe_{tag}_governed_s{seed}.jsonl"
 
         print(f"\n--- Running baseline (no governor) ---")
+        print(f"    JSONL: {base_jsonl}")
         baseline = run_olmoe_governed(
             model, tokenizer, adapter, device, config,
             seed=seed, enable_governor=False, label="baseline",
+            jsonl_path=base_jsonl if args.resume or True else None,
         )
         print(f"  Cheap fraction: {baseline['active_cheap_fraction']*100:.1f}%")
         print(f"  Avg loss: {baseline['avg_loss']:.4f}")
         print(f"  Commits: {baseline['commit_then_violate']['total_commits']}")
-        print(f"  CTV rate: {baseline['commit_then_violate']['commit_then_violate_rate']:.4f}")
 
         print(f"\n--- Running governed (with governor) ---")
+        print(f"    JSONL: {gov_jsonl}")
         governed = run_olmoe_governed(
             model, tokenizer, adapter, device, config,
             seed=seed, enable_governor=True, label="governed",
+            jsonl_path=gov_jsonl if args.resume or True else None,
         )
         print(f"  Cheap fraction: {governed['active_cheap_fraction']*100:.1f}%")
         print(f"  Avg loss: {governed['avg_loss']:.4f}")
-        print(f"  Commits: {governed['commit_then_violate']['total_commits']}")
-        print(f"  CTV rate: {governed['commit_then_violate']['commit_then_violate_rate']:.4f}")
-        print(f"  Commits blocked: {governed['commits_blocked']}")
+        print(f"  Proposed: {governed['proposed_commits']}")
+        print(f"  Authorized: {governed['authorized_commits']}")
+        print(f"  Blocked: {governed['blocked_commits']}")
+
+        if governed.get("authorized_commit_quality"):
+            acq = governed["authorized_commit_quality"]
+            print(f"  Authorized commit quality: avg={acq['avg_loss']:.4f} "
+                  f"[{acq['min_loss']:.4f}, {acq['max_loss']:.4f}]")
 
         if governed["scars"]:
             print(f"  Scars: {governed['scars']['total_scars']} regions, "
@@ -928,17 +1082,29 @@ if __name__ == "__main__":
         print(f"  commits_blocked > 0:  "
               f"{'PASS' if report['commits_blocked_pass'] else 'FAIL'} "
               f"({report['commits_blocked']})")
-        print(f"  CTV drops:            "
-              f"{'PASS' if report['ctv_improved'] else 'FAIL'} "
-              f"(base={report['baseline_ctv_rate']:.4f}, "
-              f"gov={report['governed_ctv_rate']:.4f}, "
-              f"delta={report['ctv_delta']:+.4f})")
+
+        ctv_status = report.get("ctv_improved")
+        if ctv_status is None:
+            print(f"  CTV:                  INSUFFICIENT SAMPLE "
+                  f"(authorized={report['authorized_commits']}, need >= 20)")
+        else:
+            print(f"  CTV drops:            "
+                  f"{'PASS' if ctv_status else 'FAIL'} "
+                  f"(base={report['baseline_ctv_rate']:.4f}, "
+                  f"gov={report['governed_ctv_rate']:.4f}, "
+                  f"delta={report['ctv_delta']:+.4f})")
+
         print(f"  Loss not degraded:    "
               f"{'PASS' if report['loss_delta'] <= 0.05 else 'WARN'} "
               f"(delta={report['loss_delta']:+.4f})")
 
         if report.get("governed_ctv_note"):
             print(f"  NOTE: {report['governed_ctv_note']}")
+
+        if report.get("authorized_commit_quality"):
+            acq = report["authorized_commit_quality"]
+            print(f"  Authorized quality:   "
+                  f"n={acq['count']}, avg_loss={acq['avg_loss']:.4f}")
 
         if report.get("escalation_by_class"):
             print(f"\n  ESCALATION BY CATEGORY:")
@@ -947,7 +1113,7 @@ if __name__ == "__main__":
                 print(f"    {cat_name:>12}: "
                       f"{e['blocked']}/{e['total']} = {e['rate']:.1%}")
 
-        report_path = "olmoe_governed_report.json"
+        report_path = f"olmoe_{tag}_report_s{seed}.json"
         with open(report_path, "w") as f:
             json.dump(report, f, indent=2, default=str)
         print(f"\n  Report saved to {report_path}")
