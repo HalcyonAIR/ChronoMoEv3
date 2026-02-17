@@ -1,0 +1,33 @@
+{
+  "hysteresis": {
+    "traces_before": 60,
+    "traces_during": 30,
+    "traces_after": 210,
+    "pca_variance_explained": [
+      0.324,
+      0.5815,
+      0.7203,
+      0.8003,
+      0.872
+    ],
+    "centroids": {
+      "before": [
+        0.9785,
+        1.4257
+      ],
+      "during": [
+        -0.3658,
+        -0.5944
+      ],
+      "after": [
+        -0.2273,
+        -0.3224
+      ]
+    },
+    "hysteresis_distance": 2.1237,
+    "hysteresis_confirmed": true,
+    "centroid_threshold": 0.5,
+    "loop_area": 14.6511,
+    "plot": "qwen_results_seed15_hysteresis_noscars/hysteresis_trajectory.png"
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "manifold": {
+    "governed_samples": 250,
+    "baseline_samples": 250,
+    "feature_preset": "governance",
+    "pca_variance_explained": [
+      0.8212,
+      0.9956,
+      1.0
+    ],
+    "pca_individual": [
+      0.8212,
+      0.1743,
+      0.0044
+    ],
+    "silhouette_score": 0.7901,
+    "feature_names": [
+      "medium_activation",
+      "scar_debt",
+      "flipflop_ema"
+    ],
+    "plot": "qwen_results_seed15_governance/manifold_pca_governance.png",
+    "loadings": {
+      "PC1": {
+        "medium_activation": 0.6234,
+        "scar_debt": 0.6015,
+        "flipflop_ema": 0.4995
+      },
+      "PC2": {
+        "medium_activation": -0.2601,
+        "scar_debt": -0.4429,
+        "flipflop_ema": 0.858
+      },
+      "PC3": {
+        "medium_activation": 0.7374,
+        "scar_debt": -0.6648,
+        "flipflop_ema": -0.1196
+      }
+    }
+  }
+}

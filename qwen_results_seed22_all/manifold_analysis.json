@@ -1,0 +1,69 @@
+{
+  "manifold": {
+    "governed_samples": 250,
+    "baseline_samples": 250,
+    "feature_preset": "all",
+    "pca_variance_explained": [
+      0.4676,
+      0.6348,
+      0.7577,
+      0.8555,
+      0.9285
+    ],
+    "pca_individual": [
+      0.4676,
+      0.1673,
+      0.1229,
+      0.0978,
+      0.073
+    ],
+    "silhouette_score": 0.6286,
+    "feature_names": [
+      "router_entropy",
+      "churn",
+      "flipflop_ema",
+      "medium_activation",
+      "scar_debt",
+      "loss",
+      "neff",
+      "expert_id_0",
+      "expert_id_1"
+    ],
+    "plot": "qwen_results_seed22_all/manifold_pca.png",
+    "loadings": {
+      "PC1": {
+        "router_entropy": 0.2573,
+        "churn": 0.4165,
+        "flipflop_ema": 0.2128,
+        "medium_activation": 0.4466,
+        "scar_debt": 0.4561,
+        "loss": -0.1351,
+        "neff": 0.4449,
+        "expert_id_0": -0.2036,
+        "expert_id_1": -0.2235
+      },
+      "PC2": {
+        "router_entropy": 0.5787,
+        "churn": -0.0803,
+        "flipflop_ema": -0.3876,
+        "medium_activation": -0.28,
+        "scar_debt": -0.2062,
+        "loss": -0.5435,
+        "neff": 0.1514,
+        "expert_id_0": 0.0587,
+        "expert_id_1": -0.2564
+      },
+      "PC3": {
+        "router_entropy": 0.1099,
+        "churn": -0.2833,
+        "flipflop_ema": 0.5659,
+        "medium_activation": 0.0844,
+        "scar_debt": -0.0007,
+        "loss": -0.541,
+        "neff": -0.0257,
+        "expert_id_0": 0.0523,
+        "expert_id_1": 0.533
+      }
+    }
+  }
+}

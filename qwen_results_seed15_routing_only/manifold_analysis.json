@@ -1,0 +1,47 @@
+{
+  "manifold": {
+    "governed_samples": 250,
+    "baseline_samples": 250,
+    "feature_preset": "routing_only",
+    "pca_variance_explained": [
+      0.5117,
+      0.7662,
+      0.9226,
+      1.0
+    ],
+    "pca_individual": [
+      0.5117,
+      0.2545,
+      0.1564,
+      0.0774
+    ],
+    "silhouette_score": 0.4366,
+    "feature_names": [
+      "router_entropy",
+      "churn",
+      "flipflop_ema",
+      "neff"
+    ],
+    "plot": "qwen_results_seed15_routing_only/manifold_pca_routing_only.png",
+    "loadings": {
+      "PC1": {
+        "router_entropy": 0.4826,
+        "churn": 0.5576,
+        "flipflop_ema": 0.2425,
+        "neff": 0.6304
+      },
+      "PC2": {
+        "router_entropy": -0.4781,
+        "churn": 0.0329,
+        "flipflop_ema": 0.8777,
+        "neff": -0.0007
+      },
+      "PC3": {
+        "router_entropy": -0.626,
+        "churn": 0.6881,
+        "flipflop_ema": -0.3668,
+        "neff": 0.0118
+      }
+    }
+  }
+}

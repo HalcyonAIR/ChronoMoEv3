@@ -1,0 +1,33 @@
+{
+  "hysteresis": {
+    "traces_before": 60,
+    "traces_during": 30,
+    "traces_after": 210,
+    "pca_variance_explained": [
+      0.3131,
+      0.5053,
+      0.6269,
+      0.7416,
+      0.8333
+    ],
+    "centroids": {
+      "before": [
+        -1.2602,
+        -0.425
+      ],
+      "during": [
+        1.5645,
+        -0.3069
+      ],
+      "after": [
+        0.1366,
+        0.1653
+      ]
+    },
+    "hysteresis_distance": 1.5164,
+    "hysteresis_confirmed": true,
+    "centroid_threshold": 0.5,
+    "loop_area": 15.0755,
+    "plot": "qwen_results_seed15_hysteresis/hysteresis_trajectory.png"
+  }
+}
