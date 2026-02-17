@@ -850,16 +850,21 @@ def run_multi_seed(
         seed = i * 7 + 1
         print(f"\n  seed {seed:>4} ({i+1}/{num_seeds})", flush=True)
 
+        base_jsonl = f"olmoe_run_baseline_s{seed}.jsonl"
+        gov_jsonl = f"olmoe_run_governed_s{seed}.jsonl"
+
         print(f"    Running baseline (no governor)...", flush=True)
         baseline = run_olmoe_governed(
             model, tokenizer, adapter, device, config,
             seed=seed, enable_governor=False, label=f"base_{seed}",
+            jsonl_path=base_jsonl,
         )
 
         print(f"    Running governed...", flush=True)
         governed = run_olmoe_governed(
             model, tokenizer, adapter, device, config,
             seed=seed, enable_governor=True, label=f"gov_{seed}",
+            jsonl_path=gov_jsonl,
         )
 
         report = diff_report(baseline, governed)
@@ -1022,7 +1027,8 @@ if __name__ == "__main__":
         )
         print_summary(summary)
 
-        report_path = "olmoe_governed_multiseed.json"
+        tag = "smoke" if args.smoke else "run"
+        report_path = f"olmoe_{tag}_multiseed_{args.seeds}s.json"
         with open(report_path, "w") as f:
             json.dump(summary, f, indent=2, default=str)
         print(f"\n  Report saved to {report_path}")

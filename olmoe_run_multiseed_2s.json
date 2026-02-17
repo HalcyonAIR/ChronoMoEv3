@@ -1,0 +1,234 @@
+{
+  "num_seeds": 2,
+  "model": "allenai/OLMoE-1B-7B-0924",
+  "seeds": [
+    1,
+    8
+  ],
+  "distributions": {
+    "commits_blocked": {
+      "min": 9.0,
+      "p25": 9.0,
+      "median": 9.5,
+      "p75": 10.0,
+      "max": 10.0,
+      "mean": 9.5
+    },
+    "ctv_delta": {
+      "min": -0.2831,
+      "p25": -0.2831,
+      "median": -0.2263,
+      "p75": -0.1694,
+      "max": -0.1694,
+      "mean": -0.2263
+    },
+    "loss_delta": {
+      "min": -0.0473,
+      "p25": -0.0473,
+      "median": -0.0441,
+      "p75": -0.0409,
+      "max": -0.0409,
+      "mean": -0.0441
+    },
+    "proposed_commits": {
+      "min": 26.0,
+      "p25": 26.0,
+      "median": 27.0,
+      "p75": 28.0,
+      "max": 28.0,
+      "mean": 27.0
+    },
+    "authorized_commits": {
+      "min": 17.0,
+      "p25": 17.0,
+      "median": 17.5,
+      "p75": 18.0,
+      "max": 18.0,
+      "mean": 17.5
+    },
+    "blocked_commits": {
+      "min": 9.0,
+      "p25": 9.0,
+      "median": 9.5,
+      "p75": 10.0,
+      "max": 10.0,
+      "mean": 9.5
+    },
+    "scar_saturation": {
+      "min": 0.16,
+      "p25": 0.16,
+      "median": 0.18,
+      "p75": 0.2,
+      "max": 0.2,
+      "mean": 0.18
+    }
+  },
+  "acceptance": {
+    "commits_blocked_all_pass": true,
+    "ctv_sufficient_sample_count": 0,
+    "ctv_sufficient_improved": 0,
+    "loss_ok_count": 2
+  },
+  "per_seed": [
+    {
+      "baseline_seed": 1,
+      "governed_seed": 1,
+      "same_seed": true,
+      "model": "allenai/OLMoE-1B-7B-0924",
+      "num_experts": 64,
+      "top_k": 8,
+      "num_moe_layers": 16,
+      "commits_blocked": 9,
+      "commits_blocked_pass": true,
+      "baseline_ctv_rate": 0.7576,
+      "governed_ctv_rate": 0.5882,
+      "ctv_delta": -0.1694,
+      "governed_ctv_sufficient_sample": false,
+      "ctv_improved": null,
+      "governed_ctv_note": "insufficient sample: 17 authorized commits (need >= 20)",
+      "authorized_commit_quality": {
+        "count": 17,
+        "avg_loss": 0.9361,
+        "min_loss": 0.3938,
+        "max_loss": 1.7261
+      },
+      "proposed_commits": 26,
+      "authorized_commits": 17,
+      "blocked_commits": 9,
+      "blocked_commit_rate": 0.3462,
+      "baseline_avg_loss": 1.5813,
+      "governed_avg_loss": 1.534,
+      "loss_delta": -0.0473,
+      "baseline_cheap_fraction": 0.33,
+      "governed_cheap_fraction": 0.17,
+      "unique_regions_visited": 50,
+      "scar_saturation": 0.16,
+      "total_debt": 1.0,
+      "escalation_by_class": {
+        "0": {
+          "total": 20,
+          "blocked": 5,
+          "rate": 0.25,
+          "category": "code"
+        },
+        "1": {
+          "total": 20,
+          "blocked": 0,
+          "rate": 0.0,
+          "category": "dialogue"
+        },
+        "2": {
+          "total": 20,
+          "blocked": 0,
+          "rate": 0.0,
+          "category": "factual"
+        },
+        "3": {
+          "total": 20,
+          "blocked": 4,
+          "rate": 0.2,
+          "category": "math"
+        },
+        "4": {
+          "total": 20,
+          "blocked": 0,
+          "rate": 0.0,
+          "category": "reasoning"
+        }
+      },
+      "scars": {
+        "total_scars": 8,
+        "total_visited": 50,
+        "scar_saturation": 0.16,
+        "total_debt": 1.0
+      },
+      "medium_clock": {
+        "churn_ema": 0.355,
+        "flipflop_ema": 0.0219,
+        "outcome_var_ema": 1.0245,
+        "escalation_ema": 0.0209,
+        "activation": 0.3221
+      }
+    },
+    {
+      "baseline_seed": 8,
+      "governed_seed": 8,
+      "same_seed": true,
+      "model": "allenai/OLMoE-1B-7B-0924",
+      "num_experts": 64,
+      "top_k": 8,
+      "num_moe_layers": 16,
+      "commits_blocked": 10,
+      "commits_blocked_pass": true,
+      "baseline_ctv_rate": 0.8387,
+      "governed_ctv_rate": 0.5556,
+      "ctv_delta": -0.2831,
+      "governed_ctv_sufficient_sample": false,
+      "ctv_improved": null,
+      "governed_ctv_note": "insufficient sample: 18 authorized commits (need >= 20)",
+      "authorized_commit_quality": {
+        "count": 18,
+        "avg_loss": 0.9952,
+        "min_loss": 0.3976,
+        "max_loss": 1.8365
+      },
+      "proposed_commits": 28,
+      "authorized_commits": 18,
+      "blocked_commits": 10,
+      "blocked_commit_rate": 0.3571,
+      "baseline_avg_loss": 1.5862,
+      "governed_avg_loss": 1.5453,
+      "loss_delta": -0.0409,
+      "baseline_cheap_fraction": 0.31,
+      "governed_cheap_fraction": 0.18,
+      "unique_regions_visited": 50,
+      "scar_saturation": 0.2,
+      "total_debt": 1.0,
+      "escalation_by_class": {
+        "0": {
+          "total": 20,
+          "blocked": 5,
+          "rate": 0.25,
+          "category": "code"
+        },
+        "1": {
+          "total": 20,
+          "blocked": 0,
+          "rate": 0.0,
+          "category": "dialogue"
+        },
+        "2": {
+          "total": 20,
+          "blocked": 0,
+          "rate": 0.0,
+          "category": "factual"
+        },
+        "3": {
+          "total": 20,
+          "blocked": 5,
+          "rate": 0.25,
+          "category": "math"
+        },
+        "4": {
+          "total": 20,
+          "blocked": 0,
+          "rate": 0.0,
+          "category": "reasoning"
+        }
+      },
+      "scars": {
+        "total_scars": 10,
+        "total_visited": 50,
+        "scar_saturation": 0.2,
+        "total_debt": 1.0
+      },
+      "medium_clock": {
+        "churn_ema": 0.3883,
+        "flipflop_ema": 0.1089,
+        "outcome_var_ema": 1.0509,
+        "escalation_ema": 0.0026,
+        "activation": 0.3598
+      }
+    }
+  ]
+}
