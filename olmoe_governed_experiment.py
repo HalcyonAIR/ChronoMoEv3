@@ -290,6 +290,8 @@ class OLMoEExperimentConfig:
     success_multiplier: float = 1.2
     # Prompt limiting: use only first N prompts per category (0 = all)
     max_prompts_per_category: int = 0
+    # Prompt offset: skip first N prompts per category (for perturbation tests)
+    prompt_offset: int = 0
 
 
 # ─── Text Corpus ─────────────────────────────────────────────────────
@@ -308,12 +310,13 @@ class TextCorpus:
         self.total_steps = config.warmup_steps + config.active_steps
         self.tokenizer = tokenizer
 
-        # Tokenize prompts (with optional limit per category)
+        # Tokenize prompts (with optional offset and limit per category)
+        offset = config.prompt_offset
         limit = config.max_prompts_per_category
         self._tokenized: Dict[int, List[torch.Tensor]] = {}
         for cat_name in CATEGORY_NAMES:
             cat_id = CATEGORY_TO_ID[cat_name]
-            prompts = PROMPTS[cat_name]
+            prompts = PROMPTS[cat_name][offset:]
             if limit > 0:
                 prompts = prompts[:limit]
             tokens = []
@@ -483,9 +486,12 @@ def load_model_and_tokenizer(config: OLMoEExperimentConfig):
 def _make_run_header(
     config: OLMoEExperimentConfig, adapter, device, seed: int,
     enable_governor: bool, label: str,
+    scars_disabled: bool = False,
+    perturb_at_step: Optional[int] = None,
+    perturb_duration: int = 30,
 ) -> Dict:
     """Header written as first line of JSONL. Captures everything future-you needs."""
-    return {
+    header = {
         "type": "header",
         "model_id": config.model_name,
         "num_experts": adapter.num_experts,
@@ -499,10 +505,17 @@ def _make_run_header(
         "warmup_steps": config.warmup_steps,
         "active_steps": config.active_steps,
         "max_prompts_per_category": config.max_prompts_per_category,
+        "prompt_offset": config.prompt_offset,
         "max_seq_len": config.max_seq_len,
         "success_multiplier": config.success_multiplier,
         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S"),
     }
+    if scars_disabled:
+        header["scars_disabled"] = True
+    if perturb_at_step is not None:
+        header["perturb_at_step"] = perturb_at_step
+        header["perturb_duration"] = perturb_duration
+    return header
 
 
 def _resume_from_jsonl(jsonl_path: str) -> Tuple[int, List[Dict]]:
@@ -535,6 +548,9 @@ def run_olmoe_governed(
     enable_governor: bool = True,
     label: str = "governed",
     jsonl_path: Optional[str] = None,
+    no_scars: bool = False,
+    perturb_at_step: Optional[int] = None,
+    perturb_duration: int = 30,
 ) -> Dict:
     """Run Bob with or without governor on OLMoE, same seed.
 
@@ -560,6 +576,9 @@ def run_olmoe_governed(
             debt_threshold=0.7,
         )
         promotion_gate = PromotionGate(stability_window=20)
+
+        if no_scars:
+            bob_core.scars.enabled = False
 
     bob = BobSubstrate(
         adapter,
@@ -596,6 +615,9 @@ def run_olmoe_governed(
             # Write header as first line
             header = _make_run_header(
                 config, adapter, device, seed, enable_governor, label,
+                scars_disabled=no_scars,
+                perturb_at_step=perturb_at_step,
+                perturb_duration=perturb_duration,
             )
             with open(jsonl_path, "w") as f:
                 f.write(json.dumps(header) + "\n")
@@ -609,6 +631,14 @@ def run_olmoe_governed(
     progress_interval = max(1, total_steps // 20)  # ~5% increments
 
     for step in range(resume_step, total_steps):
+        # Perturbation: toggle scars off/on at specified steps
+        # --no-scars takes priority: never re-enable
+        if perturb_at_step is not None and bob_core is not None and not no_scars:
+            if step == perturb_at_step:
+                bob_core.scars.enabled = False
+            elif step == perturb_at_step + perturb_duration:
+                bob_core.scars.enabled = True
+
         task_class, input_ids, labels = corpus.get_batch(step)
 
         # Move to device if needed
@@ -624,6 +654,15 @@ def run_olmoe_governed(
         trace_dict = trace.to_dict()
         trace_dict["wall_seconds"] = round(step_dt, 2)
         trace_dict["category"] = CATEGORY_NAMES[task_class]
+
+        # Perturbation phase annotation
+        if perturb_at_step is not None:
+            if step < perturb_at_step:
+                trace_dict["perturb_phase"] = "before"
+            elif step < perturb_at_step + perturb_duration:
+                trace_dict["perturb_phase"] = "during"
+            else:
+                trace_dict["perturb_phase"] = "after"
         if jsonl_file:
             jsonl_file.write(json.dumps(trace_dict) + "\n")
             jsonl_file.flush()
@@ -980,10 +1019,18 @@ if __name__ == "__main__":
                         help="Active steps")
     parser.add_argument("--prompts", type=int, default=0,
                         help="Max prompts per category (0=all, 4=smoke)")
+    parser.add_argument("--prompt-offset", type=int, default=0,
+                        help="Skip first N prompts per category (perturbation test)")
     parser.add_argument("--smoke", action="store_true",
                         help="Smoke test: warmup=10, active=30, prompts=4")
     parser.add_argument("--resume", action="store_true",
                         help="Resume from existing JSONL checkpoint files")
+    parser.add_argument("--no-scars", action="store_true",
+                        help="Disable scar recording (ablation)")
+    parser.add_argument("--perturb-at-step", type=int, default=None,
+                        help="Step at which to disable scars (perturbation test)")
+    parser.add_argument("--perturb-duration", type=int, default=30,
+                        help="Steps to keep scars disabled during perturbation")
     args = parser.parse_args()
 
     # Smoke test overrides
@@ -998,6 +1045,7 @@ if __name__ == "__main__":
         warmup_steps=args.warmup,
         active_steps=args.active,
         max_prompts_per_category=args.prompts,
+        prompt_offset=args.prompt_offset,
     )
 
     mode_label = "SMOKE TEST" if args.smoke else "GOVERNED EXPERIMENT"
@@ -1008,7 +1056,8 @@ if __name__ == "__main__":
     print(f"OLMOE BOB PHASE 2: {mode_label}")
     print(f"  Model: {config.model_name}")
     print(f"  Steps: warmup={config.warmup_steps}, active={config.active_steps}")
-    print(f"  Prompts: {prompts_per_cat}/category x {NUM_CATEGORIES} = {total_prompts}")
+    print(f"  Prompts: {prompts_per_cat}/category x {NUM_CATEGORIES} = {total_prompts}"
+          + (f" (offset={args.prompt_offset})" if args.prompt_offset else ""))
     if args.resume:
         print(f"  Resume: enabled (will continue from JSONL checkpoint)")
     print("=" * 70)
@@ -1058,6 +1107,9 @@ if __name__ == "__main__":
             model, tokenizer, adapter, device, config,
             seed=seed, enable_governor=True, label="governed",
             jsonl_path=gov_jsonl if args.resume or True else None,
+            no_scars=args.no_scars,
+            perturb_at_step=args.perturb_at_step,
+            perturb_duration=args.perturb_duration,
         )
         print(f"  Cheap fraction: {governed['active_cheap_fraction']*100:.1f}%")
         print(f"  Avg loss: {governed['avg_loss']:.4f}")

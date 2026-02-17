@@ -5,7 +5,7 @@ Bob talks ONLY to this interface. No model-specific imports in bob_core/.
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Protocol, Tuple
+from typing import Dict, List, Optional, Protocol, Tuple, Union
 from enum import Enum
 import torch
 
@@ -28,6 +28,7 @@ class LayerSnapshot:
     expert_usage: torch.Tensor         # Selection frequency [num_experts], sums to 1.0
                                        # Semantics: fraction of total selections per expert
                                        # Comparable to uniform baseline = 1/num_experts
+    mean_entropy: Optional[float] = None  # Mean per-token router entropy for this layer
 
 
 @dataclass

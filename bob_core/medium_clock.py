@@ -24,6 +24,7 @@ class MediumClockState:
     escalation_ema: float = 0.0    # EMA of governor blocks
     provisional_active: bool = False
     provisional_ttl: int = 0
+    last_churn: float = 0.0        # Raw Jaccard distance from most recent tick
 
 
 class MediumClock:
@@ -74,6 +75,8 @@ class MediumClock:
             churn = 1.0 - (len(intersection) / len(union)) if union else 0.0
         else:
             churn = 0.0
+
+        self._state.last_churn = churn
 
         # Flipflop: did the path alternate?
         if self._last_path is not None and path != self._last_path:

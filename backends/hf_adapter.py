@@ -245,10 +245,18 @@ class HFMoEAdapter:
                         probs = F.softmax(logits.float(), dim=-1)
                         weights, indices = torch.topk(probs, tk, dim=-1)
 
+                    # Compute per-token entropy for geometry logging
+                    with torch.no_grad():
+                        probs_ent = F.softmax(logits.float(), dim=-1)
+                        log_probs_ent = torch.log(probs_ent + 1e-8)
+                        ent = -(probs_ent * log_probs_ent).sum(dim=-1)
+                        mean_ent = ent.mean().item()
+
                     self._captured[lid] = {
                         "router_logits": logits.detach(),
                         "selected_experts": indices.detach(),
                         "routing_weights": weights.detach(),
+                        "mean_entropy": mean_ent,
                     }
 
                     return output
@@ -289,6 +297,7 @@ class HFMoEAdapter:
                 selected_experts=selected,
                 routing_weights=weights,
                 expert_usage=expert_usage,
+                mean_entropy=data.get("mean_entropy"),
             ))
         return snapshots
 

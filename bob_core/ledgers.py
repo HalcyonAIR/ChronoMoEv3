@@ -247,16 +247,20 @@ class ScarLedger:
     """
 
     def __init__(self, compound_factor: float = 0.3, half_life: int = 200,
-                 cooldown_steps: int = 100):
+                 cooldown_steps: int = 100, enabled: bool = True):
         self._scars: Dict[Tuple[int, ...], Scar] = {}  # routing_region -> Scar
         self._next_id: int = 0
         self.compound_factor = compound_factor
         self.half_life = half_life
         self.cooldown_steps = cooldown_steps
+        self.enabled = enabled
 
     def record_harm(
         self, routing_region: Tuple[int, ...], severity: float, step: int
     ) -> Scar:
+        if not self.enabled:
+            return Scar(scar_id=-1, routing_region=tuple(sorted(routing_region)),
+                        severity=0.0, created_step=step, last_triggered_step=step)
         region = tuple(sorted(routing_region))
         if region in self._scars:
             scar = self._scars[region]
@@ -301,6 +305,8 @@ class ScarLedger:
 
         This prevents ancient scars from permanently blocking regions.
         """
+        if not self.enabled:
+            return False
         region = tuple(sorted(routing_region))
         scar = self._scars.get(region)
         if not scar:

@@ -240,6 +240,25 @@ class BobSubstrate:
             from bob_core.ledgers import RoutingVector
             routing_vector = RoutingVector.from_snapshot(result.snapshots[0])
 
+        # --- Geometry: compute fields for trajectory logging ---
+        router_entropy = None
+        if result.snapshots:
+            ents = [s.mean_entropy for s in result.snapshots if s.mean_entropy is not None]
+            if ents:
+                router_entropy = sum(ents) / len(ents)
+
+        neff = None
+        if result.snapshots and result.snapshots[0].expert_usage is not None:
+            usage = result.snapshots[0].expert_usage
+            usage_sq = (usage * usage).sum().item()
+            if usage_sq > 0:
+                neff = 1.0 / usage_sq
+
+        routing_weights_top = None
+        if result.snapshots and result.snapshots[0].routing_weights is not None:
+            mean_wts = result.snapshots[0].routing_weights.float().mean(dim=0)
+            routing_weights_top = [round(float(w), 4) for w in mean_wts]
+
         # --- 8-9. BobCore outcome processing ---
         commitment = None
         if self.bob_core is not None:
@@ -305,6 +324,21 @@ class BobSubstrate:
             )
             medium_activation = self.medium_clock.activation
 
+        # --- Geometry: extract remaining fields ---
+        churn_val = self.medium_clock.state.last_churn if self.medium_clock else None
+        flipflop_ema_val = self.medium_clock.state.flipflop_ema if self.medium_clock else None
+
+        scar_hit = None
+        if self.bob_core is not None and expert_ids:
+            region = tuple(sorted(expert_ids))
+            scar_hit = self.bob_core.scars.is_in_scar_neighborhood(region, step)
+
+        baseline_loss_val = None
+        if self.bob_core is not None:
+            bl = self.bob_core.commitments.baseline_loss(context_class)
+            if bl != float("inf"):
+                baseline_loss_val = bl
+
         # Update prev state for next step
         self._prev_expert_ids = expert_ids
         self._prev_loss = loss_val
@@ -335,6 +369,13 @@ class BobSubstrate:
             cost_cheap_fraction=cost_cheap_fraction,
             commitment_id=commitment_id,
             identity_weight=identity_weight,
+            router_entropy=router_entropy,
+            churn=churn_val,
+            scar_hit=scar_hit,
+            baseline_loss=baseline_loss_val,
+            neff=neff,
+            flipflop_ema=flipflop_ema_val,
+            routing_weights_top=routing_weights_top,
         )
         self.traces.append(trace)
         return trace
