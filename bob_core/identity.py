@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+# Copyright 2026 Halcyon AI Research (jeff@halcyon.ie)
 """
 Identity boundary: weights events by identity relevance.
 

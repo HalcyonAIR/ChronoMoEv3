@@ -1,0 +1,26 @@
+Copyright 2026 Halcyon AI Research
+All rights reserved.
+
+Contact: jeff@halcyon.ie
+
+Halcyon AI Research
+9 Portnick Drive
+Ballinasloe, Ireland
+H52 YH68
+
+The Bob consequence substrate, including all files in the bob_core/
+directory and the following experiment/analysis scripts, is the
+intellectual property of Halcyon AI Research:
+
+  bob_core/              - Core substrate, clocks, governor, telemetry
+  backends/mlx_adapter.py
+  chronomoe_integration/ - ChronoMoE integration layer
+  olmoe_governed_experiment.py
+  qwen_governed_experiment.py
+  analyze_manifold.py
+  plot_three_clocks.py
+
+Licensed under PolyForm Noncommercial 1.0.0 for noncommercial use.
+Commercial use requires a paid license. See COMMERCIAL.md.
+
+"Bob" and "Halcyon" are trademarks of Halcyon AI Research.

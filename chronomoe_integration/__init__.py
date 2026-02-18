@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+# Copyright 2026 Halcyon AI Research (jeff@halcyon.ie)
 """
 ChronoMoE Integration for swiss-ai/MoE.
 
@@ -75,6 +77,11 @@ from chronomoe_integration.convergence import (
     DeformationRegime,
     derive_thresholds_from_baseline,
 )
+from chronomoe_integration.commitment_cache import (
+    CommitmentCache,
+    MotifEntry,
+    DecisionTrace,
+)
 
 __all__ = [
     "ChronoMoE",
@@ -130,4 +137,8 @@ __all__ = [
     "DivergenceEvent",
     "DeformationRegime",
     "derive_thresholds_from_baseline",
+    # Commitment Cache
+    "CommitmentCache",
+    "MotifEntry",
+    "DecisionTrace",
 ]

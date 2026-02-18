@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+# Copyright 2026 Halcyon AI Research (jeff@halcyon.ie)
 """
 Medium clock: stateful filter that outputs instability signals.
 
@@ -12,7 +14,7 @@ Explicitly separate file — not buried in governor.
 """
 
 from dataclasses import dataclass
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 
 
 @dataclass
@@ -21,7 +23,6 @@ class MediumClockState:
     churn_ema: float = 0.0         # EMA of routing-change magnitude (Jaccard distance)
     flipflop_ema: float = 0.0      # EMA of cheap/full alternation
     outcome_var_ema: float = 0.0   # EMA of |loss_change| between same-class steps
-    escalation_ema: float = 0.0    # EMA of governor blocks
     provisional_active: bool = False
     provisional_ttl: int = 0
     last_churn: float = 0.0        # Raw Jaccard distance from most recent tick
@@ -37,16 +38,26 @@ class MediumClock:
         self,
         ema_alpha: float = 0.1,
         instability_threshold: float = 0.5,
-        churn_weight: float = 0.3,
+        governor_threshold: float = 0.5,
+        churn_weight: float = 0.4,
         flipflop_weight: float = 0.3,
-        outcome_weight: float = 0.2,
-        escalation_weight: float = 0.2,
+        outcome_weight: float = 0.3,
+        calibration_steps: int = 0,
+        calibration_percentile: float = 90.0,
     ):
         self.ema_alpha = ema_alpha
         self.instability_threshold = instability_threshold
-        self._weights = (churn_weight, flipflop_weight, outcome_weight, escalation_weight)
+        self.governor_threshold = governor_threshold
+        self._weights = (churn_weight, flipflop_weight, outcome_weight)
         self._state = MediumClockState()
         self._last_path: Optional[str] = None
+
+        # Calibration state
+        self._calibration_steps = calibration_steps
+        self._calibration_percentile = calibration_percentile
+        self._calibration_samples: List[float] = []
+        self._calibrated = calibration_steps == 0
+        self._tick_count = 0
 
     def tick(
         self,
@@ -54,15 +65,15 @@ class MediumClock:
         curr_expert_ids: Tuple[int, ...],
         prev_loss: Optional[float],
         curr_loss: float,
-        was_blocked: bool,
         path: str,
     ) -> MediumClockState:
         """Update all EMAs from this step's observations.
 
+        Reads routing signals only. No governor decisions in state.
+
         churn_ema: Jaccard distance between prev/curr expert sets
         flipflop_ema: 1.0 if path alternated from last step, else 0.0
         outcome_var_ema: |curr_loss - prev_loss|
-        escalation_ema: 1.0 if was_blocked, else 0.0
         """
         alpha = self.ema_alpha
 
@@ -91,14 +102,10 @@ class MediumClock:
         else:
             outcome_var = 0.0
 
-        # Escalation: governor blocked
-        escalation = 1.0 if was_blocked else 0.0
-
-        # Update EMAs
+        # Update EMAs (3 signals, no escalation)
         self._state.churn_ema = (1 - alpha) * self._state.churn_ema + alpha * churn
         self._state.flipflop_ema = (1 - alpha) * self._state.flipflop_ema + alpha * flipflop
         self._state.outcome_var_ema = (1 - alpha) * self._state.outcome_var_ema + alpha * outcome_var
-        self._state.escalation_ema = (1 - alpha) * self._state.escalation_ema + alpha * escalation
 
         # Tick provisional
         if self._state.provisional_active:
@@ -106,17 +113,46 @@ class MediumClock:
             if self._state.provisional_ttl <= 0:
                 self._state.provisional_active = False
 
+        self._tick_count += 1
+
+        # Calibration: collect samples, then freeze threshold
+        if not self._calibrated:
+            self._calibration_samples.append(self.activation)
+            if self._tick_count >= self._calibration_steps:
+                self._finalize_calibration()
+
         return self._state
+
+    def _finalize_calibration(self):
+        """Set governor_threshold from observed activation distribution."""
+        if self._calibration_samples:
+            samples = sorted(self._calibration_samples)
+            n = len(samples)
+            idx = (self._calibration_percentile / 100.0) * (n - 1)
+            lo = int(idx)
+            hi = min(lo + 1, n - 1)
+            frac = idx - lo
+            threshold = samples[lo] * (1 - frac) + samples[hi] * frac
+            self.governor_threshold = max(0.1, threshold)
+
+        self._calibrated = True
+        self._calibration_samples = []
+
+    @property
+    def calibrated(self) -> bool:
+        return self._calibrated
 
     @property
     def activation(self) -> float:
-        """0-1 instability signal. Weighted sum of EMAs, clipped."""
+        """0-1 instability signal. Weighted sum of 3 EMAs, clipped.
+
+        Reads routing signals only. No governor decisions in this computation.
+        """
         w = self._weights
         raw = (
             w[0] * self._state.churn_ema
             + w[1] * self._state.flipflop_ema
             + w[2] * self._state.outcome_var_ema
-            + w[3] * self._state.escalation_ema
         )
         return max(0.0, min(1.0, raw))
 

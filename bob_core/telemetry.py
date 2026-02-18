@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+# Copyright 2026 Halcyon AI Research (jeff@halcyon.ie)
 """
 DecisionTrace: the atomic artifact. Every decision produces one trace.
 
@@ -54,9 +56,25 @@ class DecisionTrace:
     churn: Optional[float] = None                # Raw Jaccard distance from previous step
     scar_hit: Optional[bool] = None              # Was this region in a scar neighborhood?
     baseline_loss: Optional[float] = None        # Expensive-path running avg for this class
-    neff: Optional[float] = None                 # Effective number of experts (1/Herfindahl)
+    neff: Optional[float] = None                 # Min Neff across layers (worst-case, 1/Herfindahl)
     flipflop_ema: Optional[float] = None         # Medium clock flipflop EMA
     routing_weights_top: Optional[List[float]] = None  # Mean routing weights for top-k slots
+
+    # Governor tightening fields (backward compatible)
+    scar_overlap: Optional[float] = None         # Actual scar severity score (not just bool)
+    escalation_count: Optional[int] = None       # Cumulative ESCALATE decisions so far
+    gate_pass_rate: Optional[float] = None       # Gate-pass rate (independent of governor)
+    governor_allow_rate: Optional[float] = None  # Governor allow rate (independent of gate)
+
+    # Three-clock activations (backward compatible)
+    fast_activation: Optional[float] = None      # Fast clock activation (0-1, reflex)
+    slow_activation: Optional[float] = None      # Slow clock activation (0-1, constitution)
+
+    # Low-Neff funnel detector (backward compatible)
+    neff_collapse: Optional[bool] = None         # True when Neff below floor for K steps
+    neff_floor: Optional[float] = None           # Calibrated Neff floor (p10 of warmup)
+    neff_per_layer: Optional[List[float]] = None  # Per-layer Neff (1/Herfindahl per MoE layer)
+    neff_collapse_layers: Optional[List[int]] = None  # Layer indices currently in collapse
 
     def to_dict(self) -> Dict:
         d = {
@@ -104,9 +122,32 @@ class DecisionTrace:
         if self.baseline_loss is not None:
             d["baseline_loss"] = round(self.baseline_loss, 4)
         if self.neff is not None:
-            d["neff"] = round(self.neff, 2)
+            d["neff"] = round(self.neff, 6)
         if self.flipflop_ema is not None:
             d["flipflop_ema"] = round(self.flipflop_ema, 4)
         if self.routing_weights_top is not None:
             d["routing_wts"] = [round(w, 4) for w in self.routing_weights_top]
+        # Governor tightening fields
+        if self.scar_overlap is not None:
+            d["scar_overlap"] = round(self.scar_overlap, 4)
+        if self.escalation_count is not None:
+            d["escalation_count"] = self.escalation_count
+        if self.gate_pass_rate is not None:
+            d["gate_pass_rate"] = round(self.gate_pass_rate, 4)
+        if self.governor_allow_rate is not None:
+            d["governor_allow_rate"] = round(self.governor_allow_rate, 4)
+        # Three-clock activations
+        if self.fast_activation is not None:
+            d["fast_activation"] = round(self.fast_activation, 4)
+        if self.slow_activation is not None:
+            d["slow_activation"] = round(self.slow_activation, 4)
+        # Low-Neff funnel detector
+        if self.neff_collapse is not None:
+            d["neff_collapse"] = self.neff_collapse
+        if self.neff_floor is not None:
+            d["neff_floor"] = round(self.neff_floor, 4)
+        if self.neff_per_layer is not None:
+            d["neff_per_layer"] = [round(n, 6) for n in self.neff_per_layer]
+        if self.neff_collapse_layers is not None and self.neff_collapse_layers:
+            d["neff_collapse_layers"] = self.neff_collapse_layers
         return d

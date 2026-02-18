@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+# Copyright 2026 Halcyon AI Research (jeff@halcyon.ie)
 """
 OLMoE Bob Phase 1 Governed Experiment: halting on a real MoE.
 
@@ -48,6 +50,8 @@ from bob_core.substrate import BobSubstrate
 from bob_core.motifs import GateThresholds
 from bob_core.ledgers import BobCore
 from bob_core.medium_clock import MediumClock
+from bob_core.fast_clock import FastClock
+from bob_core.slow_clock import SlowClock
 from bob_core.governor import BobGovernor
 from bob_core.promotion import PromotionGate
 
@@ -331,15 +335,13 @@ class TextCorpus:
                 tokens.append(ids)
             self._tokenized[cat_id] = tokens
 
-        # Pre-compute per-category shuffled indices
-        self._indices: Dict[int, List[int]] = {}
+        # Per-category shuffled permutation (length = n, independent of total_steps)
+        self._perm: Dict[int, List[int]] = {}
         for cat_id in range(NUM_CATEGORIES):
             n = len(self._tokenized[cat_id])
-            # Repeat enough times to cover total_steps
-            repeats = (self.total_steps // n) + 2
-            indices = list(range(n)) * repeats
-            self.rng.shuffle(indices)
-            self._indices[cat_id] = indices
+            perm = list(range(n))
+            self.rng.shuffle(perm)
+            self._perm[cat_id] = perm
 
         # Track how many prompts consumed per category
         self._counters: Dict[int, int] = defaultdict(int)
@@ -349,12 +351,15 @@ class TextCorpus:
 
         Context class cycles in blocks of class_block_size.
         Labels = input_ids (HF computes shifted LM loss internally).
+        Cycles through a fixed permutation — ordering is seed-stable
+        regardless of total_steps.
         """
         block_idx = step // self.config.class_block_size
         context_class = block_idx % NUM_CATEGORIES
 
         idx = self._counters[context_class]
-        prompt_idx = self._indices[context_class][idx]
+        n = len(self._tokenized[context_class])
+        prompt_idx = self._perm[context_class][idx % n]
         self._counters[context_class] = idx + 1
 
         input_ids = self._tokenized[context_class][prompt_idx]
@@ -563,15 +568,26 @@ def run_olmoe_governed(
     # Build optional components
     bob_core = None
     governor = None
+    fast_clock = None
     medium_clock = None
+    slow_clock = None
     promotion_gate = None
 
     if enable_governor:
         bob_core = BobCore(success_multiplier=config.success_multiplier)
+        fast_clock = FastClock(
+            ema_alpha=0.3,
+            explore_threshold=0.4,  # Initial; overridden by calibration
+            calibration_steps=20,   # Calibrate during warmup (OLMoE warmup=20)
+            calibration_percentile=90.0,
+        )
         medium_clock = MediumClock(ema_alpha=0.1, instability_threshold=0.5)
+        slow_clock = SlowClock(ema_alpha=0.02)
         governor = BobGovernor(
             bob_core, medium_clock,
-            fast_threshold=0.8,
+            fast_clock=fast_clock,
+            slow_clock=slow_clock,
+            fast_threshold=0.5,
             medium_threshold=0.5,
             debt_threshold=0.7,
         )
@@ -591,7 +607,9 @@ def run_olmoe_governed(
         governance_state="EQUILIBRIUM",
         bob_core=bob_core,
         governor=governor,
+        fast_clock=fast_clock,
         medium_clock=medium_clock,
+        slow_clock=slow_clock,
         promotion_gate=promotion_gate,
         stability_window=50,
         survival_half_life=200,
@@ -756,7 +774,7 @@ def run_olmoe_governed(
             "category": CATEGORY_NAMES[cc],
         }
 
-    # Medium clock final state
+    # Clock final states
     medium_state = None
     if medium_clock:
         s = medium_clock.state
@@ -764,8 +782,25 @@ def run_olmoe_governed(
             "churn_ema": round(s.churn_ema, 4),
             "flipflop_ema": round(s.flipflop_ema, 4),
             "outcome_var_ema": round(s.outcome_var_ema, 4),
-            "escalation_ema": round(s.escalation_ema, 4),
             "activation": round(medium_clock.activation, 4),
+        }
+    fast_state = None
+    if fast_clock:
+        fs = fast_clock.state
+        fast_state = {
+            "churn_ema": round(fs.churn_ema, 4),
+            "entropy_delta_ema": round(fs.entropy_delta_ema, 4),
+            "loss_delta_ema": round(fs.loss_delta_ema, 4),
+            "expert_flip_ema": round(fs.expert_flip_ema, 4),
+            "activation": round(fast_clock.activation, 4),
+        }
+    slow_state = None
+    if slow_clock:
+        ss = slow_clock.state
+        slow_state = {
+            "scar_pressure_ema": round(ss.scar_pressure_ema, 4),
+            "stability_ema": round(ss.stability_ema, 4),
+            "activation": round(slow_clock.activation, 4),
         }
 
     # Scar summary
@@ -803,7 +838,9 @@ def run_olmoe_governed(
         # Region tracking
         "unique_regions_visited": total_regions_visited,
         # Components
+        "fast_clock": fast_state,
         "medium_clock": medium_state,
+        "slow_clock": slow_state,
         "scars": scar_summary,
         # OLMoE-specific
         "model": config.model_name,
@@ -868,7 +905,9 @@ def diff_report(baseline: Dict, governed: Dict) -> Dict:
 
     report["escalation_by_class"] = governed["escalation_by_class"]
     report["scars"] = governed["scars"]
+    report["fast_clock"] = governed["fast_clock"]
     report["medium_clock"] = governed["medium_clock"]
+    report["slow_clock"] = governed["slow_clock"]
 
     return report
 
@@ -1127,10 +1166,18 @@ if __name__ == "__main__":
                   f"sat={governed['scars']['scar_saturation']:.4f}, "
                   f"debt={governed['scars']['total_debt']:.4f}")
 
+        if governed["fast_clock"]:
+            fc = governed["fast_clock"]
+            print(f"  Fast clock:   act={fc['activation']:.4f}, "
+                  f"churn={fc['churn_ema']:.4f}, entropy_d={fc['entropy_delta_ema']:.4f}")
         if governed["medium_clock"]:
             mc = governed["medium_clock"]
             print(f"  Medium clock: act={mc['activation']:.4f}, "
                   f"flipflop={mc['flipflop_ema']:.4f}, churn={mc['churn_ema']:.4f}")
+        if governed["slow_clock"]:
+            sc = governed["slow_clock"]
+            print(f"  Slow clock:   act={sc['activation']:.4f}, "
+                  f"scar_p={sc['scar_pressure_ema']:.4f}, stab={sc['stability_ema']:.4f}")
 
         report = diff_report(baseline, governed)
 

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+# Copyright 2026 Halcyon AI Research (jeff@halcyon.ie)
 """
 BobSubstrate: the main orchestrator.
 
@@ -55,6 +57,8 @@ class BobSubstrate:
         bob_core: Optional BobCore for ledger-based lifecycle
         governor: Optional BobGovernor for commit authorization
         medium_clock: Optional MediumClock for instability detection
+        fast_clock: Optional FastClock for immediate reflex
+        slow_clock: Optional SlowClock for constitutional envelope
         promotion_gate: Optional PromotionGate for stability tracking
         motif_store_kwargs: Additional kwargs for MotifStore
     """
@@ -68,6 +72,8 @@ class BobSubstrate:
         bob_core=None,
         governor=None,
         medium_clock=None,
+        fast_clock=None,
+        slow_clock=None,
         promotion_gate=None,
         **motif_store_kwargs,
     ):
@@ -77,16 +83,32 @@ class BobSubstrate:
         self.warmup_steps = warmup_steps
         self.governance_state = governance_state
 
-        # Phase 1 optional components
+        # Three overlapping clocks (all optional, backward compatible)
+        self.fast_clock = fast_clock
+        self.medium_clock = medium_clock
+        self.slow_clock = slow_clock
+
+        # Other components
         self.bob_core = bob_core
         self.governor = governor
-        self.medium_clock = medium_clock
         self.promotion_gate = promotion_gate
 
-        # Track previous step state for medium clock
+        # Track previous step state for clock ticks
         self._prev_expert_ids: Optional[Tuple[int, ...]] = None
         self._prev_loss: Optional[float] = None
+        self._prev_entropy: Optional[float] = None
         self._first_commit_step: Optional[int] = None
+
+        # ESCALATE recovery: substrate temporarily lowers fast explore threshold
+        # _pre_escalate_threshold is set at ESCALATE time (captures calibrated value)
+        self._pre_escalate_threshold: Optional[float] = None
+        self._escalation_recovery_steps: int = 0
+
+        # Independent counters: gate vs governor attribution
+        self._gate_eval_count: int = 0
+        self._gate_pass_count: int = 0
+        self._governor_eval_count: int = 0
+        self._governor_allow_count: int = 0
 
         self.traces: List[DecisionTrace] = []
 
@@ -100,51 +122,51 @@ class BobSubstrate:
         """
         Run one decision through Bob.
 
-        With governor/bob_core enabled:
-        0. medium_clock.tick() - update instability EMAs
-        1. Check forced exploration (from prior governor BLOCK)
-        2. Query MotifStore - routing_stability, top_motif, survival
-        3. Assemble GateSignals (stability from MotifStore, debt from BobCore if available)
-        4. CompoundGate.evaluate() (unchanged)
-        5. If gate passes AND governor exists:
-           -> governor.evaluate_commit() - ALLOW/BLOCK/ESCALATE
-           -> If BLOCK: expensive path, set forced exploration next
-        6. Execute (cheap or expensive path)
-        7. Build RoutingVector from snapshots (if bob_core exists)
-        8. Determine success via bob_core.determine_success()
-        9. bob_core.process_outcome() - commitment + scar + cost
-        10. store.update() - patterns (unchanged, will slim later)
-        11. promotion_gate.record() - track stability
-        12. identity weight via identity boundary
-        13. Log DecisionTrace (with governor verdict fields)
+        Three overlapping clocks tick once per step, after execution:
+        - Fast clock: immediate reflex (drives exploration pressure)
+        - Medium clock: regime confidence (modulates bias strength)
+        - Slow clock: constitutional envelope (reshapes governor thresholds)
+
+        Step flow:
+        0. Read previous-tick activations from all clocks
+        1. Check fast_clock.exploration_pressure → bypass gate if true
+        2. Gate evaluation
+        3. If gate passed: governor.evaluate_commit() (pure reader)
+        4. Execute (cheap or expensive)
+        5. Post-execution: ledgers, motif store, promotion gate, identity
+        6. Tick all clocks (single tick, actual data)
+        7. Log DecisionTrace with all three activations
 
         Without governor/bob_core: existing behavior preserved.
         """
         was_blocked = False
-        forced_exploration = False
+        fast_exploration = False
         governor_decision = None
         governor_reasons = None
-        medium_activation = None
         scar_debt = None
         cost_cheap_fraction = None
         commitment_id = None
         identity_weight = None
+        scar_overlap = None
+        escalation_count = None
 
-        # --- 0. Medium clock tick ---
-        if self.medium_clock is not None:
-            self.medium_clock.tick(
-                prev_expert_ids=self._prev_expert_ids,
-                curr_expert_ids=(),  # Updated after execution
-                prev_loss=self._prev_loss,
-                curr_loss=0.0,  # Updated after execution
-                was_blocked=False,  # Updated after governor
-                path="full",  # Updated after decision
-            )
-            medium_activation = self.medium_clock.activation
+        # --- 0. Read previous-tick activations ---
+        medium_activation = self.medium_clock.activation if self.medium_clock else None
+        fast_activation = self.fast_clock.activation if self.fast_clock else None
+        slow_activation = self.slow_clock.activation if self.slow_clock else None
 
-        # --- 1. Check forced exploration ---
-        if self.governor is not None:
-            forced_exploration = self.governor.consume_forced_exploration()
+        # Decay escalation-lowered fast threshold back to pre-escalate value
+        if (self.fast_clock is not None
+                and self._escalation_recovery_steps > 0):
+            self._escalation_recovery_steps -= 1
+            if self._escalation_recovery_steps <= 0 and self._pre_escalate_threshold is not None:
+                self.fast_clock.explore_threshold = self._pre_escalate_threshold
+                self._pre_escalate_threshold = None
+
+        # --- 1. Fast clock alarms (volatility + funnel) ---
+        if self.fast_clock is not None:
+            if self.fast_clock.exploration_pressure or self.fast_clock.neff_collapse:
+                fast_exploration = True
 
         # --- 2-3. Gate signals ---
         signals = self.store.get_gate_signals(context_class, step)
@@ -154,7 +176,11 @@ class BobSubstrate:
             scar_debt = self.bob_core.scars.total_debt(step)
 
         # --- 4. Gate evaluation ---
-        if step < self.warmup_steps or forced_exploration:
+        # Fast exploration is a soft override: it relaxes gate thresholds
+        # (halves the stability/survival requirements, doubles debt allowance)
+        # but does NOT bypass the gate or the governor. The gate and governor
+        # always have a say.
+        if step < self.warmup_steps:
             gate_result = GateResult(
                 passed=False,
                 signals=signals,
@@ -164,8 +190,23 @@ class BobSubstrate:
                 debt_passed=False,
                 survival_passed=False,
             )
+        elif fast_exploration:
+            # Relaxed gate: lower bar but still check
+            relaxed_thresholds = GateThresholds(
+                stability_min=self.gate.thresholds.stability_min * 0.5,
+                debt_max=min(1.0, self.gate.thresholds.debt_max * 2.0),
+                survival_min=self.gate.thresholds.survival_min * 0.5,
+            )
+            relaxed_gate = CompoundGate(relaxed_thresholds)
+            gate_result = relaxed_gate.evaluate(signals, self.governance_state)
         else:
             gate_result = self.gate.evaluate(signals, self.governance_state)
+
+        # --- Track gate pass/fail independently ---
+        if step >= self.warmup_steps:
+            self._gate_eval_count += 1
+            if gate_result.passed:
+                self._gate_pass_count += 1
 
         # --- 5. Governor evaluation (if gate passed) ---
         top_motif = self.store.get_top_motif(context_class, step)
@@ -184,6 +225,13 @@ class BobSubstrate:
             governor_decision = verdict.decision.value
             governor_reasons = verdict.reasons
             cost_cheap_fraction = verdict.cost_signal.cheap_fraction
+            scar_overlap = verdict.scar_overlap
+            escalation_count = verdict.escalation_count
+
+            # Track governor outcomes independently from gate
+            self._governor_eval_count += 1
+            if verdict.decision == GovernorDecision.ALLOW:
+                self._governor_allow_count += 1
 
             if verdict.decision != GovernorDecision.ALLOW:
                 # Governor blocked: force expensive path
@@ -197,6 +245,20 @@ class BobSubstrate:
                     survival_passed=gate_result.survival_passed,
                 )
                 was_blocked = True
+
+                # ESCALATE distinct substrate response: temporarily lower
+                # fast clock's explore threshold so exploration is more likely
+                # for the next few steps. This is a substrate action, not a
+                # governor write — governor just said "this is serious."
+                if verdict.decision == GovernorDecision.ESCALATE:
+                    if self.fast_clock is not None:
+                        # Save current (possibly calibrated) threshold before lowering
+                        if self._pre_escalate_threshold is None:
+                            self._pre_escalate_threshold = self.fast_clock.explore_threshold
+                        self.fast_clock.explore_threshold = max(
+                            0.15, self.fast_clock.explore_threshold - 0.15
+                        )
+                        self._escalation_recovery_steps = 10
 
         # --- 6. Execute ---
         if gate_result.passed and top_motif is not None:
@@ -248,11 +310,17 @@ class BobSubstrate:
                 router_entropy = sum(ents) / len(ents)
 
         neff = None
-        if result.snapshots and result.snapshots[0].expert_usage is not None:
-            usage = result.snapshots[0].expert_usage
-            usage_sq = (usage * usage).sum().item()
-            if usage_sq > 0:
-                neff = 1.0 / usage_sq
+        neff_per_layer = None
+        if result.snapshots:
+            layer_neffs = []
+            for snap in result.snapshots:
+                if snap.expert_usage is not None:
+                    usage_sq = (snap.expert_usage * snap.expert_usage).sum().item()
+                    if usage_sq > 0:
+                        layer_neffs.append(1.0 / usage_sq)
+            if layer_neffs:
+                neff_per_layer = layer_neffs
+                neff = min(layer_neffs)  # Worst layer drives collapse detection
 
         routing_weights_top = None
         if result.snapshots and result.snapshots[0].routing_weights is not None:
@@ -276,7 +344,7 @@ class BobSubstrate:
                 routing_vector=routing_vector,
                 governance_coords=governance_coords,
                 expert_invocations=result.expert_invocations,
-                was_exploration=forced_exploration,
+                was_exploration=fast_exploration,
                 was_blocked=was_blocked,
                 motif_id=motif_id,
             )
@@ -312,17 +380,38 @@ class BobSubstrate:
                 baseline=baseline if baseline != float("inf") else loss_val,
             )
 
-        # Re-tick medium clock with actual values
+        # --- Tick all three clocks (single tick, after execution, actual data) ---
+        if self.fast_clock is not None:
+            self.fast_clock.tick(
+                prev_expert_ids=self._prev_expert_ids,
+                curr_expert_ids=expert_ids,
+                prev_loss=self._prev_loss,
+                curr_loss=loss_val,
+                prev_entropy=self._prev_entropy,
+                curr_entropy=router_entropy,
+                neff=neff,
+                neff_per_layer=neff_per_layer,
+            )
+            fast_activation = self.fast_clock.activation
+
         if self.medium_clock is not None:
             self.medium_clock.tick(
                 prev_expert_ids=self._prev_expert_ids,
                 curr_expert_ids=expert_ids,
                 prev_loss=self._prev_loss,
                 curr_loss=loss_val,
-                was_blocked=was_blocked,
                 path=path,
             )
             medium_activation = self.medium_clock.activation
+
+        if self.slow_clock is not None:
+            slow_scar_debt = self.bob_core.scars.total_debt(step) if self.bob_core else 0.0
+            slow_stability = signals.routing_stability
+            self.slow_clock.tick(
+                scar_debt=slow_scar_debt,
+                routing_stability=slow_stability,
+            )
+            slow_activation = self.slow_clock.activation
 
         # --- Geometry: extract remaining fields ---
         churn_val = self.medium_clock.state.last_churn if self.medium_clock else None
@@ -339,9 +428,10 @@ class BobSubstrate:
             if bl != float("inf"):
                 baseline_loss_val = bl
 
-        # Update prev state for next step
+        # Update prev state for next step's clock ticks
         self._prev_expert_ids = expert_ids
         self._prev_loss = loss_val
+        self._prev_entropy = router_entropy
 
         # --- 13. Log ---
         trace = DecisionTrace(
@@ -363,7 +453,7 @@ class BobSubstrate:
             motif_id=motif_id,
             governor_decision=governor_decision,
             governor_reasons=governor_reasons,
-            forced_exploration=forced_exploration,
+            forced_exploration=fast_exploration,
             medium_activation=medium_activation,
             scar_debt=scar_debt,
             cost_cheap_fraction=cost_cheap_fraction,
@@ -376,6 +466,28 @@ class BobSubstrate:
             neff=neff,
             flipflop_ema=flipflop_ema_val,
             routing_weights_top=routing_weights_top,
+            scar_overlap=scar_overlap,
+            escalation_count=escalation_count,
+            gate_pass_rate=(
+                self._gate_pass_count / self._gate_eval_count
+                if self._gate_eval_count > 0 else None
+            ),
+            governor_allow_rate=(
+                self._governor_allow_count / self._governor_eval_count
+                if self._governor_eval_count > 0 else None
+            ),
+            fast_activation=fast_activation,
+            slow_activation=slow_activation,
+            neff_collapse=(
+                self.fast_clock.neff_collapse if self.fast_clock is not None else None
+            ),
+            neff_floor=(
+                self.fast_clock.neff_floor if self.fast_clock is not None else None
+            ),
+            neff_per_layer=neff_per_layer,
+            neff_collapse_layers=(
+                self.fast_clock.neff_collapse_layers if self.fast_clock is not None else None
+            ),
         )
         self.traces.append(trace)
         return trace

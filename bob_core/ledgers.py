@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+# Copyright 2026 Halcyon AI Research (jeff@halcyon.ie)
 """
 Ledgers: structured records for commitments, scars, and costs.
 
@@ -247,13 +249,15 @@ class ScarLedger:
     """
 
     def __init__(self, compound_factor: float = 0.3, half_life: int = 200,
-                 cooldown_steps: int = 100, enabled: bool = True):
+                 cooldown_steps: int = 100, enabled: bool = True,
+                 debt_cap: float = 1.0):
         self._scars: Dict[Tuple[int, ...], Scar] = {}  # routing_region -> Scar
         self._next_id: int = 0
         self.compound_factor = compound_factor
         self.half_life = half_life
         self.cooldown_steps = cooldown_steps
         self.enabled = enabled
+        self.debt_cap = debt_cap
 
     def record_harm(
         self, routing_region: Tuple[int, ...], severity: float, step: int
@@ -291,7 +295,25 @@ class ScarLedger:
             s.decayed_severity(current_step, self.half_life)
             for s in self._scars.values()
         )
-        return min(1.0, total)
+        return min(self.debt_cap, total)
+
+    def scar_severity_score(
+        self, routing_region: Tuple[int, ...], current_step: int,
+    ) -> float:
+        """Return the actual decayed severity for this region. 0.0 if no scar.
+
+        Use this to log overlap scores per verdict for cross-model debugging.
+        """
+        if not self.enabled:
+            return 0.0
+        region = tuple(sorted(routing_region))
+        scar = self._scars.get(region)
+        if not scar:
+            return 0.0
+        age = current_step - scar.last_triggered_step
+        if age > self.cooldown_steps:
+            return 0.0
+        return scar.decayed_severity(current_step, self.half_life)
 
     def is_in_scar_neighborhood(
         self, routing_region: Tuple[int, ...], current_step: int,
@@ -378,9 +400,9 @@ class BobCore:
     Single entry point: process_outcome handles commitment lifecycle + scar + cost.
     """
 
-    def __init__(self, success_multiplier: float = 1.2):
+    def __init__(self, success_multiplier: float = 1.2, debt_cap: float = 1.0):
         self.commitments = CommitmentLedger()
-        self.scars = ScarLedger()
+        self.scars = ScarLedger(debt_cap=debt_cap)
         self.costs = CostLedger()
         self.success_multiplier = success_multiplier
 

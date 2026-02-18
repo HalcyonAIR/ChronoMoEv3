@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+# Copyright 2026 Halcyon AI Research (jeff@halcyon.ie)
 """
 MLX MoE adapter: BackendAdapter for Qwen1.5-MoE on Apple Silicon via MLX.
 
@@ -42,6 +44,7 @@ class _RoutingStore:
         self.data: Dict[int, dict] = {}
         self.enabled: bool = True
         self.motif: Optional[MotifSpec] = None
+        self.topk_override: Optional[int] = None  # Set to e.g. 1 to collapse routing
 
     def clear(self):
         self.data.clear()
@@ -81,6 +84,9 @@ def _make_patched_call(store: _RoutingStore):
         gates = mx.softmax(gates, axis=-1, precise=True)
 
         k = self.top_k
+        # Routing perturbation: collapse top-k to override value
+        if store.topk_override is not None:
+            k = store.topk_override
         inds = mx.stop_gradient(
             mx.argpartition(-gates, kth=k - 1, axis=-1)[..., :k]
         )
@@ -151,6 +157,14 @@ class MLXMoEAdapter:
         self._moe_class._original_call = self._moe_class.__call__
         self._moe_class.__call__ = _make_patched_call(self._store)
         self._patched = True
+
+    def set_topk_override(self, k: Optional[int]):
+        """Override routing top-k for perturbation experiments.
+
+        Set to 1 to collapse routing to top-1 (optionality collapse).
+        Set to None to restore normal top-k routing.
+        """
+        self._store.topk_override = k
 
     # --- BackendAdapter protocol ---
 

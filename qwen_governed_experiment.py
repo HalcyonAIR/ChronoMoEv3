@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+# Copyright 2026 Halcyon AI Research (jeff@halcyon.ie)
 """
 Qwen MoE Bob Phase 2 Governed Experiment: cross-model validation on MLX.
 
@@ -36,6 +38,8 @@ from bob_core.substrate import BobSubstrate
 from bob_core.motifs import GateThresholds
 from bob_core.ledgers import BobCore
 from bob_core.medium_clock import MediumClock
+from bob_core.fast_clock import FastClock
+from bob_core.slow_clock import SlowClock
 from bob_core.governor import BobGovernor
 from bob_core.promotion import PromotionGate
 
@@ -91,14 +95,13 @@ class MLXTextCorpus:
                 tokens.append(ids)
             self._tokenized[cat_id] = tokens
 
-        # Pre-compute per-category shuffled indices
-        self._indices: Dict[int, List[int]] = {}
+        # Per-category shuffled permutation (length = n, independent of total_steps)
+        self._perm: Dict[int, List[int]] = {}
         for cat_id in range(NUM_CATEGORIES):
             n = len(self._tokenized[cat_id])
-            repeats = (self.total_steps // n) + 2
-            indices = list(range(n)) * repeats
-            self.rng.shuffle(indices)
-            self._indices[cat_id] = indices
+            perm = list(range(n))
+            self.rng.shuffle(perm)
+            self._perm[cat_id] = perm
 
         self._counters: Dict[int, int] = defaultdict(int)
 
@@ -106,12 +109,15 @@ class MLXTextCorpus:
         """Return (context_class, input_ids, labels) for this step.
 
         Returns plain Python lists (not tensors) for MLX adapter.
+        Cycles through a fixed permutation — ordering is seed-stable
+        regardless of total_steps.
         """
         block_idx = step // self.config.class_block_size
         context_class = block_idx % NUM_CATEGORIES
 
         idx = self._counters[context_class]
-        prompt_idx = self._indices[context_class][idx]
+        n = len(self._tokenized[context_class])
+        prompt_idx = self._perm[context_class][idx % n]
         self._counters[context_class] = idx + 1
 
         input_ids = self._tokenized[context_class][prompt_idx]
@@ -128,6 +134,8 @@ def _make_run_header(
     scars_disabled: bool = False,
     perturb_at_step: Optional[int] = None,
     perturb_duration: int = 30,
+    perturb_routing: bool = False,
+    debt_cap: float = 1.0,
 ) -> Dict:
     header = {
         "type": "header",
@@ -152,6 +160,9 @@ def _make_run_header(
     if perturb_at_step is not None:
         header["perturb_at_step"] = perturb_at_step
         header["perturb_duration"] = perturb_duration
+        header["perturb_mode"] = "topk_collapse" if perturb_routing else "scars_off"
+    if debt_cap < 1.0:
+        header["debt_cap"] = debt_cap
     return header
 
 
@@ -184,6 +195,8 @@ def run_qwen_governed(
     no_scars: bool = False,
     perturb_at_step: Optional[int] = None,
     perturb_duration: int = 30,
+    perturb_routing: bool = False,
+    debt_cap: float = 1.0,
 ) -> Dict:
     """Run Bob with or without governor on Qwen MoE via MLX."""
 
@@ -192,15 +205,31 @@ def run_qwen_governed(
     # Build optional components
     bob_core = None
     governor = None
+    fast_clock = None
     medium_clock = None
+    slow_clock = None
     promotion_gate = None
 
     if enable_governor:
-        bob_core = BobCore(success_multiplier=config.success_multiplier)
-        medium_clock = MediumClock(ema_alpha=0.1, instability_threshold=0.5)
+        bob_core = BobCore(success_multiplier=config.success_multiplier, debt_cap=debt_cap)
+        fast_clock = FastClock(
+            ema_alpha=0.3,
+            explore_threshold=0.4,  # Initial; overridden by calibration
+            calibration_steps=50,   # Calibrate during warmup
+            calibration_percentile=90.0,
+        )
+        medium_clock = MediumClock(
+            ema_alpha=0.1,
+            instability_threshold=0.5,
+            calibration_steps=50,   # Calibrate during warmup
+            calibration_percentile=90.0,
+        )
+        slow_clock = SlowClock(ema_alpha=0.02)
         governor = BobGovernor(
             bob_core, medium_clock,
-            fast_threshold=0.8,
+            fast_clock=fast_clock,
+            slow_clock=slow_clock,
+            fast_threshold=0.5,
             medium_threshold=0.5,
             debt_threshold=0.7,
         )
@@ -222,7 +251,9 @@ def run_qwen_governed(
         governance_state="EQUILIBRIUM",
         bob_core=bob_core,
         governor=governor,
+        fast_clock=fast_clock,
         medium_clock=medium_clock,
+        slow_clock=slow_clock,
         promotion_gate=promotion_gate,
         stability_window=50,
         survival_half_life=200,
@@ -247,6 +278,8 @@ def run_qwen_governed(
                 scars_disabled=no_scars,
                 perturb_at_step=perturb_at_step,
                 perturb_duration=perturb_duration,
+                perturb_routing=perturb_routing,
+                debt_cap=debt_cap,
             )
             with open(jsonl_path, "w") as f:
                 f.write(json.dumps(header) + "\n")
@@ -260,17 +293,51 @@ def run_qwen_governed(
 
     for step in range(resume_step, total_steps):
         # Perturbation toggle
-        if perturb_at_step is not None and bob_core is not None and not no_scars:
-            if step == perturb_at_step:
-                bob_core.scars.enabled = False
-            elif step == perturb_at_step + perturb_duration:
-                bob_core.scars.enabled = True
+        if perturb_at_step is not None:
+            if perturb_routing:
+                # Routing perturbation: collapse top-k to 1
+                if step == perturb_at_step:
+                    adapter.set_topk_override(1)
+                elif step == perturb_at_step + perturb_duration:
+                    adapter.set_topk_override(None)
+            elif bob_core is not None and not no_scars:
+                # Governance perturbation: disable scars
+                if step == perturb_at_step:
+                    bob_core.scars.enabled = False
+                elif step == perturb_at_step + perturb_duration:
+                    bob_core.scars.enabled = True
 
         task_class, input_ids, labels = corpus.get_batch(step)
 
         step_t0 = time.time()
         trace = bob.step(input_ids, labels, task_class, step)
         step_dt = time.time() - step_t0
+
+        # Log fast clock calibration when it completes
+        if (fast_clock is not None
+                and fast_clock.calibrated
+                and not getattr(run_qwen_governed, '_fast_cal_logged', False)):
+            print(f"    [FastClock calibrated] explore={fast_clock.explore_threshold:.4f} "
+                  f"governor={fast_clock.governor_threshold:.4f} "
+                  f"(p{fast_clock._calibration_percentile:.0f} of {fast_clock._tick_count} samples)",
+                  flush=True)
+            if fast_clock._neff_floors_per_layer is not None:
+                floors = fast_clock._neff_floors_per_layer
+                print(f"    [Neff floors] n_layers={len(floors)} "
+                      f"min={min(floors):.2f} max={max(floors):.2f} "
+                      f"mean={sum(floors)/len(floors):.2f}",
+                      flush=True)
+            run_qwen_governed._fast_cal_logged = True
+
+        # Log medium clock calibration when it completes
+        if (medium_clock is not None
+                and hasattr(medium_clock, 'calibrated')
+                and medium_clock.calibrated
+                and not getattr(run_qwen_governed, '_med_cal_logged', False)):
+            print(f"    [MediumClock calibrated] governor={medium_clock.governor_threshold:.4f} "
+                  f"(p{medium_clock._calibration_percentile:.0f} of {medium_clock._tick_count} samples)",
+                  flush=True)
+            run_qwen_governed._med_cal_logged = True
 
         # Write trace to JSONL
         trace_dict = trace.to_dict()
@@ -378,8 +445,25 @@ def run_qwen_governed(
             "churn_ema": round(s.churn_ema, 4),
             "flipflop_ema": round(s.flipflop_ema, 4),
             "outcome_var_ema": round(s.outcome_var_ema, 4),
-            "escalation_ema": round(s.escalation_ema, 4),
             "activation": round(medium_clock.activation, 4),
+        }
+    fast_state = None
+    if fast_clock:
+        fs = fast_clock.state
+        fast_state = {
+            "churn_ema": round(fs.churn_ema, 4),
+            "entropy_delta_ema": round(fs.entropy_delta_ema, 4),
+            "loss_delta_ema": round(fs.loss_delta_ema, 4),
+            "expert_flip_ema": round(fs.expert_flip_ema, 4),
+            "activation": round(fast_clock.activation, 4),
+        }
+    slow_state = None
+    if slow_clock:
+        ss = slow_clock.state
+        slow_state = {
+            "scar_pressure_ema": round(ss.scar_pressure_ema, 4),
+            "stability_ema": round(ss.stability_ema, 4),
+            "activation": round(slow_clock.activation, 4),
         }
 
     scar_summary = None
@@ -413,7 +497,9 @@ def run_qwen_governed(
         "commit_then_violate": ctv,
         "escalation_by_class": escalation_by_class,
         "unique_regions_visited": total_regions_visited,
+        "fast_clock": fast_state,
         "medium_clock": medium_state,
+        "slow_clock": slow_state,
         "scars": scar_summary,
         "model": config.model_name,
         "num_experts": adapter.num_experts,
@@ -475,7 +561,9 @@ def diff_report(baseline: Dict, governed: Dict) -> Dict:
 
     report["escalation_by_class"] = governed["escalation_by_class"]
     report["scars"] = governed["scars"]
+    report["fast_clock"] = governed["fast_clock"]
     report["medium_clock"] = governed["medium_clock"]
+    report["slow_clock"] = governed["slow_clock"]
 
     return report
 
@@ -495,12 +583,20 @@ if __name__ == "__main__":
     parser.add_argument("--no-scars", action="store_true")
     parser.add_argument("--perturb-at-step", type=int, default=None)
     parser.add_argument("--perturb-duration", type=int, default=30)
+    parser.add_argument("--perturb-routing", action="store_true",
+                        help="Routing perturbation: collapse top-k to 1 during window")
+    parser.add_argument("--debt-cap", type=float, default=1.0,
+                        help="Cap scar total_debt to prevent slow clock saturation (default 1.0)")
     args = parser.parse_args()
 
     if args.smoke:
         args.warmup = 10
         args.active = 30
         args.prompts = 4
+
+    # Auto-set perturbation start if routing perturbation requested
+    if args.perturb_routing and args.perturb_at_step is None:
+        args.perturb_at_step = args.warmup + 10  # Default: 10 steps after warmup
 
     config = QwenExperimentConfig(
         model_name=args.model,
@@ -522,8 +618,11 @@ if __name__ == "__main__":
           + (f" (offset={args.prompt_offset})" if args.prompt_offset else ""))
     if args.no_scars:
         print(f"  Scars: DISABLED")
+    if args.debt_cap < 1.0:
+        print(f"  Debt cap: {args.debt_cap}")
     if args.perturb_at_step is not None:
-        print(f"  Perturbation: step {args.perturb_at_step} for {args.perturb_duration} steps")
+        mode = "ROUTING (top-k→1)" if args.perturb_routing else "governance (scars off)"
+        print(f"  Perturbation: {mode} at step {args.perturb_at_step} for {args.perturb_duration} steps")
     print("=" * 70)
 
     # Load model via MLX
@@ -568,6 +667,8 @@ if __name__ == "__main__":
         no_scars=args.no_scars,
         perturb_at_step=args.perturb_at_step,
         perturb_duration=args.perturb_duration,
+        perturb_routing=args.perturb_routing,
+        debt_cap=args.debt_cap,
     )
     print(f"  Cheap fraction: {governed['active_cheap_fraction']*100:.1f}%")
     print(f"  Avg loss: {governed['avg_loss']:.4f}")
@@ -585,10 +686,18 @@ if __name__ == "__main__":
               f"sat={governed['scars']['scar_saturation']:.4f}, "
               f"debt={governed['scars']['total_debt']:.4f}")
 
+    if governed["fast_clock"]:
+        fc = governed["fast_clock"]
+        print(f"  Fast clock:   act={fc['activation']:.4f}, "
+              f"churn={fc['churn_ema']:.4f}, entropy_d={fc['entropy_delta_ema']:.4f}")
     if governed["medium_clock"]:
         mc = governed["medium_clock"]
         print(f"  Medium clock: act={mc['activation']:.4f}, "
               f"flipflop={mc['flipflop_ema']:.4f}, churn={mc['churn_ema']:.4f}")
+    if governed["slow_clock"]:
+        sc = governed["slow_clock"]
+        print(f"  Slow clock:   act={sc['activation']:.4f}, "
+              f"scar_p={sc['scar_pressure_ema']:.4f}, stab={sc['stability_ema']:.4f}")
 
     report = diff_report(baseline, governed)
 

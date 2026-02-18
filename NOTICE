@@ -1,0 +1,15 @@
+Bob Consequence Substrate
+Copyright 2026 Halcyon AI Research (jeff@halcyon.ie)
+
+This product includes software developed by Halcyon AI Research.
+
+The Bob consequence substrate (bob_core/ directory and associated
+experiment scripts) is licensed under the PolyForm Noncommercial
+License 1.0.0. See bob_core/LICENSE for the full license text.
+
+Commercial use requires a separate license. See COMMERCIAL.md.
+
+---
+
+The base MoE model code in this repository is copyright swiss-ai
+and licensed under the Apache License, Version 2.0. See LICENSE.
