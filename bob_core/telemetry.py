@@ -92,6 +92,15 @@ class DecisionTrace:
     conflict_mode: Optional[str] = None          # "A" or "B"
     conflict_trending: Optional[bool] = None     # Rising?
 
+    # Memory system (backward compatible)
+    memory_nodes_active: Optional[int] = None    # Entities activated this step
+    memory_query_rendered: Optional[bool] = None # Did a fact packet render?
+    memory_bias_applied: Optional[bool] = None   # Was memory bias active?
+    memory_bias_max: Optional[float] = None      # Max |bias| across layers
+    memory_bias_to_logit_ratio: Optional[float] = None  # Bias audibility
+    memory_active_basins: Optional[int] = None   # Basins contributing bias
+    memory_active_entities: Optional[int] = None # Entities contributing bias
+
     def to_dict(self) -> Dict:
         d = {
             "step": self.step,
@@ -192,4 +201,19 @@ class DecisionTrace:
             d["conflict_mode"] = self.conflict_mode
         if self.conflict_trending is not None:
             d["conflict_trending"] = self.conflict_trending
+        # Memory system
+        if self.memory_nodes_active is not None:
+            d["memory_nodes_active"] = self.memory_nodes_active
+        if self.memory_query_rendered is not None:
+            d["memory_query_rendered"] = self.memory_query_rendered
+        if self.memory_bias_applied is not None:
+            d["memory_bias_applied"] = self.memory_bias_applied
+        if self.memory_bias_max is not None:
+            d["memory_bias_max"] = round(self.memory_bias_max, 6)
+        if self.memory_bias_to_logit_ratio is not None:
+            d["memory_bias_to_logit_ratio"] = round(self.memory_bias_to_logit_ratio, 6)
+        if self.memory_active_basins is not None:
+            d["memory_active_basins"] = self.memory_active_basins
+        if self.memory_active_entities is not None:
+            d["memory_active_entities"] = self.memory_active_entities
         return d

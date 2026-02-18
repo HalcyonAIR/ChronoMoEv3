@@ -44,6 +44,7 @@ class _RoutingStore:
         self.data: Dict[int, dict] = {}
         self.enabled: bool = True
         self.motif: Optional[MotifSpec] = None
+        self.memory_bias: Optional[Dict[int, list]] = None
         self.topk_override: Optional[int] = None  # Set to e.g. 1 to collapse routing
 
     def clear(self):
@@ -67,6 +68,10 @@ def _make_patched_call(store: _RoutingStore):
 
         # Compute gate logits
         gates = self.gate(x)
+
+        # Memory bias (always, before motif)
+        if store.memory_bias is not None and lid in store.memory_bias:
+            gates = gates + mx.array(store.memory_bias[lid])
 
         # Apply motif bias if active for this layer
         motif = store.motif
@@ -184,18 +189,20 @@ class MLXMoEAdapter:
         self,
         inputs: List[int],
         targets: Optional[List[int]] = None,
+        memory_bias: Optional[Dict[int, list]] = None,
     ) -> ForwardResult:
         """Forward pass with routing capture. inputs/targets are token id lists."""
-        return self._run_forward(inputs, targets, motif=None)
+        return self._run_forward(inputs, targets, motif=None, memory_bias=memory_bias)
 
     def forward_with_motif(
         self,
         inputs: List[int],
         motif: MotifSpec,
         targets: Optional[List[int]] = None,
+        memory_bias: Optional[Dict[int, list]] = None,
     ) -> ForwardResult:
         """Forward pass with expert bias applied via motif."""
-        return self._run_forward(inputs, targets, motif=motif)
+        return self._run_forward(inputs, targets, motif=motif, memory_bias=memory_bias)
 
     def forward_counterfactual(
         self,
@@ -212,11 +219,13 @@ class MLXMoEAdapter:
         inputs: List[int],
         targets: Optional[List[int]],
         motif: Optional[MotifSpec],
+        memory_bias: Optional[Dict[int, list]] = None,
     ) -> ForwardResult:
-        """Core forward pass with optional motif bias."""
+        """Core forward pass with optional motif and memory bias."""
         self._store.clear()
         self._store.enabled = True
         self._store.motif = motif
+        self._store.memory_bias = memory_bias
 
         # Tokenize if needed
         input_ids = mx.array([inputs])
@@ -252,6 +261,7 @@ class MLXMoEAdapter:
             expert_invocations += int(snap.selected_experts.shape[0]) * int(snap.selected_experts.shape[1])
 
         self._store.motif = None
+        self._store.memory_bias = None
 
         return ForwardResult(
             loss=loss_val,

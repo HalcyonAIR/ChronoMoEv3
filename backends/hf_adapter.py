@@ -171,13 +171,14 @@ class HFMoEAdapter:
         return None
 
     def _install_combined_hooks(
-        self, motif: Optional[MotifSpec] = None,
+        self,
+        motif: Optional[MotifSpec] = None,
+        memory_bias: Optional[Dict[int, list]] = None,
     ) -> None:
         """Install hooks that capture routing and optionally override it.
 
-        For layers in the motif: override gate output with forced logits,
-        then capture the resulting routing decision.
-        For other layers: capture only.
+        Application order: memory_bias FIRST (always), then motif bias
+        (cheap path only). Both are additive pre-softmax logit offsets.
         """
         self._remove_hooks()
         self._captured = {}
@@ -191,36 +192,48 @@ class HFMoEAdapter:
             if motif is not None:
                 layer_motif = motif.layers.get(layer_id)
 
-            def make_hook(lid, lm, tk, ne):
+            def make_hook(lid, lm, tk, ne, mb):
                 def hook(module, input, output):
-                    # --- Bias gate output for motif layers ---
-                    if lm is not None:
-                        if isinstance(output, tuple):
-                            orig_logits = output[0]
-                        else:
-                            orig_logits = output
+                    # Extract logits from output
+                    if isinstance(output, tuple):
+                        orig_logits = output[0]
+                    else:
+                        orig_logits = output
 
-                        # Router bias: nudge toward preferred experts,
-                        # not hard-lock. Preserves per-token routing variation.
+                    biased = orig_logits
+                    modified = False
+
+                    # --- Memory bias (always, before motif) ---
+                    if mb is not None and lid in mb:
                         biased = orig_logits.clone()
+                        modified = True
+                        mb_tensor = torch.tensor(
+                            mb[lid], device=biased.device, dtype=biased.dtype,
+                        )
+                        biased = biased + mb_tensor  # [E] broadcasts to [T, E]
+
+                    # --- Motif bias (cheap path only) ---
+                    if lm is not None:
+                        if not modified:
+                            biased = orig_logits.clone()
+                            modified = True
                         bias = lm.bias_strength
 
                         # Per-token confidence: entropy of natural routing.
-                        # Low entropy = router is confident → stronger bias.
-                        # High entropy = uncertain → preserve natural routing.
+                        # Computed from original logits (before any bias).
                         with torch.no_grad():
                             probs_natural = F.softmax(orig_logits.float(), dim=-1)
                             log_probs = torch.log(probs_natural + 1e-8)
-                            entropy = -(probs_natural * log_probs).sum(dim=-1)  # [B*T]
+                            entropy = -(probs_natural * log_probs).sum(dim=-1)
                             max_entropy = math.log(ne)
-                            # confidence: 1.0 = peaked distribution, 0.0 = uniform
                             confidence = (1.0 - entropy / max_entropy).clamp(0.0, 1.0)
 
-                        # Apply scaled bias to preferred experts
-                        token_bias = bias * confidence.unsqueeze(-1)  # [B*T, 1]
+                        token_bias = bias * confidence.unsqueeze(-1)
                         for eid in lm.expert_ids:
                             biased[:, eid] = biased[:, eid] + token_bias.squeeze(-1)
 
+                    # Replace output if modified
+                    if modified:
                         if isinstance(output, tuple):
                             output = (biased,) + output[1:]
                         else:
@@ -263,7 +276,8 @@ class HFMoEAdapter:
                 return hook
 
             h = gate.register_forward_hook(
-                make_hook(layer_id, layer_motif, self.top_k, self.num_experts)
+                make_hook(layer_id, layer_motif, self.top_k, self.num_experts,
+                          memory_bias)
             )
             self._hooks.append(h)
 
@@ -307,6 +321,7 @@ class HFMoEAdapter:
         self,
         inputs: torch.Tensor,
         targets: Optional[torch.Tensor] = None,
+        memory_bias: Optional[Dict[int, list]] = None,
     ) -> ForwardResult:
         """Standard forward pass with full routing.
 
@@ -315,8 +330,10 @@ class HFMoEAdapter:
             targets: labels for loss computation [B, T].
                      For standard LM, pass input_ids as targets
                      (HF handles the internal shift).
+            memory_bias: Optional pre-softmax logit adjustment from
+                association basins. {layer_id: [num_experts]}.
         """
-        self._install_combined_hooks(motif=None)
+        self._install_combined_hooks(motif=None, memory_bias=memory_bias)
 
         with torch.no_grad():
             kwargs = {"input_ids": inputs}
@@ -349,13 +366,15 @@ class HFMoEAdapter:
         inputs: torch.Tensor,
         motif: MotifSpec,
         targets: Optional[torch.Tensor] = None,
+        memory_bias: Optional[Dict[int, list]] = None,
     ) -> ForwardResult:
         """Bias expert routing toward motif preferences at specified layers.
 
         Adds logit bias to preferred experts (scaled by per-token confidence).
         Preserves per-token routing variation. Non-motif layers route normally.
+        Memory bias applied first (additive), then motif bias.
         """
-        self._install_combined_hooks(motif=motif)
+        self._install_combined_hooks(motif=motif, memory_bias=memory_bias)
 
         with torch.no_grad():
             kwargs = {"input_ids": inputs}

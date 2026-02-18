@@ -30,6 +30,22 @@ from bob_core.identity import is_identity_event
 from bob_core.promotion import PromotionGate
 from bob_core.monitors import TriadMonitor, TriadScores, TriadSummary, LayerMonitorState
 from bob_core.conflict import ConflictRegister, ConflictState
+from bob_core.graph import (
+    RelationalGraph,
+    GraphNode,
+    GraphEdge,
+    AliasTable,
+    NodeMetadata,
+    DetectedTriple,
+    TripleResult,
+    TripleOutcome,
+    ALLOWED_RELATIONS,
+)
+from bob_core.basins import (
+    AssociationBasin,
+    BasinStore,
+    MemoryBiasDiagnostics,
+)
 
 __all__ = [
     # Original
@@ -69,4 +85,18 @@ __all__ = [
     # Phase 2: Conflict Register
     "ConflictRegister",
     "ConflictState",
+    # Memory System: Relational Graph
+    "RelationalGraph",
+    "GraphNode",
+    "GraphEdge",
+    "AliasTable",
+    "NodeMetadata",
+    "DetectedTriple",
+    "TripleResult",
+    "TripleOutcome",
+    "ALLOWED_RELATIONS",
+    # Memory System: Association Basins
+    "AssociationBasin",
+    "BasinStore",
+    "MemoryBiasDiagnostics",
 ]

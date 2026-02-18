@@ -1,5 +1,4 @@
-# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-# Copyright 2026 Halcyon AI Research (jeff@halcyon.ie)
+# SPDX-License-Identifier: Apache-2.0
 """
 Tests for triad monitors (Angel, Devil, Maniac) and conflict register.
 

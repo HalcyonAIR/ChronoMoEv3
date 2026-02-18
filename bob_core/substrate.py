@@ -77,6 +77,9 @@ class BobSubstrate:
         promotion_gate=None,
         triad_monitor=None,
         conflict_register=None,
+        memory_graph=None,
+        basin_store=None,
+        memory_bias_scale=0.1,
         **motif_store_kwargs,
     ):
         self.adapter = adapter
@@ -98,6 +101,11 @@ class BobSubstrate:
         # Triad monitors (all optional, backward compatible)
         self.triad_monitor = triad_monitor
         self.conflict_register = conflict_register
+
+        # Memory system (all optional, backward compatible)
+        self.memory_graph = memory_graph        # Optional[RelationalGraph]
+        self.basin_store = basin_store          # Optional[BasinStore]
+        self.memory_bias_scale = memory_bias_scale
 
         # Track previous step state for clock ticks
         self._prev_expert_ids: Optional[Tuple[int, ...]] = None
@@ -124,6 +132,7 @@ class BobSubstrate:
         targets,
         context_class: int,
         step: int,
+        entity_tokens: Optional[List[str]] = None,
     ) -> DecisionTrace:
         """
         Run one decision through Bob.
@@ -266,6 +275,22 @@ class BobSubstrate:
                         )
                         self._escalation_recovery_steps = 10
 
+        # --- Memory bias computation (before execution) ---
+        memory_bias = None
+        memory_diag = None
+        if (self.basin_store is not None
+                and self.memory_graph is not None
+                and entity_tokens):
+            from bob_core.basins import (
+                link_entities, diffuse_activation, compute_memory_bias,
+            )
+            activations = link_entities(entity_tokens, self.memory_graph)
+            diffused = diffuse_activation(activations, self.memory_graph)
+            memory_bias, memory_diag = compute_memory_bias(
+                diffused, self.basin_store,
+                self.adapter.num_layers, self.adapter.num_experts,
+            )
+
         # --- 6. Execute ---
         if gate_result.passed and top_motif is not None:
             # Compute bias strength: strong when stable, weak when unstable
@@ -281,14 +306,15 @@ class BobSubstrate:
                 lm.bias_strength = bias
 
             result = self.adapter.forward_with_motif(
-                inputs, top_motif.motif_spec, targets
+                inputs, top_motif.motif_spec, targets,
+                memory_bias=memory_bias,
             )
             path = "cheap"
             motif_id = top_motif.motif_id
             first_layer = next(iter(top_motif.motif_spec.layers.values()))
             expert_ids = first_layer.expert_ids
         else:
-            result = self.adapter.forward(inputs, targets)
+            result = self.adapter.forward(inputs, targets, memory_bias=memory_bias)
             path = "full"
             motif_id = None
             expert_ids = ()
@@ -518,6 +544,25 @@ class BobSubstrate:
             conflict_mean=conflict_state.mean_50 if conflict_state else None,
             conflict_mode=conflict_state.mode if conflict_state else None,
             conflict_trending=conflict_state.trending if conflict_state else None,
+            # Memory system
+            memory_nodes_active=(
+                memory_diag.n_active_nodes if memory_diag else None
+            ),
+            memory_bias_applied=(
+                memory_bias is not None if memory_diag is not None else None
+            ),
+            memory_bias_max=(
+                memory_diag.max_abs_bias if memory_diag else None
+            ),
+            memory_bias_to_logit_ratio=(
+                memory_diag.bias_to_logit_ratio if memory_diag else None
+            ),
+            memory_active_basins=(
+                memory_diag.n_active_basins if memory_diag else None
+            ),
+            memory_active_entities=(
+                memory_diag.n_active_nodes if memory_diag else None
+            ),
         )
         self.traces.append(trace)
         return trace

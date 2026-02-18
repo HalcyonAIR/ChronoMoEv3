@@ -98,8 +98,13 @@ class BackendAdapter(Protocol):
         self,
         inputs: torch.Tensor,
         targets: Optional[torch.Tensor] = None,
+        memory_bias: Optional[Dict[int, List[float]]] = None,
     ) -> ForwardResult:
-        """Standard forward pass with full routing."""
+        """Standard forward pass with full routing.
+
+        memory_bias: Optional pre-softmax logit adjustment from association
+        basins. {layer_id: [num_experts]}. Applied on every forward pass.
+        """
         ...
 
     # --- Intervention ---
@@ -108,9 +113,14 @@ class BackendAdapter(Protocol):
         inputs: torch.Tensor,
         motif: MotifSpec,
         targets: Optional[torch.Tensor] = None,
+        memory_bias: Optional[Dict[int, List[float]]] = None,
     ) -> ForwardResult:
         """Force specific expert routing across specified layers (cheap path).
-        Unspecified layers route normally. All-or-nothing execution."""
+        Unspecified layers route normally. All-or-nothing execution.
+
+        memory_bias: Optional pre-softmax logit adjustment from association
+        basins. Applied before motif bias. Both are additive.
+        """
         ...
 
     def forward_counterfactual(
