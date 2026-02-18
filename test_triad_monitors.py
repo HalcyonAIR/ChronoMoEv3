@@ -6,7 +6,9 @@ Tests for triad monitors (Angel, Devil, Maniac) and conflict register.
 Validates signal computation, calibration, flag logic, intervention priority,
 conflict register mode selection, and backward compatibility.
 
-Run: python3 test_triad_monitors.py
+Run:
+  pytest test_triad_monitors.py -v        # preferred
+  python3 test_triad_monitors.py          # also works
 """
 
 import math
@@ -70,6 +72,8 @@ def neff_from_pi(pi: List[float]) -> float:
 
 # --- Tests ---
 
+# Detect whether we're running under pytest or as a script
+_PYTEST_RUNNING = False
 passed = 0
 failed = 0
 total = 0
@@ -80,10 +84,14 @@ def check(name: str, condition: bool, detail: str = ""):
     total += 1
     if condition:
         passed += 1
-        print(f"  PASS: {name}")
+        if not _PYTEST_RUNNING:
+            print(f"  PASS: {name}")
     else:
         failed += 1
-        print(f"  FAIL: {name} — {detail}")
+        msg = f"{name} — {detail}" if detail else name
+        if not _PYTEST_RUNNING:
+            print(f"  FAIL: {msg}")
+        assert condition, msg
 
 
 def test_signal_computation():
@@ -693,36 +701,52 @@ def test_zero_calibration_steps():
           summary.angel_peak >= 0 and summary.devil_peak >= 0)
 
 
-# --- Run all tests ---
+# --- Runner ---
+
+_ALL_TESTS = [
+    test_signal_computation,
+    test_angel_flag_fires_on_collapse,
+    test_devil_requires_consecutive,
+    test_maniac_requires_consecutive_and_calibration,
+    test_intervention_priority,
+    test_interventions_disabled_by_default,
+    test_conflict_register_basic,
+    test_conflict_register_mode_b,
+    test_conflict_register_calibration,
+    test_dkl_settle_skips_early_samples,
+    test_percentile_function,
+    test_multi_layer,
+    test_neff_correctness,
+    test_telemetry_backward_compatible,
+    test_calibration_diagnostics,
+    test_conflict_register_property_mode,
+    test_zero_calibration_steps,
+]
+
 
 def run_all_tests():
+    """Script-mode runner. pytest users: just run `pytest test_triad_monitors.py -v`."""
+    global passed, failed, total
+    passed = failed = total = 0
+
     print("=" * 60)
     print("Triad Monitor + Conflict Register Tests")
     print("=" * 60)
 
-    test_signal_computation()
-    test_angel_flag_fires_on_collapse()
-    test_devil_requires_consecutive()
-    test_maniac_requires_consecutive_and_calibration()
-    test_intervention_priority()
-    test_interventions_disabled_by_default()
-    test_conflict_register_basic()
-    test_conflict_register_mode_b()
-    test_conflict_register_calibration()
-    test_dkl_settle_skips_early_samples()
-    test_percentile_function()
-    test_multi_layer()
-    test_neff_correctness()
-    test_telemetry_backward_compatible()
-    test_calibration_diagnostics()
-    test_conflict_register_property_mode()
-    test_zero_calibration_steps()
+    test_failures = []
+    for fn in _ALL_TESTS:
+        try:
+            fn()
+        except AssertionError as e:
+            test_failures.append((fn.__name__, str(e)))
 
     print("\n" + "=" * 60)
     if failed == 0:
         print(f"ALL TESTS PASSED ({passed}/{total})")
     else:
-        print(f"FAILED: {failed}/{total} tests failed")
+        print(f"FAILED: {failed}/{total} checks failed")
+        for name, msg in test_failures:
+            print(f"  {name}: {msg}")
     print("=" * 60)
 
     return failed == 0
