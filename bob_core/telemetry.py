@@ -76,6 +76,22 @@ class DecisionTrace:
     neff_per_layer: Optional[List[float]] = None  # Per-layer Neff (1/Herfindahl per MoE layer)
     neff_collapse_layers: Optional[List[int]] = None  # Layer indices currently in collapse
 
+    # Triad monitors (backward compatible)
+    angel_score: Optional[float] = None          # Peak angel score across layers
+    devil_score: Optional[float] = None          # Peak devil score across layers
+    maniac_score: Optional[float] = None         # Peak maniac score across layers
+    angel_flag: Optional[bool] = None            # Any layer angel-flagged
+    devil_flag: Optional[bool] = None            # Any layer devil-flagged
+    maniac_flag: Optional[bool] = None           # Any layer maniac-flagged
+    triad_intervention: Optional[str] = None     # "devil"/"angel"/"maniac"/None
+    triad_intervention_layer: Optional[int] = None  # Layer index for intervention
+
+    # Conflict register (backward compatible)
+    conflict_index: Optional[float] = None       # angel_peak * devil_peak
+    conflict_mean: Optional[float] = None        # Rolling mean over 50 steps
+    conflict_mode: Optional[str] = None          # "A" or "B"
+    conflict_trending: Optional[bool] = None     # Rising?
+
     def to_dict(self) -> Dict:
         d = {
             "step": self.step,
@@ -150,4 +166,30 @@ class DecisionTrace:
             d["neff_per_layer"] = [round(n, 6) for n in self.neff_per_layer]
         if self.neff_collapse_layers is not None and self.neff_collapse_layers:
             d["neff_collapse_layers"] = self.neff_collapse_layers
+        # Triad monitors
+        if self.angel_score is not None:
+            d["angel_score"] = round(self.angel_score, 6)
+        if self.devil_score is not None:
+            d["devil_score"] = round(self.devil_score, 6)
+        if self.maniac_score is not None:
+            d["maniac_score"] = round(self.maniac_score, 6)
+        if self.angel_flag is not None:
+            d["angel_flag"] = self.angel_flag
+        if self.devil_flag is not None:
+            d["devil_flag"] = self.devil_flag
+        if self.maniac_flag is not None:
+            d["maniac_flag"] = self.maniac_flag
+        if self.triad_intervention is not None:
+            d["triad_intervention"] = self.triad_intervention
+        if self.triad_intervention_layer is not None:
+            d["triad_intervention_layer"] = self.triad_intervention_layer
+        # Conflict register
+        if self.conflict_index is not None:
+            d["conflict_index"] = round(self.conflict_index, 6)
+        if self.conflict_mean is not None:
+            d["conflict_mean"] = round(self.conflict_mean, 6)
+        if self.conflict_mode is not None:
+            d["conflict_mode"] = self.conflict_mode
+        if self.conflict_trending is not None:
+            d["conflict_trending"] = self.conflict_trending
         return d

@@ -42,6 +42,8 @@ from bob_core.fast_clock import FastClock
 from bob_core.slow_clock import SlowClock
 from bob_core.governor import BobGovernor
 from bob_core.promotion import PromotionGate
+from bob_core.monitors import TriadMonitor
+from bob_core.conflict import ConflictRegister
 
 # Import PROMPTS from OLMoE experiment (shared prompt bank)
 from olmoe_governed_experiment import (
@@ -62,6 +64,7 @@ class QwenExperimentConfig:
     success_multiplier: float = 1.2
     max_prompts_per_category: int = 0
     prompt_offset: int = 0
+    monitor_cal_steps: int = 50       # Triad monitor calibration (decoupled from warmup)
 
 
 # ─── Text Corpus (MLX version) ──────────────────────────────────────
@@ -197,8 +200,15 @@ def run_qwen_governed(
     perturb_duration: int = 30,
     perturb_routing: bool = False,
     debt_cap: float = 1.0,
+    enable_triad_monitors: bool = False,
+    enable_conflict_index: bool = False,
 ) -> Dict:
     """Run Bob with or without governor on Qwen MoE via MLX."""
+    # Reset calibration log flags (function attributes persist across calls)
+    run_qwen_governed._fast_cal_logged = False
+    run_qwen_governed._med_cal_logged = False
+    run_qwen_governed._triad_cal_logged = False
+    run_qwen_governed._triad_diag_logged = False
 
     corpus = MLXTextCorpus(tokenizer, config, seed=seed)
 
@@ -209,6 +219,8 @@ def run_qwen_governed(
     medium_clock = None
     slow_clock = None
     promotion_gate = None
+    triad_monitor = None
+    conflict_register = None
 
     if enable_governor:
         bob_core = BobCore(success_multiplier=config.success_multiplier, debt_cap=debt_cap)
@@ -225,6 +237,25 @@ def run_qwen_governed(
             calibration_percentile=90.0,
         )
         slow_clock = SlowClock(ema_alpha=0.02)
+
+        # Triad monitors (optional, behind flags)
+        # Monitor calibration is decoupled from warmup. Monitors need more
+        # samples than clocks because derived signals (Q_A velocity, C
+        # acceleration, D_KL from habit) need the habit EMA to settle.
+        # Clamped so calibration always completes inside the run.
+        total_steps = config.warmup_steps + config.active_steps
+        monitor_cal_steps = min(config.monitor_cal_steps, total_steps - 1)
+        if enable_triad_monitors:
+            triad_monitor = TriadMonitor(
+                calibration_steps=monitor_cal_steps,
+            )
+        if enable_conflict_index and enable_triad_monitors:
+            conflict_register = ConflictRegister(
+                buffer_size=50,
+                calibration_steps=monitor_cal_steps,
+                calibration_percentile=90.0,
+            )
+
         governor = BobGovernor(
             bob_core, medium_clock,
             fast_clock=fast_clock,
@@ -232,6 +263,7 @@ def run_qwen_governed(
             fast_threshold=0.5,
             medium_threshold=0.5,
             debt_threshold=0.7,
+            conflict_register=conflict_register,
         )
         promotion_gate = PromotionGate(stability_window=20)
 
@@ -255,6 +287,8 @@ def run_qwen_governed(
         medium_clock=medium_clock,
         slow_clock=slow_clock,
         promotion_gate=promotion_gate,
+        triad_monitor=triad_monitor,
+        conflict_register=conflict_register,
         stability_window=50,
         survival_half_life=200,
         success_multiplier=1.5,
@@ -338,6 +372,51 @@ def run_qwen_governed(
                   f"(p{medium_clock._calibration_percentile:.0f} of {medium_clock._tick_count} samples)",
                   flush=True)
             run_qwen_governed._med_cal_logged = True
+
+        # Log triad monitor calibration diagnostics on the last step before finalization
+        if (triad_monitor is not None
+                and not triad_monitor.calibrated
+                and not getattr(run_qwen_governed, '_triad_diag_logged', False)
+                and triad_monitor._tick_count >= triad_monitor._calibration_steps - 1):
+            diag = triad_monitor.get_calibration_diagnostics()
+            if diag:
+                print(f"    [TriadMonitor pre-cal diagnostics] {len(diag)} layers, "
+                      f"{triad_monitor._tick_count} samples:", flush=True)
+                # Print summary for first, middle, last layer
+                layer_ids = sorted(diag.keys())
+                sample_layers = [layer_ids[0], layer_ids[len(layer_ids)//2], layer_ids[-1]]
+                for lid in sample_layers:
+                    stats = diag[lid]
+                    for sig_name in ["Q_A", "G", "C", "D_KL"]:
+                        s = stats.get(sig_name, {})
+                        if s:
+                            collapsed = (s["p10"] == 0 and s["p90"] == 0)
+                            flag = " *** COLLAPSED ***" if collapsed else ""
+                            print(f"      L{lid:>2} {sig_name:>4}: "
+                                  f"min={s['min']:>9.6f} p10={s['p10']:>9.6f} "
+                                  f"med={s['median']:>9.6f} p90={s['p90']:>9.6f} "
+                                  f"max={s['max']:>9.6f} (n={s['n']}){flag}",
+                                  flush=True)
+            run_qwen_governed._triad_diag_logged = True
+
+        # Log triad monitor calibration thresholds AFTER finalization
+        if (triad_monitor is not None
+                and triad_monitor.calibrated
+                and not getattr(run_qwen_governed, '_triad_cal_logged', False)):
+            cal = triad_monitor.get_calibration_summary()
+            if cal:
+                n_layers = len(cal["alpha"])
+                print(f"    [TriadMonitor calibrated] {n_layers} layers", flush=True)
+                # Sample layers
+                layer_ids = sorted(cal["alpha"].keys())
+                sample_layers = [layer_ids[0], layer_ids[len(layer_ids)//2], layer_ids[-1]]
+                for lid in sample_layers:
+                    print(f"      L{lid:>2}: "
+                          f"alpha(Q_A p10)={cal['alpha'][lid]:>9.6f}  "
+                          f"beta(G p90)={cal['beta'][lid]:.4f}  "
+                          f"gamma(C p90)={cal['gamma'][lid]:>9.6f}  "
+                          f"delta(D_KL p10)={cal['delta'][lid]:>9.6f}", flush=True)
+            run_qwen_governed._triad_cal_logged = True
 
         # Write trace to JSONL
         trace_dict = trace.to_dict()
@@ -587,12 +666,19 @@ if __name__ == "__main__":
                         help="Routing perturbation: collapse top-k to 1 during window")
     parser.add_argument("--debt-cap", type=float, default=1.0,
                         help="Cap scar total_debt to prevent slow clock saturation (default 1.0)")
+    parser.add_argument("--enable-triad-monitors", action="store_true",
+                        help="Enable Angel/Devil/Maniac routing monitors (Phase 1-3)")
+    parser.add_argument("--enable-conflict-index", action="store_true",
+                        help="Enable conflict register + Mode A/B (requires --enable-triad-monitors)")
+    parser.add_argument("--monitor-cal", type=int, default=50,
+                        help="Triad monitor calibration steps (decoupled from warmup, default 50)")
     args = parser.parse_args()
 
     if args.smoke:
         args.warmup = 10
-        args.active = 30
+        args.active = 50
         args.prompts = 4
+        args.monitor_cal = 30  # Longer than warmup: settle + collect
 
     # Auto-set perturbation start if routing perturbation requested
     if args.perturb_routing and args.perturb_at_step is None:
@@ -604,6 +690,7 @@ if __name__ == "__main__":
         active_steps=args.active,
         max_prompts_per_category=args.prompts,
         prompt_offset=args.prompt_offset,
+        monitor_cal_steps=args.monitor_cal,
     )
 
     mode_label = "SMOKE TEST" if args.smoke else "GOVERNED EXPERIMENT"
@@ -623,6 +710,11 @@ if __name__ == "__main__":
     if args.perturb_at_step is not None:
         mode = "ROUTING (top-k→1)" if args.perturb_routing else "governance (scars off)"
         print(f"  Perturbation: {mode} at step {args.perturb_at_step} for {args.perturb_duration} steps")
+    if args.enable_triad_monitors:
+        monitors_str = "Angel/Devil/Maniac"
+        if args.enable_conflict_index:
+            monitors_str += " + Conflict Index"
+        print(f"  Monitors: {monitors_str} (cal={config.monitor_cal_steps} steps)")
     print("=" * 70)
 
     # Load model via MLX
@@ -669,6 +761,8 @@ if __name__ == "__main__":
         perturb_duration=args.perturb_duration,
         perturb_routing=args.perturb_routing,
         debt_cap=args.debt_cap,
+        enable_triad_monitors=args.enable_triad_monitors,
+        enable_conflict_index=args.enable_conflict_index,
     )
     print(f"  Cheap fraction: {governed['active_cheap_fraction']*100:.1f}%")
     print(f"  Avg loss: {governed['avg_loss']:.4f}")

@@ -75,6 +75,8 @@ class BobSubstrate:
         fast_clock=None,
         slow_clock=None,
         promotion_gate=None,
+        triad_monitor=None,
+        conflict_register=None,
         **motif_store_kwargs,
     ):
         self.adapter = adapter
@@ -92,6 +94,10 @@ class BobSubstrate:
         self.bob_core = bob_core
         self.governor = governor
         self.promotion_gate = promotion_gate
+
+        # Triad monitors (all optional, backward compatible)
+        self.triad_monitor = triad_monitor
+        self.conflict_register = conflict_register
 
         # Track previous step state for clock ticks
         self._prev_expert_ids: Optional[Tuple[int, ...]] = None
@@ -413,6 +419,16 @@ class BobSubstrate:
             )
             slow_activation = self.slow_clock.activation
 
+        # --- Tick triad monitors (after clocks, before trace) ---
+        triad_summary = None
+        conflict_state = None
+        if self.triad_monitor is not None and result.snapshots:
+            triad_summary = self.triad_monitor.tick(result.snapshots)
+            if self.conflict_register is not None:
+                conflict_state = self.conflict_register.update(
+                    triad_summary.angel_peak, triad_summary.devil_peak
+                )
+
         # --- Geometry: extract remaining fields ---
         churn_val = self.medium_clock.state.last_churn if self.medium_clock else None
         flipflop_ema_val = self.medium_clock.state.flipflop_ema if self.medium_clock else None
@@ -488,6 +504,20 @@ class BobSubstrate:
             neff_collapse_layers=(
                 self.fast_clock.neff_collapse_layers if self.fast_clock is not None else None
             ),
+            # Triad monitors
+            angel_score=triad_summary.angel_peak if triad_summary else None,
+            devil_score=triad_summary.devil_peak if triad_summary else None,
+            maniac_score=triad_summary.maniac_peak if triad_summary else None,
+            angel_flag=triad_summary.angel_flag if triad_summary else None,
+            devil_flag=triad_summary.devil_flag if triad_summary else None,
+            maniac_flag=triad_summary.maniac_flag if triad_summary else None,
+            triad_intervention=triad_summary.intervention if triad_summary else None,
+            triad_intervention_layer=triad_summary.intervention_layer if triad_summary else None,
+            # Conflict register
+            conflict_index=conflict_state.index if conflict_state else None,
+            conflict_mean=conflict_state.mean_50 if conflict_state else None,
+            conflict_mode=conflict_state.mode if conflict_state else None,
+            conflict_trending=conflict_state.trending if conflict_state else None,
         )
         self.traces.append(trace)
         return trace

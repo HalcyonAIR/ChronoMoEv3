@@ -78,6 +78,7 @@ class BobGovernor:
         min_commits_per_window: int = 10,
         relaxation_amount: float = 0.1,
         relaxation_decay_steps: int = 50,
+        conflict_register=None,
     ):
         self.bob_core = bob_core
         self.medium_clock = medium_clock
@@ -87,6 +88,9 @@ class BobGovernor:
         self.medium_threshold = medium_threshold
         self.debt_threshold = debt_threshold
         self._decisions: List[GovernorVerdict] = []
+
+        # Conflict register (optional, for Mode A/B)
+        self.conflict_register = conflict_register
 
         # Minimum commit rate guardrail (governor self-correction)
         self.commit_rate_window = commit_rate_window
@@ -138,6 +142,21 @@ class BobGovernor:
         if self._relaxation_level > 0.0:
             r = self._relaxation_level * self.relaxation_amount
             return (base_medium + r, base_debt + r, base_scar + r, True)
+
+        # Conflict register Mode B: favour stable commit under pressure
+        # If both fast and medium are calm, permit slightly elevated risk
+        if (self.conflict_register is not None
+                and self.conflict_register.mode == "B"):
+            fast_calm = True
+            if self.fast_clock is not None:
+                fast_thresh = self.fast_threshold
+                if hasattr(self.fast_clock, 'calibrated') and self.fast_clock.calibrated:
+                    fast_thresh = self.fast_clock.governor_threshold
+                fast_calm = self.fast_clock.activation < fast_thresh
+            medium_calm = self.medium_clock.activation < base_medium
+            if fast_calm and medium_calm:
+                # 15% more permissive for stable trajectories under conflict
+                return (base_medium * 1.15, base_debt, base_scar, False)
 
         return (base_medium, base_debt, base_scar, False)
 

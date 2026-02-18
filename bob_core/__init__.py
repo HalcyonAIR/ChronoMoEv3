@@ -28,6 +28,8 @@ from bob_core.medium_clock import MediumClock, MediumClockState
 from bob_core.governor import BobGovernor, GovernorDecision, GovernorVerdict
 from bob_core.identity import is_identity_event
 from bob_core.promotion import PromotionGate
+from bob_core.monitors import TriadMonitor, TriadScores, TriadSummary, LayerMonitorState
+from bob_core.conflict import ConflictRegister, ConflictState
 
 __all__ = [
     # Original
@@ -59,4 +61,12 @@ __all__ = [
     # Phase 1: Identity + Promotion
     "is_identity_event",
     "PromotionGate",
+    # Phase 2: Triad Monitors
+    "TriadMonitor",
+    "TriadScores",
+    "TriadSummary",
+    "LayerMonitorState",
+    # Phase 2: Conflict Register
+    "ConflictRegister",
+    "ConflictState",
 ]

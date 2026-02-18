@@ -54,6 +54,8 @@ from bob_core.fast_clock import FastClock
 from bob_core.slow_clock import SlowClock
 from bob_core.governor import BobGovernor
 from bob_core.promotion import PromotionGate
+from bob_core.monitors import TriadMonitor
+from bob_core.conflict import ConflictRegister
 
 
 # ─── Prompt Categories ──────────────────────────────────────────────
@@ -556,6 +558,8 @@ def run_olmoe_governed(
     no_scars: bool = False,
     perturb_at_step: Optional[int] = None,
     perturb_duration: int = 30,
+    enable_triad_monitors: bool = False,
+    enable_conflict_index: bool = False,
 ) -> Dict:
     """Run Bob with or without governor on OLMoE, same seed.
 
@@ -572,6 +576,8 @@ def run_olmoe_governed(
     medium_clock = None
     slow_clock = None
     promotion_gate = None
+    triad_monitor = None
+    conflict_register = None
 
     if enable_governor:
         bob_core = BobCore(success_multiplier=config.success_multiplier)
@@ -583,6 +589,19 @@ def run_olmoe_governed(
         )
         medium_clock = MediumClock(ema_alpha=0.1, instability_threshold=0.5)
         slow_clock = SlowClock(ema_alpha=0.02)
+
+        # Triad monitors (optional, behind flags)
+        if enable_triad_monitors:
+            triad_monitor = TriadMonitor(
+                calibration_steps=20,   # Same warmup window as OLMoE clocks
+            )
+        if enable_conflict_index and enable_triad_monitors:
+            conflict_register = ConflictRegister(
+                buffer_size=50,
+                calibration_steps=20,
+                calibration_percentile=90.0,
+            )
+
         governor = BobGovernor(
             bob_core, medium_clock,
             fast_clock=fast_clock,
@@ -590,6 +609,7 @@ def run_olmoe_governed(
             fast_threshold=0.5,
             medium_threshold=0.5,
             debt_threshold=0.7,
+            conflict_register=conflict_register,
         )
         promotion_gate = PromotionGate(stability_window=20)
 
@@ -611,6 +631,8 @@ def run_olmoe_governed(
         medium_clock=medium_clock,
         slow_clock=slow_clock,
         promotion_gate=promotion_gate,
+        triad_monitor=triad_monitor,
+        conflict_register=conflict_register,
         stability_window=50,
         survival_half_life=200,
         success_multiplier=1.5,
@@ -1070,6 +1092,10 @@ if __name__ == "__main__":
                         help="Step at which to disable scars (perturbation test)")
     parser.add_argument("--perturb-duration", type=int, default=30,
                         help="Steps to keep scars disabled during perturbation")
+    parser.add_argument("--enable-triad-monitors", action="store_true",
+                        help="Enable Angel/Devil/Maniac routing monitors (Phase 1-3)")
+    parser.add_argument("--enable-conflict-index", action="store_true",
+                        help="Enable conflict register + Mode A/B (requires --enable-triad-monitors)")
     args = parser.parse_args()
 
     # Smoke test overrides
@@ -1149,6 +1175,8 @@ if __name__ == "__main__":
             no_scars=args.no_scars,
             perturb_at_step=args.perturb_at_step,
             perturb_duration=args.perturb_duration,
+            enable_triad_monitors=args.enable_triad_monitors,
+            enable_conflict_index=args.enable_conflict_index,
         )
         print(f"  Cheap fraction: {governed['active_cheap_fraction']*100:.1f}%")
         print(f"  Avg loss: {governed['avg_loss']:.4f}")
